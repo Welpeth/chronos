@@ -417,3 +417,172 @@
     -fx-background-color: #e7eefe;
     -fx-text-fill: #1d5be8;
 }
+
+/* Janela de tempo manual */
+.icon-white { -fx-fill: white; }
+
+.dialog-shadow-area {
+    -fx-background-color: transparent;
+    -fx-padding: 18;
+}
+
+.manual-dialog {
+    -fx-background-color: white;
+    -fx-background-radius: 14;
+    -fx-effect: dropshadow(gaussian, rgba(15, 42, 90, 0.28), 18, 0.15, 0, 4);
+}
+
+.dialog-header {
+    -fx-background-color: #2466d6;
+    -fx-background-radius: 14 14 0 0;
+    -fx-padding: 16 20 16 24;
+}
+
+.dialog-title {
+    -fx-text-fill: white;
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+}
+
+.dialog-close {
+    -fx-background-color: transparent;
+    -fx-padding: 4;
+    -fx-cursor: hand;
+}
+
+.dialog-close:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.18);
+    -fx-background-radius: 6;
+}
+
+.dialog-body {
+    -fx-background-color: #f8fafe;
+    -fx-padding: 22 24 22 24;
+}
+
+.dialog-label {
+    -fx-text-fill: #0f2a5a;
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+}
+
+.dialog-required {
+    -fx-text-fill: #e5484d;
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+}
+
+.dialog-unit {
+    -fx-text-fill: #52627f;
+    -fx-font-size: 15px;
+}
+
+.dialog-input,
+.dialog-input > .text-field,
+.dialog-input .text-field,
+.text-area.dialog-input .content {
+    -fx-font-size: 14px;
+}
+
+.combo-box.dialog-input,
+.date-picker.dialog-input,
+.spinner.dialog-input,
+.text-area.dialog-input {
+    -fx-background-color: #cfd8e6, white;
+    -fx-background-insets: 0, 1;
+    -fx-background-radius: 8, 7;
+    -fx-pref-height: 40;
+}
+
+.text-area.dialog-input {
+    -fx-pref-height: 84;
+}
+
+.text-area.dialog-input .content {
+    -fx-background-color: white;
+    -fx-background-radius: 7;
+}
+
+.combo-box.dialog-input:focused,
+.date-picker.dialog-input:focused,
+.spinner.dialog-input:focused,
+.text-area.dialog-input:focused {
+    -fx-background-color: #2466d6, white;
+    -fx-background-insets: 0, 1.5;
+}
+
+.dialog-input .text-field,
+.date-picker.dialog-input > .text-field {
+    -fx-background-color: transparent;
+    -fx-padding: 8 12;
+}
+
+.dialog-input .arrow-button,
+.spinner.dialog-input .increment-arrow-button,
+.spinner.dialog-input .decrement-arrow-button {
+    -fx-background-color: #f1f4f9;
+    -fx-background-radius: 0 7 7 0;
+}
+
+.spinner.dialog-input .increment-arrow-button {
+    -fx-background-radius: 0 7 0 0;
+}
+
+.spinner.dialog-input .decrement-arrow-button {
+    -fx-background-radius: 0 0 7 0;
+}
+
+.dialog-info {
+    -fx-background-color: #bcd3f6, #eef4fd;
+    -fx-background-insets: 0, 1;
+    -fx-background-radius: 10, 9;
+    -fx-padding: 16 20;
+}
+
+.dialog-info-divider {
+    -fx-background-color: #a9c3ee;
+    -fx-min-width: 1.5;
+    -fx-pref-width: 1.5;
+    -fx-max-width: 1.5;
+    -fx-min-height: 38;
+}
+
+.dialog-info-text {
+    -fx-text-fill: #1d4fc4;
+    -fx-font-size: 14px;
+}
+
+.dialog-footer {
+    -fx-background-color: #f1f4f9;
+    -fx-background-radius: 0 0 14 14;
+    -fx-padding: 16 24;
+}
+
+.dialog-primary {
+    -fx-background-color: #1d5be8;
+    -fx-background-radius: 8;
+    -fx-text-fill: white;
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-padding: 10 22;
+    -fx-graphic-text-gap: 10;
+    -fx-cursor: hand;
+}
+
+.dialog-primary:hover {
+    -fx-background-color: #174bc0;
+}
+
+.dialog-secondary {
+    -fx-background-color: #c8d1df, white;
+    -fx-background-insets: 0, 1;
+    -fx-background-radius: 8, 7;
+    -fx-text-fill: #0f2a5a;
+    -fx-font-size: 15px;
+    -fx-padding: 10 22;
+    -fx-cursor: hand;
+}
+
+.dialog-secondary:hover {
+    -fx-background-color: #aeb9cb, #f6f8fb;
+}
