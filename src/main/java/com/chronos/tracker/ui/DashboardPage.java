@@ -5,6 +5,7 @@ import com.chronos.tracker.jira.JiraSyncStatus;
 import com.chronos.tracker.jira.StatusCategory;
 import com.chronos.tracker.tracking.ActivityEvent;
 import com.chronos.tracker.tracking.TaskView;
+import com.chronos.tracker.tracking.TrackingEngine;
 import com.chronos.tracker.tracking.TrackingEngine.Snapshot;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -32,10 +33,11 @@ import java.util.function.Consumer;
  */
 public final class DashboardPage {
 
-    static final Duration DAILY_GOAL = Duration.ofHours(8);
+    static final Duration DAILY_GOAL = TrackingEngine.DAILY_LIMIT;
     private static final int VISIBLE_EVENTS = 6;
 
     private final Consumer<TaskView> onToggle;
+    private final Runnable onAddManual;
     private final ScrollPane root;
 
     // Task atual
@@ -64,7 +66,8 @@ public final class DashboardPage {
     private final Label goalLabel = new Label();
     private final ProgressTrack progress = new ProgressTrack();
     private final Label activeValue = new Label();
-    private final Label inactiveValue = new Label();
+    private final Label idleValue = new Label();
+    private final Label manualValue = new Label();
     private final Label doneValue = new Label();
     private final Label inProgressValue = new Label();
 
@@ -72,8 +75,9 @@ public final class DashboardPage {
     private final VBox taskList = new VBox(0);
     private final VBox eventList = new VBox(0);
 
-    public DashboardPage(Consumer<TaskView> onToggle) {
+    public DashboardPage(Consumer<TaskView> onToggle, Runnable onAddManual) {
         this.onToggle = onToggle;
+        this.onAddManual = onAddManual;
 
         VBox left = new VBox(18, buildCurrentCard(), buildStatusCards(), buildProgressCard());
         HBox.setHgrow(left, Priority.ALWAYS);
@@ -263,20 +267,25 @@ public final class DashboardPage {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
         goalLabel.getStyleClass().add("goal");
-        HBox header = new HBox(title, spacer, goalLabel);
+        Button addManual = new Button("+");
+        addManual.getStyleClass().add("add-manual");
+        addManual.setTooltip(new Tooltip("Adicionar tempo manual"));
+        addManual.setOnAction(e -> onAddManual.run());
+        HBox header = new HBox(12, title, spacer, goalLabel, addManual);
         header.setAlignment(Pos.CENTER_LEFT);
 
         GridPane metrics = new GridPane();
         metrics.getStyleClass().add("metrics");
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 5; i++) {
             ColumnConstraints column = new ColumnConstraints();
-            column.setPercentWidth(25);
+            column.setPercentWidth(20);
             metrics.getColumnConstraints().add(column);
         }
-        metrics.add(metric(Icons.PLAY, "Tempo ativo", "dot-yellow", activeValue), 0, 0);
-        metrics.add(metric(Icons.PAUSE, "Tempo inativo", "dot-gray", inactiveValue), 1, 0);
-        metrics.add(metric(Icons.CHECK_CIRCLE, "Tarefas concluídas", "dot-gray", doneValue), 2, 0);
-        metrics.add(metric(Icons.CIRCLE, "Tarefas em andamento", "dot-gray", inProgressValue), 3, 0);
+        metrics.add(metric(Icons.PLAY, "Tempo ativo", "dot-blue", activeValue), 0, 0);
+        metrics.add(metric(Icons.PAUSE, "Tempo ocioso", "dot-yellow", idleValue), 1, 0);
+        metrics.add(metric(Icons.CLOCK, "Tempo manual", "dot-manual", manualValue), 2, 0);
+        metrics.add(metric(Icons.CHECK_CIRCLE, "Concluídas", "dot-gray", doneValue), 3, 0);
+        metrics.add(metric(Icons.CIRCLE, "Em andamento", "dot-gray", inProgressValue), 4, 0);
 
         VBox card = card("progress-card");
         card.getChildren().addAll(header, progress, metrics);
@@ -287,7 +296,7 @@ public final class DashboardPage {
         Label label = new Label(caption);
         label.getStyleClass().add("metric-caption");
         label.setWrapText(true);
-        HBox top = new HBox(8, Icons.of(icon, 14, "icon-dark"), label);
+        HBox top = new HBox(6, Icons.of(icon, 12, "icon-dark"), label);
         top.setAlignment(Pos.CENTER_LEFT);
         Circle dot = new Circle(5);
         setDot(dot, dotClass);
@@ -300,11 +309,13 @@ public final class DashboardPage {
     }
 
     private void renderProgress(Snapshot snapshot) {
-        Duration worked = snapshot.activeToday();
+        Duration worked = snapshot.workedToday();
         goalLabel.setText(Formats.hoursMinutes(worked) + " / " + DAILY_GOAL.toHours() + "h");
-        progress.setFractions(fraction(worked), fraction(snapshot.inactiveToday()));
-        activeValue.setText(Formats.hoursMinutes(worked));
-        inactiveValue.setText(Formats.hoursMinutes(snapshot.inactiveToday()));
+        progress.setFractions(fraction(snapshot.activeToday()), fraction(snapshot.manualToday()),
+                fraction(snapshot.inactiveToday()));
+        activeValue.setText(Formats.hoursMinutes(snapshot.activeToday()));
+        idleValue.setText(Formats.hoursMinutes(snapshot.inactiveToday()));
+        manualValue.setText(Formats.hoursMinutes(snapshot.manualToday()));
         doneValue.setText(Long.toString(snapshot.countByCategory(StatusCategory.DONE)));
         inProgressValue.setText(Long.toString(snapshot.countByCategory(StatusCategory.IN_PROGRESS)));
     }
@@ -313,25 +324,29 @@ public final class DashboardPage {
         return Math.min(1.0, (double) duration.toSeconds() / DAILY_GOAL.toSeconds());
     }
 
-    /** Barra com o tempo ativo (azul) seguido do inativo (amarelo), proporcionais à meta do dia. */
+    /** Barra com o tempo ativo, o manual e o ocioso, um depois do outro, proporcionais à meta do dia. */
     private static final class ProgressTrack extends Pane {
         private final Region active = new Region();
-        private final Region inactive = new Region();
+        private final Region manual = new Region();
+        private final Region idle = new Region();
         private double activeFraction;
-        private double inactiveFraction;
+        private double manualFraction;
+        private double idleFraction;
 
         ProgressTrack() {
             getStyleClass().add("progress-track");
             active.getStyleClass().add("progress-active");
-            inactive.getStyleClass().add("progress-inactive");
-            getChildren().addAll(active, inactive);
+            manual.getStyleClass().add("progress-manual");
+            idle.getStyleClass().add("progress-inactive");
+            getChildren().addAll(active, manual, idle);
             setPrefHeight(14);
             setMinHeight(14);
         }
 
-        void setFractions(double activeFraction, double inactiveFraction) {
-            this.activeFraction = activeFraction;
-            this.inactiveFraction = Math.min(inactiveFraction, 1.0 - activeFraction);
+        void setFractions(double activeFraction, double manualFraction, double idleFraction) {
+            this.activeFraction = Math.min(activeFraction, 1.0);
+            this.manualFraction = Math.min(manualFraction, 1.0 - this.activeFraction);
+            this.idleFraction = Math.min(idleFraction, 1.0 - this.activeFraction - this.manualFraction);
             requestLayout();
         }
 
@@ -340,8 +355,10 @@ public final class DashboardPage {
             double width = getWidth();
             double height = getHeight();
             double activeWidth = width * activeFraction;
+            double manualWidth = width * manualFraction;
             active.resizeRelocate(0, 0, activeWidth, height);
-            inactive.resizeRelocate(activeWidth, 0, width * inactiveFraction, height);
+            manual.resizeRelocate(activeWidth, 0, manualWidth, height);
+            idle.resizeRelocate(activeWidth + manualWidth, 0, width * idleFraction, height);
         }
     }
 

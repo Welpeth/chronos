@@ -17,6 +17,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -43,6 +44,11 @@ import java.util.Set;
 public final class TrackingEngine {
 
     static final int MAX_EVENTS = 50;
+    /** De quanto em quanto tempo os intervalos ainda abertos são gravados, para não perder tempo numa queda. */
+    static final Duration CHECKPOINT_INTERVAL = Duration.ofSeconds(30);
+    /** Limite de um dia: tempo contado mais o inserido à mão não pode passar disto. */
+    public static final Duration DAILY_LIMIT = Duration.ofHours(8);
+    private static final DateTimeFormatter DAY_MONTH = DateTimeFormatter.ofPattern("dd/MM");
 
     private final MultiTaskTracker tracker;
     private final ActivityMonitor activityMonitor;
@@ -50,6 +56,7 @@ public final class TrackingEngine {
     private final JiraService jiraService;
     private final Clock clock;
     private final ZoneId zone;
+    private final HistoryStore store;
 
     // Escritos pela thread de polling, lidos no tick.
     private volatile List<JiraIssue> issues = List.of();
@@ -71,11 +78,24 @@ public final class TrackingEngine {
     private Instant lastTick;
     private Duration activeToday = Duration.ZERO;
     private Duration inactiveToday = Duration.ZERO;
+    private List<TimeEntry> storedToday = new ArrayList<>();
+    private List<ManualEntry> manualToday = new ArrayList<>();
+    private final Map<String, String> summaries = new HashMap<>();
+    private Instant lastCheckpoint;
+    private boolean storageFailing;
 
     private final Deque<ActivityEvent> events = new ArrayDeque<>();
 
     public TrackingEngine(MultiTaskTracker tracker, ActivityMonitor activityMonitor, ActivityClassifier classifier,
                           JiraService jiraService, Clock clock) {
+        this(tracker, activityMonitor, classifier, jiraService, clock, HistoryStore.NONE);
+    }
+
+    /**
+     * Com um {@code store}, o tempo já gravado é carregado ao abrir: o total de cada task e o que foi feito hoje.
+     */
+    public TrackingEngine(MultiTaskTracker tracker, ActivityMonitor activityMonitor, ActivityClassifier classifier,
+                          JiraService jiraService, Clock clock, HistoryStore store) {
         this.tracker = Objects.requireNonNull(tracker, "tracker");
         this.activityMonitor = Objects.requireNonNull(activityMonitor, "activityMonitor");
         this.classifier = Objects.requireNonNull(classifier, "classifier");
@@ -83,6 +103,29 @@ public final class TrackingEngine {
         this.clock = Objects.requireNonNull(clock, "clock");
         this.zone = clock.getZone();
         this.jiraStatus = jiraService.isConfigured() ? JiraSyncStatus.SYNCING : JiraSyncStatus.NOT_CONFIGURED;
+        this.store = Objects.requireNonNull(store, "store");
+        restoreFromStore();
+    }
+
+    private void restoreFromStore() {
+        Instant now = clock.instant();
+        day = LocalDate.ofInstant(now, zone);
+        lastTick = now;
+        lastCheckpoint = now;
+        try {
+            tracker.preload(store.totalsByTask());
+            for (HistoryStore.StoredEntry stored : store.entriesOn(day)) {
+                storedToday.add(stored.entry());
+                if (!stored.summary().isEmpty()) {
+                    summaries.putIfAbsent(stored.entry().issueKey(), stored.summary());
+                }
+            }
+            activeToday = Intervals.union(storedToday);
+            inactiveToday = store.idleOn(day);
+            manualToday = new ArrayList<>(store.manualOn(day));
+        } catch (HistoryStore.HistoryException e) {
+            reportStorageFailure(e);
+        }
     }
 
     /** Aplica um ciclo de monitoramento e devolve o estado atual para a UI. */
@@ -98,6 +141,9 @@ public final class TrackingEngine {
         Set<String> wanted = wantedRunning(currentIssues);
         Set<String> effective = applyInactivity(activity, wanted, now);
         applyRunning(effective);
+        if (!Duration.between(lastCheckpoint, now).minus(CHECKPOINT_INTERVAL).isNegative()) {
+            checkpoint(now);
+        }
 
         return snapshot(activity, idle, currentIssues);
     }
@@ -118,6 +164,9 @@ public final class TrackingEngine {
                 projectLabel = jiraService.fetchProjectLabel();
             }
             boolean changed = !fetched.equals(issues);
+            synchronized (this) {
+                fetched.forEach(issue -> summaries.put(issue.key(), issue.summary()));
+            }
             issues = List.copyOf(fetched);
             issuesVersion++;
             jiraStatus = JiraSyncStatus.SYNCED;
@@ -158,14 +207,70 @@ public final class TrackingEngine {
             return;
         }
         overrides.put(key, false);
-        if (tracker.pause(key).isPresent()) {
+        if (closeInterval(key)) {
             addEvent(ActivityEvent.Kind.TASK, "Tempo pausado", "Task: " + key);
         }
     }
 
-    /** Encerra todos os intervalos abertos, por exemplo ao fechar o aplicativo. */
+    /**
+     * Soma tempo à mão numa task, num dia. A inserção é recusada se o dia, somando o tempo já contado e as
+     * outras inserções manuais, passaria de {@link #DAILY_LIMIT}.
+     */
+    public synchronized ManualEntry addManual(String issueKey, LocalDate date, Duration duration, String note)
+            throws InvalidManualEntryException, HistoryStore.HistoryException {
+        String key = normalize(issueKey);
+        Instant now = clock.instant();
+        LocalDate today = LocalDate.ofInstant(now, zone);
+        if (key.isEmpty()) {
+            throw new InvalidManualEntryException("Escolha a task.");
+        }
+        if (duration == null || duration.isZero() || duration.isNegative()) {
+            throw new InvalidManualEntryException("Informe quanto tempo foi trabalhado.");
+        }
+        if (date == null || date.isAfter(today)) {
+            throw new InvalidManualEntryException("Não dá para inserir tempo num dia que ainda não chegou.");
+        }
+        Duration dayTotal = workedOn(date, today);
+        Duration after = dayTotal.plus(duration);
+        if (after.compareTo(DAILY_LIMIT) > 0) {
+            throw new InvalidManualEntryException("Tempo manual inválido: com esta inserção o dia "
+                    + DAY_MONTH.format(date) + " teria "
+                    + hoursMinutes(after) + ", acima do limite de " + DAILY_LIMIT.toHours() + "h. "
+                    + "Já contado no dia: " + hoursMinutes(dayTotal) + ".");
+        }
+        ManualEntry saved = store.saveManual(new ManualEntry(0, key, summaries.getOrDefault(key, ""), date,
+                duration, note == null ? "" : note.strip(), now));
+        tracker.preload(Map.of(key, duration));
+        if (date.equals(today)) {
+            manualToday.add(saved);
+        }
+        addEvent(ActivityEvent.Kind.TASK, "Tempo manual adicionado",
+                key + " · " + hoursMinutes(duration) + (date.equals(today) ? "" : " em "
+                        + DAY_MONTH.format(date)));
+        return saved;
+    }
+
+    /** Tempo já contado num dia: relógio com alguma task ligada mais as inserções manuais. */
+    private Duration workedOn(LocalDate date, LocalDate today) throws HistoryStore.HistoryException {
+        if (date.equals(today) && date.equals(day)) {
+            return activeToday.plus(sum(manualToday));
+        }
+        List<TimeEntry> intervals = store.entriesOn(date).stream().map(HistoryStore.StoredEntry::entry).toList();
+        return Intervals.union(intervals).plus(sum(store.manualOn(date)));
+    }
+
+    private static Duration sum(List<ManualEntry> entries) {
+        return entries.stream().map(ManualEntry::duration).reduce(Duration.ZERO, Duration::plus);
+    }
+
+    /** Encerra e grava todos os intervalos abertos, por exemplo ao fechar o aplicativo. */
     public synchronized List<TimeEntry> shutdown() {
-        return tracker.pauseAll();
+        if (inactivityPause) {
+            persistIdle(inactiveSince, clock.instant());
+        }
+        List<TimeEntry> closed = tracker.pauseAll();
+        closed.forEach(this::persist);
+        return closed;
     }
 
     public List<TimeEntry> completedEntries() {
@@ -179,6 +284,8 @@ public final class TrackingEngine {
             day = today;
             activeToday = Duration.ZERO;
             inactiveToday = Duration.ZERO;
+            storedToday = new ArrayList<>();
+            manualToday = new ArrayList<>();
             lastTick = now;
             return;
         }
@@ -240,6 +347,7 @@ public final class TrackingEngine {
         if (inactivityPause) {
             inactivityPause = false;
             justResumed = true;
+            persistIdle(inactiveSince, now);
             addEvent(ActivityEvent.Kind.ACTIVITY, "Você voltou a estar ativo",
                     "Após " + minutes(Duration.between(inactiveSince, now)) + " de inatividade");
         }
@@ -252,7 +360,7 @@ public final class TrackingEngine {
         justResumed = false;
         for (String key : tracker.runningKeys()) {
             if (!effective.contains(key)) {
-                tracker.pause(key);
+                closeInterval(key);
                 if (!quiet) {
                     addEvent(ActivityEvent.Kind.TASK, "Tempo pausado", "Task: " + key);
                 }
@@ -287,6 +395,8 @@ public final class TrackingEngine {
                 inactivityPause,
                 activeToday,
                 inactiveToday,
+                sum(manualToday),
+                List.copyOf(manualToday),
                 jiraStatus,
                 jiraError,
                 lastSync,
@@ -315,9 +425,12 @@ public final class TrackingEngine {
                 .findFirst());
     }
 
-    /** Intervalos encerrados mais os que estão contando agora, do mais recente para o mais antigo. */
+    /** Intervalos de hoje (gravados, encerrados e os que estão contando), do mais recente para o mais antigo. */
     private List<TimeEntry> history() {
-        List<TimeEntry> entries = new ArrayList<>(tracker.getCompletedEntries());
+        List<TimeEntry> entries = new ArrayList<>(storedToday);
+        tracker.getCompletedEntries().stream()
+                .filter(entry -> LocalDate.ofInstant(entry.startedAt(), zone).equals(day))
+                .forEach(entries::add);
         Instant now = clock.instant();
         for (String key : tracker.runningKeys()) {
             tracker.runningSince(key).ifPresent(since ->
@@ -325,6 +438,56 @@ public final class TrackingEngine {
         }
         entries.sort(Comparator.comparing(TimeEntry::startedAt).reversed());
         return List.copyOf(entries);
+    }
+
+    // ---- Gravação ------------------------------------------------------------------------------------
+
+    /** Pausa a task e grava o intervalo encerrado. */
+    private boolean closeInterval(String key) {
+        Optional<TimeEntry> closed = tracker.pause(key);
+        closed.ifPresent(this::persist);
+        return closed.isPresent();
+    }
+
+    /** Grava o estado atual dos intervalos abertos; se o app cair, perde no máximo {@link #CHECKPOINT_INTERVAL}. */
+    private void checkpoint(Instant now) {
+        lastCheckpoint = now;
+        for (String key : tracker.runningKeys()) {
+            tracker.runningSince(key).ifPresent(since ->
+                    persist(new TimeEntry(key, since, now, Duration.between(since, now))));
+        }
+        if (inactivityPause) {
+            persistIdle(inactiveSince, now);
+        }
+    }
+
+    private void persist(TimeEntry entry) {
+        try {
+            store.saveInterval(entry, summaries.getOrDefault(entry.issueKey(), ""));
+            storageRecovered();
+        } catch (HistoryStore.HistoryException e) {
+            reportStorageFailure(e);
+        }
+    }
+
+    private void persistIdle(Instant start, Instant end) {
+        try {
+            store.saveIdle(start, end);
+            storageRecovered();
+        } catch (HistoryStore.HistoryException e) {
+            reportStorageFailure(e);
+        }
+    }
+
+    private void reportStorageFailure(HistoryStore.HistoryException e) {
+        if (!storageFailing) {
+            storageFailing = true;
+            addEvent(ActivityEvent.Kind.ERROR, "Falha ao gravar o histórico", String.valueOf(e.getMessage()));
+        }
+    }
+
+    private void storageRecovered() {
+        storageFailing = false;
     }
 
     private List<ActivityEvent> recentEvents() {
@@ -347,6 +510,11 @@ public final class TrackingEngine {
         return fetched.size() + (fetched.size() == 1 ? " task, " : " tasks, ") + inProgress + " em andamento";
     }
 
+    private static String hoursMinutes(Duration duration) {
+        long minutes = duration.toMinutes();
+        return minutes < 60 ? minutes + "m" : (minutes / 60) + "h " + (minutes % 60) + "m";
+    }
+
     private static String minutes(Duration duration) {
         long minutes = Math.max(1, duration.toMinutes());
         return minutes + (minutes == 1 ? " minuto" : " minutos");
@@ -364,6 +532,8 @@ public final class TrackingEngine {
             boolean pausedForInactivity,
             Duration activeToday,
             Duration inactiveToday,
+            Duration manualToday,
+            List<ManualEntry> manualEntries,
             JiraSyncStatus jiraStatus,
             Optional<String> jiraError,
             Optional<Instant> lastSync,
@@ -371,6 +541,11 @@ public final class TrackingEngine {
             Optional<String> projectLabel,
             List<ActivityEvent> recentEvents,
             List<TimeEntry> history) {
+
+        /** Tempo do dia que conta para a meta: o relógio com tasks ligadas mais o inserido à mão. */
+        public Duration workedToday() {
+            return activeToday.plus(manualToday);
+        }
 
         public long countByCategory(StatusCategory category) {
             return tasks.stream().filter(task -> task.category() == category).count();

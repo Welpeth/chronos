@@ -2,6 +2,7 @@ package com.chronos.tracker.ui;
 
 import com.chronos.tracker.jira.JiraSyncStatus;
 import com.chronos.tracker.jira.JiraUser;
+import com.chronos.tracker.tracking.HistoryStore;
 import com.chronos.tracker.tracking.TaskView;
 import com.chronos.tracker.tracking.TrackingEngine.Snapshot;
 import javafx.geometry.Pos;
@@ -39,10 +40,10 @@ public final class MainWindow {
     private final Label userName = new Label();
     private final Label userEmail = new Label();
 
-    public MainWindow(Consumer<TaskView> onToggle) {
-        this.dashboard = new DashboardPage(onToggle);
+    public MainWindow(Consumer<TaskView> onToggle, Runnable onAddManual, HistoryStore store) {
+        this.dashboard = new DashboardPage(onToggle, onAddManual);
         this.tasks = new TasksPage(onToggle);
-        this.history = new HistoryPage();
+        this.history = new HistoryPage(store);
         root.getStyleClass().add("app");
         root.setTop(buildTopBar());
         root.setLeft(buildSidebar());

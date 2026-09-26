@@ -211,6 +211,7 @@
 .dot-red { -fx-fill: #e5484d; }
 .dot-blue { -fx-fill: #1d5be8; }
 .dot-gray { -fx-fill: #d5dce8; }
+.dot-manual { -fx-fill: #8fb0f7; }
 
 /* Progresso do dia */
 .goal {
@@ -228,6 +229,10 @@
     -fx-background-radius: 7 0 0 7;
 }
 
+.progress-manual {
+    -fx-background-color: #8fb0f7;
+}
+
 .progress-inactive {
     -fx-background-color: #f8c630;
 }
@@ -237,7 +242,7 @@
 }
 
 .metric {
-    -fx-padding: 4 16;
+    -fx-padding: 4 10;
     -fx-border-color: transparent #e6ebf3 transparent transparent;
 }
 
@@ -340,6 +345,20 @@
     -fx-padding: 7 12;
 }
 
+.date-link {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+    -fx-text-fill: #1d5be8;
+    -fx-cursor: hand;
+    -fx-underline: true;
+}
+
+.day-with-history {
+    -fx-background-color: #e3ecff;
+    -fx-text-fill: #1d5be8;
+    -fx-font-weight: bold;
+}
+
 .notice {
     -fx-background-color: #fff4d1;
     -fx-background-radius: 8;
@@ -359,5 +378,42 @@
 
 .task-key-running {
     -fx-font-size: 14px;
+    -fx-text-fill: #1d5be8;
+}
+
+/* Tempo manual */
+.add-manual {
+    -fx-background-color: #1d5be8;
+    -fx-background-radius: 999;
+    -fx-text-fill: white;
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-min-width: 30;
+    -fx-min-height: 30;
+    -fx-max-width: 30;
+    -fx-max-height: 30;
+    -fx-padding: 0;
+    -fx-cursor: hand;
+}
+
+.add-manual:hover {
+    -fx-background-color: #174bc0;
+}
+
+.form-label {
+    -fx-text-fill: #52617a;
+    -fx-font-size: 12px;
+}
+
+.form-error {
+    -fx-background-color: #fde4e4;
+    -fx-background-radius: 8;
+    -fx-padding: 10 14;
+    -fx-text-fill: #a11a1a;
+    -fx-font-weight: bold;
+}
+
+.badge-manual {
+    -fx-background-color: #e7eefe;
     -fx-text-fill: #1d5be8;
 }
