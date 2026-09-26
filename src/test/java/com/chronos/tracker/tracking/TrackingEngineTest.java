@@ -155,6 +155,15 @@ class TrackingEngineTest {
     }
 
     @Test
+    void tasksStartedTogetherFeatureTheFirstFromJira() {
+        jira.issues = List.of(DOING_1, DOING_2);
+        engine.pollJira();
+        engine.tick();
+
+        assertEquals("PROJ-1", advance(Duration.ofMinutes(1)).featuredTask().orElseThrow().key());
+    }
+
+    @Test
     void jiraFailureKeepsTheLastKnownTasks() {
         jira.issues = List.of(DOING_1);
         engine.pollJira();

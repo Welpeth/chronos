@@ -36,7 +36,7 @@ retomam juntas quando você volta. Se o Jira cair, o app continua com as última
 
 | Fase | O que é | Situação |
 |------|---------|----------|
-| 1 | Dashboard (status, task, tempo, Jira) | Feito |
+| 1 | Painel (task atual, status, progresso do dia, tarefas, atividade recente) | Feito |
 | 2 | Detecção de atividade no Windows | Pendente: hoje o usuário é sempre considerado ativo |
 | 3 | Cliente do Jira | Feito: lista as suas issues e conta tempo nas que estão em andamento |
 | 4 | Time tracking | Feito: um cronômetro por task, várias em paralelo, play/pausa manual |
@@ -49,7 +49,7 @@ retomam juntas quando você volta. Se o Jira cair, o app continua com as última
 ```text
 com.chronos.tracker
 ├── ChronosApp / Launcher   entrada do JavaFX
-├── ui                      dashboard
+├── ui                      janela principal, painel e estilos (app.css)
 ├── tracking                MultiTaskTracker (um cronômetro por issue) e TrackingEngine (junta tudo)
 ├── activity                estados ATIVO / POSSIVELMENTE IDLE / INATIVO
 ├── jira                    interface do serviço do Jira
