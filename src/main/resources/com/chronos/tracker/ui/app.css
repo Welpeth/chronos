@@ -310,3 +310,54 @@
 .event-title {
     -fx-font-size: 13px;
 }
+
+/* Páginas de Tarefas e Histórico */
+.page-title {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+}
+
+.filter-chip {
+    -fx-background-color: white;
+    -fx-background-radius: 999;
+    -fx-border-color: #dfe6f2;
+    -fx-border-radius: 999;
+    -fx-padding: 6 14;
+    -fx-text-fill: #0f2a5a;
+    -fx-cursor: hand;
+}
+
+.filter-chip:selected {
+    -fx-background-color: #1d5be8;
+    -fx-border-color: #1d5be8;
+    -fx-text-fill: white;
+}
+
+.search {
+    -fx-background-radius: 8;
+    -fx-border-color: #dfe6f2;
+    -fx-border-radius: 8;
+    -fx-padding: 7 12;
+}
+
+.notice {
+    -fx-background-color: #fff4d1;
+    -fx-background-radius: 8;
+    -fx-padding: 10 14;
+    -fx-text-fill: #6b4d00;
+}
+
+.history-grid {
+    -fx-vgap: 12;
+    -fx-hgap: 12;
+}
+
+.history-header {
+    -fx-text-fill: #7b8aa3;
+    -fx-font-size: 12px;
+}
+
+.task-key-running {
+    -fx-font-size: 14px;
+    -fx-text-fill: #1d5be8;
+}

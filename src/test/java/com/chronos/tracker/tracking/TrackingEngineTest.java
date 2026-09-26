@@ -164,6 +164,23 @@ class TrackingEngineTest {
     }
 
     @Test
+    void historyListsClosedAndOpenIntervalsNewestFirst() {
+        jira.issues = List.of(DOING_1);
+        engine.pollJira();
+        engine.tick();
+        advance(Duration.ofMinutes(10));
+        engine.pause("PROJ-1");
+        advance(Duration.ofMinutes(5));
+        engine.play("PROJ-1");
+
+        List<TimeEntry> history = advance(Duration.ofMinutes(2)).history();
+
+        assertEquals(2, history.size());
+        assertEquals(Duration.ofMinutes(2), history.get(0).activeTime());
+        assertEquals(Duration.ofMinutes(10), history.get(1).activeTime());
+    }
+
+    @Test
     void jiraFailureKeepsTheLastKnownTasks() {
         jira.issues = List.of(DOING_1);
         engine.pollJira();
