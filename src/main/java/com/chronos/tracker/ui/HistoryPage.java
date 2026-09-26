@@ -36,8 +36,8 @@ public final class HistoryPage {
         HBox heading = new HBox(12, title, subtitle);
         heading.setAlignment(Pos.BASELINE_LEFT);
 
-        Label note = new Label("O histórico ainda fica só na memória: ao fechar o app ele se perde. "
-                + "A gravação em disco (SQLite) é a próxima fase.");
+        Label note = new Label("O histórico fica gravado no arquivo SQLite do app (CHRONOS_DB_PATH, padrão chronos.db) "
+                + "e volta ao abrir o Chronos. Intervalos em andamento são gravados a cada 30 segundos.");
         note.getStyleClass().add("notice");
         note.setWrapText(true);
 

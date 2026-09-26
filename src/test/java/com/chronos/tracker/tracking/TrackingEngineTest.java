@@ -9,7 +9,11 @@ import com.chronos.tracker.jira.JiraService;
 import com.chronos.tracker.jira.JiraSyncStatus;
 import com.chronos.tracker.jira.StatusCategory;
 import com.chronos.tracker.jira.UnconfiguredJiraService;
+import com.chronos.tracker.persistence.SqliteHistoryStore;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.nio.file.Path;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -232,6 +236,65 @@ class TrackingEngineTest {
         TrackingEngine.Snapshot nextDay = advance(Duration.ofDays(1));
 
         assertEquals(Duration.ZERO, nextDay.activeToday());
+    }
+
+    @Test
+    void reopeningTheAppRestoresTotalsFromTheStore(@TempDir Path dir) throws Exception {
+        try (SqliteHistoryStore store = new SqliteHistoryStore(dir.resolve("chronos.db"), clock.getZone())) {
+            jira.issues = List.of(DOING_1);
+            TrackingEngine first = new TrackingEngine(new MultiTaskTracker(clock), () -> idle, classifier, jira, clock, store);
+            first.pollJira();
+            first.tick();
+            clock.advance(Duration.ofHours(1));
+            first.tick();
+            first.shutdown();
+
+            clock.advance(Duration.ofMinutes(10));
+            TrackingEngine second = new TrackingEngine(new MultiTaskTracker(clock), () -> idle, classifier, jira, clock, store);
+            second.pollJira();
+            TrackingEngine.Snapshot snapshot = second.tick();
+
+            assertEquals(Duration.ofHours(1), task(snapshot, "PROJ-1").totalTime());
+            assertEquals(Duration.ofHours(1), snapshot.activeToday());
+            assertTrue(snapshot.history().stream().anyMatch(e -> e.activeTime().equals(Duration.ofHours(1))));
+        }
+    }
+
+    @Test
+    void runningIntervalsAreCheckpointedInCaseTheAppDies(@TempDir Path dir) throws Exception {
+        try (SqliteHistoryStore store = new SqliteHistoryStore(dir.resolve("chronos.db"), clock.getZone())) {
+            jira.issues = List.of(DOING_1);
+            TrackingEngine crashing = new TrackingEngine(new MultiTaskTracker(clock), () -> idle, classifier, jira, clock, store);
+            crashing.pollJira();
+            crashing.tick();
+            for (int i = 0; i < 20; i++) {
+                clock.advance(Duration.ofSeconds(5));
+                crashing.tick();
+            }
+            // Sem shutdown: o app caiu depois de 100s contando.
+
+            Duration saved = store.totalsByTask().get("PROJ-1");
+            assertTrue(saved.compareTo(Duration.ofSeconds(60)) >= 0, "gravado: " + saved);
+        }
+    }
+
+    @Test
+    void idleTimeIsStoredWhenTheUserComesBack(@TempDir Path dir) throws Exception {
+        try (SqliteHistoryStore store = new SqliteHistoryStore(dir.resolve("chronos.db"), clock.getZone())) {
+            jira.issues = List.of(DOING_1);
+            TrackingEngine withStore = new TrackingEngine(new MultiTaskTracker(clock), () -> idle, classifier, jira, clock, store);
+            withStore.pollJira();
+            withStore.tick();
+            idle = Duration.ofMinutes(6);
+            clock.advance(Duration.ofMinutes(6));
+            withStore.tick();
+            clock.advance(Duration.ofMinutes(10));
+            withStore.tick();
+            idle = Duration.ZERO;
+            withStore.tick();
+
+            assertEquals(Duration.ofMinutes(10), store.idleOn(java.time.LocalDate.of(2026, 9, 26)));
+        }
     }
 
     private static final class FakeJira implements JiraService {

@@ -30,6 +30,11 @@ public final class MultiTaskTracker {
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
+    /** Soma tempo já contado antes (por exemplo, lido do histórico ao abrir o app). */
+    public synchronized void preload(Map<String, Duration> totals) {
+        totals.forEach((key, total) -> completedTotals.merge(key, total, Duration::plus));
+    }
+
     /** Começa a contar tempo em {@code issueKey}. Não faz nada se já estiver contando. */
     public synchronized void start(String issueKey) {
         Objects.requireNonNull(issueKey, "issueKey");

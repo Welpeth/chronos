@@ -23,11 +23,13 @@ public record AppConfig(
         Optional<String> jiraJql,
         Duration pollingInterval,
         Duration possiblyIdleAfter,
-        Duration inactiveAfter) {
+        Duration inactiveAfter,
+        Path databasePath) {
 
     public static final Duration DEFAULT_POLLING_INTERVAL = Duration.ofSeconds(5);
     public static final Duration DEFAULT_POSSIBLY_IDLE_AFTER = Duration.ofMinutes(2);
     public static final Duration DEFAULT_INACTIVE_AFTER = Duration.ofMinutes(5);
+    public static final String DEFAULT_DATABASE = "chronos.db";
 
     public static AppConfig load(Path envFile) throws IOException {
         Map<String, String> fileValues = EnvFile.read(envFile);
@@ -54,7 +56,8 @@ public record AppConfig(
                 nonBlank.apply("JIRA_JQL"),
                 seconds(nonBlank, "POLLING_INTERVAL_SECONDS", DEFAULT_POLLING_INTERVAL),
                 seconds(nonBlank, "POSSIBLY_IDLE_SECONDS", DEFAULT_POSSIBLY_IDLE_AFTER),
-                seconds(nonBlank, "IDLE_THRESHOLD_SECONDS", DEFAULT_INACTIVE_AFTER));
+                seconds(nonBlank, "IDLE_THRESHOLD_SECONDS", DEFAULT_INACTIVE_AFTER),
+                Path.of(nonBlank.apply("CHRONOS_DB_PATH").orElse(DEFAULT_DATABASE)));
     }
 
     /** Indica se há dados suficientes para falar com o Jira. */
@@ -93,6 +96,7 @@ public record AppConfig(
                 + ", jiraJql=" + jiraJql.orElse("-")
                 + ", pollingInterval=" + pollingInterval
                 + ", possiblyIdleAfter=" + possiblyIdleAfter
-                + ", inactiveAfter=" + inactiveAfter + "]";
+                + ", inactiveAfter=" + inactiveAfter
+                + ", databasePath=" + databasePath + "]";
     }
 }
