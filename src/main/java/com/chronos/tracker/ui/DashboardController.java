@@ -1,6 +1,7 @@
 package com.chronos.tracker.ui;
 
 import com.chronos.tracker.activity.ActivityState;
+import com.chronos.tracker.tracking.TaskView;
 import com.chronos.tracker.tracking.TrackingEngine;
 import com.chronos.tracker.tracking.TrackingEngine.Snapshot;
 import javafx.application.Platform;
@@ -8,10 +9,12 @@ import javafx.geometry.Pos;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.Circle;
 
@@ -21,7 +24,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Dashboard da Fase 1: status de atividade, issue atual, tempo e estado da sincronização com o Jira.
+ * Dashboard: status de atividade, Jira, tempo do dia e a lista de tasks com play/pausa em cada uma.
  *
  * <p>O monitoramento e o Jira rodam em threads de fundo; a UI só é tocada via {@link Platform#runLater}.
  */
@@ -32,11 +35,9 @@ public final class DashboardController {
 
     private final Circle statusDot = new Circle(6);
     private final Label statusLabel = new Label();
-    private final Label taskLabel = new Label();
-    private final Label summaryLabel = new Label();
-    private final Label timeLabel = new Label();
-    private final Label totalLabel = new Label();
+    private final Label todayLabel = new Label();
     private final Label jiraLabel = new Label();
+    private final VBox taskList = new VBox(6);
     private final TextField manualIssueField = new TextField();
     private final VBox root;
 
@@ -91,11 +92,48 @@ public final class DashboardController {
         ActivityState activity = snapshot.activity();
         statusDot.getStyleClass().setAll("status-dot", "status-" + activity.name().toLowerCase().replace('_', '-'));
         statusLabel.setText(activity.label());
-        taskLabel.setText(snapshot.issueKey().orElse("—"));
-        summaryLabel.setText(snapshot.issueSummary().orElse(""));
-        timeLabel.setText(DurationFormat.hms(snapshot.elapsed()));
-        totalLabel.setText(DurationFormat.hms(snapshot.totalForIssue()));
+        todayLabel.setText(DurationFormat.hms(snapshot.activeToday()));
         jiraLabel.setText(snapshot.jiraStatus().label());
+
+        taskList.getChildren().clear();
+        if (snapshot.tasks().isEmpty()) {
+            taskList.getChildren().add(caption("Nenhuma task sua no Jira"));
+        }
+        for (TaskView task : snapshot.tasks()) {
+            taskList.getChildren().add(taskRow(task));
+        }
+    }
+
+    private HBox taskRow(TaskView task) {
+        Label key = new Label(task.key());
+        key.getStyleClass().add("task-key");
+        Label summary = new Label(task.summary());
+        summary.getStyleClass().add("summary");
+        Label status = new Label(task.statusName());
+        status.getStyleClass().add("summary");
+        VBox text = new VBox(2, key, summary, status);
+        HBox.setHgrow(text, Priority.ALWAYS);
+        text.setMaxWidth(Double.MAX_VALUE);
+        summary.setMaxWidth(230);
+
+        Label time = new Label(DurationFormat.hms(task.totalTime()));
+        time.getStyleClass().add(task.running() ? "task-time-running" : "task-time");
+
+        Button toggle = new Button(task.running() ? "Pausar" : "Iniciar");
+        toggle.setMinWidth(Region.USE_PREF_SIZE);
+        toggle.setOnAction(event -> {
+            if (task.running()) {
+                engine.pause(task.key());
+            } else {
+                engine.play(task.key());
+            }
+            render(engine.tick());
+        });
+
+        HBox row = new HBox(10, text, time, toggle);
+        row.setAlignment(Pos.CENTER_LEFT);
+        row.getStyleClass().add(task.running() ? "task-row-running" : "task-row");
+        return row;
     }
 
     private VBox buildView() {
@@ -106,35 +144,31 @@ public final class DashboardController {
         status.setAlignment(Pos.CENTER_LEFT);
         statusDot.getStyleClass().add("status-dot");
 
-        timeLabel.getStyleClass().add("time");
+        todayLabel.getStyleClass().add("time");
 
         GridPane grid = new GridPane();
         grid.getStyleClass().add("grid");
         grid.addRow(0, caption("Status"), status);
-        summaryLabel.getStyleClass().add("summary");
-        summaryLabel.setWrapText(true);
-        summaryLabel.setMaxWidth(220);
-        grid.addRow(1, caption("Task"), new VBox(2, taskLabel, summaryLabel));
-        grid.addRow(2, caption("Tempo"), timeLabel);
-        grid.addRow(3, caption("Total na task"), totalLabel);
-        grid.addRow(4, caption("Jira"), jiraLabel);
+        grid.addRow(1, caption("Tempo hoje"), todayLabel);
+        grid.addRow(2, caption("Jira"), jiraLabel);
 
-        manualIssueField.setPromptText("Ex.: PROJ-123");
+        ScrollPane scroll = new ScrollPane(taskList);
+        scroll.setFitToWidth(true);
+        scroll.getStyleClass().add("task-scroll");
+        VBox.setVgrow(scroll, Priority.ALWAYS);
+
+        manualIssueField.setPromptText("Outra task, ex.: PROJ-123");
         HBox.setHgrow(manualIssueField, Priority.ALWAYS);
         Button startButton = new Button("Iniciar");
         startButton.setDefaultButton(true);
-        startButton.setOnAction(event -> engine.setManualIssue(manualIssueField.getText()));
-        Button stopButton = new Button("Parar");
-        stopButton.setOnAction(event -> {
-            engine.clearManualIssue();
+        startButton.setOnAction(event -> {
+            engine.play(manualIssueField.getText());
             manualIssueField.clear();
         });
-        HBox manual = new HBox(8, manualIssueField, startButton, stopButton);
+        HBox manual = new HBox(8, manualIssueField, startButton);
         manual.setAlignment(Pos.CENTER_LEFT);
 
-        Label manualCaption = caption("Task manual (tem prioridade sobre o Jira)");
-
-        VBox box = new VBox(14, title, grid, manualCaption, manual);
+        VBox box = new VBox(14, title, grid, caption("Tasks"), scroll, manual);
         box.getStyleClass().add("dashboard");
 
         render(engine.tick());

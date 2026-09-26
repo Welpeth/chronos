@@ -51,13 +51,20 @@ class JiraClientTest {
     void searchesWithBasicAuthAndParsesIssues() throws JiraException {
         responseBody = """
                 {"issues":[
-                  {"id":"1","key":"PROJ-123","fields":{"summary":"Corrigir login"}},
-                  {"id":"2","key":"PROJ-456","fields":{"summary":"Nova tela"}}
+                  {"id":"1","key":"PROJ-123","fields":{"summary":"Corrigir login",
+                    "status":{"name":"Em andamento","statusCategory":{"key":"indeterminate"}}}},
+                  {"id":"2","key":"PROJ-456","fields":{"summary":"Nova tela",
+                    "status":{"name":"Em análise","statusCategory":{"key":"indeterminate"}}}},
+                  {"id":"3","key":"PROJ-789","fields":{"summary":"Deploy",
+                    "status":{"name":"Concluído","statusCategory":{"key":"done"}}}}
                 ]}""";
 
         List<JiraIssue> issues = new JiraClient(baseUrl, "eu@empresa.com", "token").search("project = PROJ", 2);
 
-        assertEquals(List.of(new JiraIssue("PROJ-123", "Corrigir login"), new JiraIssue("PROJ-456", "Nova tela")), issues);
+        assertEquals(List.of(
+                new JiraIssue("PROJ-123", "Corrigir login", "Em andamento", StatusCategory.IN_PROGRESS),
+                new JiraIssue("PROJ-456", "Nova tela", "Em análise", StatusCategory.IN_PROGRESS),
+                new JiraIssue("PROJ-789", "Deploy", "Concluído", StatusCategory.DONE)), issues);
         // base64("eu@empresa.com:token")
         assertEquals("Basic ZXVAZW1wcmVzYS5jb206dG9rZW4=", receivedAuth.get());
         assertTrue(receivedBody.get().contains("\"jql\":\"project = PROJ\""));
@@ -78,12 +85,22 @@ class JiraClientTest {
     }
 
     @Test
-    void serverErrorBecomesJiraException() {
+    void rejectedQueryCarriesJiraMessage() {
         status = 400;
-        responseBody = "{\"errorMessages\":[\"JQL inválida\"]}";
+        responseBody = "{\"errorMessages\":[\"O valor 'PROJ' não existe para o campo 'project'.\"]}";
+
+        JiraQueryException error = assertThrows(JiraQueryException.class,
+                () -> new JiraClient(baseUrl, "e", "t").search("x", 1));
+        assertTrue(error.getMessage().contains("O valor 'PROJ' não existe"));
+    }
+
+    @Test
+    void serverErrorBecomesJiraException() {
+        status = 500;
+        responseBody = "boom";
 
         JiraException error = assertThrows(JiraException.class, () -> new JiraClient(baseUrl, "e", "t").search("x", 1));
-        assertTrue(error.getMessage().contains("400"));
+        assertTrue(error.getMessage().contains("500"));
     }
 
     @Test

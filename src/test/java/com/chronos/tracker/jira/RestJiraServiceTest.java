@@ -18,9 +18,10 @@ class RestJiraServiceTest {
             "JIRA_API_TOKEN", "token");
 
     @Test
-    void defaultJqlLooksForMyIssuesInProgress() {
+    void defaultJqlLooksForMyOpenIssuesAndTodaysDone() {
         assertEquals(
-                "project in (\"PROJ\", \"ABC\") AND assignee = currentUser() AND statusCategory = \"In Progress\"",
+                "project in (\"PROJ\", \"ABC\") AND assignee = currentUser()"
+                        + " AND (statusCategory != Done OR updated >= startOfDay())",
                 RestJiraService.defaultJql(List.of("PROJ", "ABC")));
     }
 

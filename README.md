@@ -15,17 +15,22 @@ mvn test         # roda os testes
 A configuração é lida do arquivo `.env` na pasta onde o app é aberto. Veja `.env.example`.
 Sem `.env` o app abre com os valores padrão e o Jira aparece como "não configurado".
 
-### Como o app escolhe a task atual
+### Como o app conta o tempo
 
 A cada `POLLING_INTERVAL_SECONDS` o app consulta o Jira Cloud (`/rest/api/3/search/jql`) com e-mail +
-[API token](https://id.atlassian.com/manage-profile/security/api-tokens) e usa a primeira issue do resultado:
+[API token](https://id.atlassian.com/manage-profile/security/api-tokens) e lista as suas issues:
 
-- com `JIRA_PROJECT_KEY(S)`: issues dos projetos, atribuídas a você, com status na categoria
-  "Em andamento", da atualizada mais recentemente para a mais antiga;
+- com `JIRA_PROJECT_KEY(S)`: issues dos projetos atribuídas a você que não estão concluídas, mais as
+  concluídas hoje;
 - com `JIRA_JQL`: a sua consulta, na ordem dela (ou por `updated DESC` se não tiver `ORDER BY`).
 
-Se nenhuma issue vier, o tracking para. A task manual digitada no dashboard tem prioridade sobre o Jira.
-Se o Jira cair, o app continua contando na última task conhecida.
+Toda issue com status na categoria "Em andamento" do Jira (inclusive status como "Em análise") conta
+tempo, e várias contam ao mesmo tempo: uma hora trabalhada com duas tasks em andamento soma uma hora em
+cada uma. O "tempo hoje" conta o relógio, então essa hora aparece como uma hora só.
+
+O botão de cada task liga ou pausa o tempo dela. Essa escolha vale até o status da task mudar no Jira;
+aí o app volta a seguir o Jira. Sem atividade por `IDLE_THRESHOLD_SECONDS`, todas as tasks pausam e
+retomam juntas quando você volta. Se o Jira cair, o app continua com as últimas tasks conhecidas.
 
 ## Estado atual
 
@@ -33,8 +38,8 @@ Se o Jira cair, o app continua contando na última task conhecida.
 |------|---------|----------|
 | 1 | Dashboard (status, task, tempo, Jira) | Feito |
 | 2 | Detecção de atividade no Windows | Pendente: hoje o usuário é sempre considerado ativo |
-| 3 | Cliente do Jira | Feito: busca a task em andamento atribuída a você (ou a sua `JIRA_JQL`) |
-| 4 | Time tracking (start/pause/resume/stop) | Feito, com testes |
+| 3 | Cliente do Jira | Feito: lista as suas issues e conta tempo nas que estão em andamento |
+| 4 | Time tracking | Feito: um cronômetro por task, várias em paralelo, play/pausa manual |
 | 5 | Persistência em SQLite | Pendente: o histórico fica só em memória |
 | 6 | Robustez (offline, logs, credenciais) | Parcial: queda do Jira mantém a última task |
 | 7 | Empacotamento `.exe` com jpackage | Pendente |
@@ -45,7 +50,7 @@ Se o Jira cair, o app continua contando na última task conhecida.
 com.chronos.tracker
 ├── ChronosApp / Launcher   entrada do JavaFX
 ├── ui                      dashboard
-├── tracking                TimeTracker (cronômetro por issue) e TrackingEngine (junta tudo)
+├── tracking                MultiTaskTracker (um cronômetro por issue) e TrackingEngine (junta tudo)
 ├── activity                estados ATIVO / POSSIVELMENTE IDLE / INATIVO
 ├── jira                    interface do serviço do Jira
 └── config                  leitura do .env

@@ -42,3 +42,29 @@
     -fx-text-fill: #666a73;
     -fx-font-size: 11px;
 }
+
+.task-scroll, .task-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+.task-row, .task-row-running {
+    -fx-padding: 8 10;
+    -fx-background-color: white;
+    -fx-background-radius: 6;
+}
+
+.task-row-running {
+    -fx-background-color: #e8f5ec;
+}
+
+.task-key {
+    -fx-font-weight: bold;
+}
+
+.task-time, .task-time-running {
+    -fx-font-family: "Consolas", "Menlo", monospace;
+}
+
+.task-time-running {
+    -fx-text-fill: #1e9e4a;
+}

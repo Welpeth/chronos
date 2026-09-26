@@ -4,7 +4,7 @@ import com.chronos.tracker.activity.ActivityClassifier;
 import com.chronos.tracker.activity.AlwaysActiveMonitor;
 import com.chronos.tracker.config.AppConfig;
 import com.chronos.tracker.jira.RestJiraService;
-import com.chronos.tracker.tracking.TimeTracker;
+import com.chronos.tracker.tracking.MultiTaskTracker;
 import com.chronos.tracker.tracking.TrackingEngine;
 import com.chronos.tracker.ui.DashboardController;
 import javafx.application.Application;
@@ -29,15 +29,17 @@ public final class ChronosApp extends Application {
             return;
         }
 
+        Clock clock = Clock.systemDefaultZone();
         TrackingEngine engine = new TrackingEngine(
-                new TimeTracker(Clock.systemUTC()),
+                new MultiTaskTracker(clock),
                 new AlwaysActiveMonitor(),
                 new ActivityClassifier(config.possiblyIdleAfter(), config.inactiveAfter()),
-                RestJiraService.from(config));
+                RestJiraService.from(config),
+                clock);
 
         dashboard = new DashboardController(engine, config.pollingInterval());
 
-        Scene scene = new Scene(dashboard.getView(), 360, 340);
+        Scene scene = new Scene(dashboard.getView(), 420, 520);
         scene.getStylesheets().add(getClass().getResource("ui/dashboard.css").toExternalForm());
         stage.setTitle("Chronos — Work Tracker");
         stage.setScene(scene);
