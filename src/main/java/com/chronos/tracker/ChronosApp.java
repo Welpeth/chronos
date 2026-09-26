@@ -51,7 +51,7 @@ public final class ChronosApp extends Application {
                 clock,
                 history);
 
-        controller = new AppController(engine, config.pollingInterval());
+        controller = new AppController(engine, config.pollingInterval(), history);
 
         Scene scene = new Scene(controller.getView(), 1320, 860);
         scene.getStylesheets().add(getClass().getResource("ui/app.css").toExternalForm());

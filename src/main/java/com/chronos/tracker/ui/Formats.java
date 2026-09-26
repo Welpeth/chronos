@@ -2,13 +2,19 @@ package com.chronos.tracker.ui;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 
 /** Formatos de tempo usados na interface. */
 public final class Formats {
 
     private static final DateTimeFormatter CLOCK = DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.systemDefault());
+
+    private static final DateTimeFormatter DATE =
+            DateTimeFormatter.ofPattern("EEE, dd/MM/yyyy", Locale.forLanguageTag("pt-BR"));
+    private static final DateTimeFormatter SHORT_DATE = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     private Formats() {
     }
@@ -31,6 +37,16 @@ public final class Formats {
     /** Hora do dia, {@code 14:32}. */
     public static String clock(Instant instant) {
         return CLOCK.format(instant);
+    }
+
+    /** {@code sex., 25/09/2026}. */
+    public static String date(LocalDate date) {
+        return DATE.format(date);
+    }
+
+    /** {@code 25/09/2026}. */
+    public static String shortDate(LocalDate date) {
+        return SHORT_DATE.format(date);
     }
 
     /** {@code agora}, {@code há 1 min}, {@code há 2 h}. */
