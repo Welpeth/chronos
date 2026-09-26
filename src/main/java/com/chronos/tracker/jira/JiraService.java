@@ -16,5 +16,5 @@ public interface JiraService {
      * @return a issue atual, ou vazio se não houver nenhuma em andamento
      * @throws JiraException se o Jira estiver inacessível ou responder com erro
      */
-    Optional<String> fetchCurrentIssueKey() throws JiraException;
+    Optional<JiraIssue> fetchCurrentIssue() throws JiraException;
 }

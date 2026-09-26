@@ -3,7 +3,9 @@ package com.chronos.tracker.tracking;
 import com.chronos.tracker.activity.ActivityClassifier;
 import com.chronos.tracker.activity.ActivityMonitor;
 import com.chronos.tracker.activity.ActivityState;
+import com.chronos.tracker.jira.JiraAuthException;
 import com.chronos.tracker.jira.JiraException;
+import com.chronos.tracker.jira.JiraIssue;
 import com.chronos.tracker.jira.JiraService;
 import com.chronos.tracker.jira.JiraSyncStatus;
 
@@ -24,7 +26,7 @@ public final class TrackingEngine {
     private final ActivityClassifier classifier;
     private final JiraService jiraService;
 
-    private volatile Optional<String> jiraIssue = Optional.empty();
+    private volatile Optional<JiraIssue> jiraIssue = Optional.empty();
     private volatile Optional<String> manualIssue = Optional.empty();
     private volatile JiraSyncStatus jiraStatus;
 
@@ -40,12 +42,18 @@ public final class TrackingEngine {
     /** Aplica um ciclo de monitoramento e devolve o estado atual para a UI. */
     public Snapshot tick() {
         ActivityState activity = classifier.classify(activityMonitor.getIdleTime());
-        Optional<String> issue = manualIssue.or(() -> jiraIssue);
+        Optional<JiraIssue> fromJira = jiraIssue;
+        Optional<String> issue = manualIssue.or(() -> fromJira.map(JiraIssue::key));
         tracker.update(issue, activity);
         Optional<String> current = tracker.getCurrentIssue();
+        Optional<String> summary = fromJira
+                .filter(jira -> current.isPresent() && jira.key().equals(current.get()))
+                .map(JiraIssue::summary)
+                .filter(text -> !text.isEmpty());
         return new Snapshot(
                 activity,
                 current,
+                summary,
                 tracker.getElapsedTime(),
                 current.map(tracker::totalFor).orElse(Duration.ZERO),
                 tracker.getState(),
@@ -59,8 +67,10 @@ public final class TrackingEngine {
             return;
         }
         try {
-            jiraIssue = jiraService.fetchCurrentIssueKey();
+            jiraIssue = jiraService.fetchCurrentIssue();
             jiraStatus = JiraSyncStatus.SYNCED;
+        } catch (JiraAuthException e) {
+            jiraStatus = JiraSyncStatus.AUTH_ERROR;
         } catch (JiraException e) {
             // Mantém a última issue conhecida: uma queda curta de rede não deve interromper o tracking.
             jiraStatus = JiraSyncStatus.ERROR;
@@ -84,6 +94,7 @@ public final class TrackingEngine {
     public record Snapshot(
             ActivityState activity,
             Optional<String> issueKey,
+            Optional<String> issueSummary,
             Duration elapsed,
             Duration totalForIssue,
             TrackerState trackerState,

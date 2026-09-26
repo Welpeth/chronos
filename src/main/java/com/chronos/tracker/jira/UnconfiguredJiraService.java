@@ -3,7 +3,7 @@ package com.chronos.tracker.jira;
 import java.util.Optional;
 
 /**
- * Serviço usado até a Fase 3, quando o cliente REST do Jira é implementado.
+ * Serviço usado quando o {@code .env} não tem os dados do Jira.
  */
 public final class UnconfiguredJiraService implements JiraService {
 
@@ -13,7 +13,7 @@ public final class UnconfiguredJiraService implements JiraService {
     }
 
     @Override
-    public Optional<String> fetchCurrentIssueKey() {
+    public Optional<JiraIssue> fetchCurrentIssue() {
         return Optional.empty();
     }
 }

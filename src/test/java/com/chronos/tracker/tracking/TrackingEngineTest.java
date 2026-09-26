@@ -2,7 +2,9 @@ package com.chronos.tracker.tracking;
 
 import com.chronos.tracker.activity.ActivityClassifier;
 import com.chronos.tracker.activity.ActivityState;
+import com.chronos.tracker.jira.JiraAuthException;
 import com.chronos.tracker.jira.JiraException;
+import com.chronos.tracker.jira.JiraIssue;
 import com.chronos.tracker.jira.JiraService;
 import com.chronos.tracker.jira.JiraSyncStatus;
 import com.chronos.tracker.jira.UnconfiguredJiraService;
@@ -42,7 +44,7 @@ class TrackingEngineTest {
     @Test
     void jiraIssueIsTrackedAndInactivityPauses() {
         FakeJira jira = new FakeJira();
-        jira.issue = Optional.of("PROJ-1");
+        jira.issue = Optional.of(new JiraIssue("PROJ-1", "Corrigir login"));
         TrackingEngine engine = engine(jira);
 
         engine.pollJira();
@@ -63,7 +65,7 @@ class TrackingEngineTest {
     @Test
     void jiraFailureKeepsTheLastKnownIssue() {
         FakeJira jira = new FakeJira();
-        jira.issue = Optional.of("PROJ-1");
+        jira.issue = Optional.of(new JiraIssue("PROJ-1", "Corrigir login"));
         TrackingEngine engine = engine(jira);
         engine.pollJira();
         engine.tick();
@@ -81,20 +83,52 @@ class TrackingEngineTest {
     @Test
     void manualIssueOverridesJira() {
         FakeJira jira = new FakeJira();
-        jira.issue = Optional.of("PROJ-1");
+        jira.issue = Optional.of(new JiraIssue("PROJ-1", "Corrigir login"));
         TrackingEngine engine = engine(jira);
         engine.pollJira();
         engine.setManualIssue("PROJ-2");
 
-        assertEquals(Optional.of("PROJ-2"), engine.tick().issueKey());
+        TrackingEngine.Snapshot manual = engine.tick();
+        assertEquals(Optional.of("PROJ-2"), manual.issueKey());
+        assertEquals(Optional.empty(), manual.issueSummary());
 
         engine.clearManualIssue();
-        assertEquals(Optional.of("PROJ-1"), engine.tick().issueKey());
+        TrackingEngine.Snapshot fromJira = engine.tick();
+        assertEquals(Optional.of("PROJ-1"), fromJira.issueKey());
+        assertEquals(Optional.of("Corrigir login"), fromJira.issueSummary());
+    }
+
+    @Test
+    void rejectedCredentialsAreReportedSeparately() {
+        FakeJira jira = new FakeJira();
+        jira.authFail = true;
+        TrackingEngine engine = engine(jira);
+
+        engine.pollJira();
+
+        assertEquals(JiraSyncStatus.AUTH_ERROR, engine.tick().jiraStatus());
+    }
+
+    @Test
+    void jiraWithNoIssueInProgressStopsTracking() {
+        FakeJira jira = new FakeJira();
+        jira.issue = Optional.of(new JiraIssue("PROJ-1", "Corrigir login"));
+        TrackingEngine engine = engine(jira);
+        engine.pollJira();
+        engine.tick();
+
+        jira.issue = Optional.empty();
+        engine.pollJira();
+        TrackingEngine.Snapshot snapshot = engine.tick();
+
+        assertEquals(Optional.empty(), snapshot.issueKey());
+        assertEquals(TrackerState.STOPPED, snapshot.trackerState());
     }
 
     private static final class FakeJira implements JiraService {
-        Optional<String> issue = Optional.empty();
+        Optional<JiraIssue> issue = Optional.empty();
         boolean fail;
+        boolean authFail;
 
         @Override
         public boolean isConfigured() {
@@ -102,7 +136,10 @@ class TrackingEngineTest {
         }
 
         @Override
-        public Optional<String> fetchCurrentIssueKey() throws JiraException {
+        public Optional<JiraIssue> fetchCurrentIssue() throws JiraException {
+            if (authFail) {
+                throw new JiraAuthException("401");
+            }
             if (fail) {
                 throw new JiraException("offline");
             }
