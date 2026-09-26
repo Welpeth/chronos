@@ -27,7 +27,7 @@ public final class AppController {
     public AppController(TrackingEngine engine, Duration pollingInterval, HistoryStore store) {
         this.engine = engine;
         this.pollingInterval = pollingInterval;
-        this.window = new MainWindow(this::toggle, store);
+        this.window = new MainWindow(this::toggle, this::addManual, store);
         window.render(engine.tick());
     }
 
@@ -58,6 +58,14 @@ public final class AppController {
         } else {
             engine.play(task.key());
         }
+        window.render(engine.tick());
+    }
+
+    private void addManual() {
+        Snapshot snapshot = engine.tick();
+        String featured = snapshot.featuredTask().map(TaskView::key).orElse("");
+        ManualEntryDialog.show(window.getView().getScene().getWindow(), snapshot.tasks(), featured,
+                (key, date, duration, note) -> engine.addManual(key, date, duration, note));
         window.render(engine.tick());
     }
 

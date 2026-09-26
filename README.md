@@ -22,6 +22,11 @@ das tasks e o progresso do dia voltam do banco.
 Na página **Histórico** dá para escolher qualquer dia (os dias com tempo gravado aparecem destacados no
 calendário) e buscar uma task pela chave ou pelo título em todas as datas, vendo em que dias ela foi feita.
 
+No painel, o botão **+** em "Progresso do dia" adiciona tempo manual numa task (dia, horas e uma nota
+opcional). O tempo manual soma no total da task e no progresso do dia, e fica gravado no histórico. Se o
+dia passaria de 8h somando o tempo contado e as inserções manuais, a inserção é recusada com o aviso
+"Tempo manual inválido".
+
 ### Como o app conta o tempo
 
 A cada `POLLING_INTERVAL_SECONDS` o app consulta o Jira Cloud (`/rest/api/3/search/jql`) com e-mail +

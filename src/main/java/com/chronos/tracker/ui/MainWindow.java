@@ -40,8 +40,8 @@ public final class MainWindow {
     private final Label userName = new Label();
     private final Label userEmail = new Label();
 
-    public MainWindow(Consumer<TaskView> onToggle, HistoryStore store) {
-        this.dashboard = new DashboardPage(onToggle);
+    public MainWindow(Consumer<TaskView> onToggle, Runnable onAddManual, HistoryStore store) {
+        this.dashboard = new DashboardPage(onToggle, onAddManual);
         this.tasks = new TasksPage(onToggle);
         this.history = new HistoryPage(store);
         root.getStyleClass().add("app");

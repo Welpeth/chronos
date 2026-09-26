@@ -2,6 +2,7 @@ package com.chronos.tracker.ui;
 
 import com.chronos.tracker.tracking.HistoryStore;
 import com.chronos.tracker.tracking.Intervals;
+import com.chronos.tracker.tracking.ManualEntry;
 import com.chronos.tracker.tracking.TaskView;
 import com.chronos.tracker.tracking.TimeEntry;
 import com.chronos.tracker.tracking.TrackingEngine.Snapshot;
@@ -23,6 +24,7 @@ import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -61,9 +63,26 @@ public final class HistoryPage {
     private Snapshot last;
     private boolean stale = true;
 
-    /** Uma linha da tabela de intervalos. */
-    private record Row(TimeEntry entry, String summary, boolean open) {
+    /** Uma linha da tabela: um intervalo contado ou uma inserção manual (sem início e fim). */
+    private record Row(String key, String summary, LocalDate day, Instant start, Instant end, Duration duration,
+                       boolean open, boolean manual, String note) {
+
+        static Row interval(TimeEntry entry, String summary, boolean open) {
+            return new Row(entry.issueKey(), summary, HistoryPage.day(entry), entry.startedAt(), entry.endedAt(),
+                    entry.activeTime(), open, false, "");
+        }
+
+        static Row manual(ManualEntry entry) {
+            return new Row(entry.issueKey(), entry.summary(), entry.day(), entry.createdAt(), null,
+                    entry.duration(), false, true, entry.note());
+        }
     }
+
+    /** Mais recentes primeiro: por dia e, dentro do dia, manuais antes dos intervalos. */
+    private static final Comparator<Row> NEWEST_FIRST = Comparator.comparing(Row::day)
+            .thenComparing(Row::manual)
+            .thenComparing(Row::start)
+            .reversed();
 
     public HistoryPage(HistoryStore store) {
         this.store = store;
@@ -150,30 +169,36 @@ public final class HistoryPage {
             TaskView task = tasks.get(entry.issueKey());
             boolean open = task != null && task.running()
                     && task.runningSince().map(entry.startedAt()::equals).orElse(false);
-            rows.add(new Row(entry, task == null ? "" : task.summary(), open));
+            rows.add(Row.interval(entry, task == null ? "" : task.summary(), open));
         }
+        snapshot.manualEntries().forEach(entry -> rows.add(Row.manual(entry)));
+        rows.sort(NEWEST_FIRST);
         clearError();
-        showDay(LocalDate.now(), rows, snapshot.activeToday());
+        showDay(LocalDate.now(), rows, snapshot.activeToday(), snapshot.manualToday());
     }
 
     private void showStoredDay(LocalDate day) {
         try {
-            List<Row> rows = store.entriesOn(day).stream()
-                    .sorted(Comparator.comparing((HistoryStore.StoredEntry s) -> s.entry().startedAt()).reversed())
-                    .map(s -> new Row(s.entry(), s.summary(), false))
-                    .toList();
+            List<HistoryStore.StoredEntry> stored = store.entriesOn(day);
+            List<ManualEntry> manual = store.manualOn(day);
+            List<Row> rows = new ArrayList<>();
+            stored.forEach(s -> rows.add(Row.interval(s.entry(), s.summary(), false)));
+            manual.forEach(m -> rows.add(Row.manual(m)));
+            rows.sort(NEWEST_FIRST);
             clearError();
-            showDay(day, rows, Intervals.union(rows.stream().map(Row::entry).toList()));
+            showDay(day, rows, Intervals.union(stored.stream().map(HistoryStore.StoredEntry::entry).toList()),
+                    manual.stream().map(ManualEntry::duration).reduce(Duration.ZERO, Duration::plus));
         } catch (HistoryStore.HistoryException e) {
             showError(e);
         }
     }
 
-    private void showDay(LocalDate day, List<Row> rows, Duration active) {
+    private void showDay(LocalDate day, List<Row> rows, Duration active, Duration manual) {
         String label = day.equals(LocalDate.now()) ? "Hoje" : Formats.date(day);
-        subtitle.setText(label + " · " + count(rows.size(), "intervalo", "intervalos")
-                + " · " + Formats.hoursMinutes(active) + " de tempo ativo");
-        intervalsTitle.setText("Intervalos");
+        subtitle.setText(label + " · " + count(rows.size(), "registro", "registros")
+                + " · " + Formats.hoursMinutes(active) + " de tempo ativo"
+                + (manual.isZero() ? "" : " + " + Formats.hoursMinutes(manual) + " manual"));
+        intervalsTitle.setText("Registros");
         totalsTitle.setText("Tempo por task no dia");
         renderIntervals(rows, false, "Nenhum tempo contado neste dia.");
         renderTotals(rows, false);
@@ -182,14 +207,15 @@ public final class HistoryPage {
     private void showSearch() {
         String text = search.getText().strip();
         try {
-            List<Row> rows = store.search(text, SEARCH_LIMIT).stream()
-                    .map(s -> new Row(s.entry(), s.summary(), false))
-                    .toList();
+            List<Row> rows = new ArrayList<>();
+            store.search(text, SEARCH_LIMIT).forEach(s -> rows.add(Row.interval(s.entry(), s.summary(), false)));
+            store.searchManual(text, SEARCH_LIMIT).forEach(m -> rows.add(Row.manual(m)));
+            rows.sort(NEWEST_FIRST);
             clearError();
-            long days = rows.stream().map(r -> day(r.entry())).distinct().count();
-            subtitle.setText(count(rows.size(), "intervalo", "intervalos") + " com \"" + text + "\" em "
+            long days = rows.stream().map(Row::day).distinct().count();
+            subtitle.setText(count(rows.size(), "registro", "registros") + " com \"" + text + "\" em "
                     + count((int) days, "dia", "dias")
-                    + (rows.size() == SEARCH_LIMIT ? " (mostrando os " + SEARCH_LIMIT + " mais recentes)" : ""));
+                    + (rows.size() >= SEARCH_LIMIT ? " (mostrando os mais recentes)" : ""));
             intervalsTitle.setText("Resultados da busca");
             totalsTitle.setText("Tempo por task na busca");
             renderIntervals(rows, true, "Nada gravado com esse texto.");
@@ -218,7 +244,7 @@ public final class HistoryPage {
         for (Row entry : rows) {
             int column = 0;
             if (withDate) {
-                LocalDate day = day(entry.entry());
+                LocalDate day = entry.day();
                 Button link = new Button(Formats.shortDate(day));
                 link.getStyleClass().add("date-link");
                 link.setOnAction(e -> {
@@ -227,15 +253,23 @@ public final class HistoryPage {
                 });
                 intervals.add(link, column++, row);
             }
-            Label key = new Label(entry.entry().issueKey());
+            Label key = new Label(entry.key());
             key.getStyleClass().add(entry.open() ? "task-key-running" : "task-key");
-            VBox taskCell = new VBox(2, key, muted(entry.summary()));
+            String detail = entry.note().isEmpty() ? entry.summary()
+                    : entry.summary().isEmpty() ? entry.note() : entry.summary() + " · " + entry.note();
+            VBox taskCell = new VBox(2, key, muted(detail));
             taskCell.setMinWidth(0);
 
             intervals.add(taskCell, column++, row);
-            intervals.add(cell(Formats.clock(entry.entry().startedAt())), column++, row);
-            intervals.add(entry.open() ? badge("agora") : cell(Formats.clock(entry.entry().endedAt())), column++, row);
-            intervals.add(cell(Formats.hms(entry.entry().activeTime())), column, row);
+            if (entry.manual()) {
+                intervals.add(badge("manual", "badge-manual"), column, row, 2, 1);
+                column += 2;
+            } else {
+                intervals.add(cell(Formats.clock(entry.start())), column++, row);
+                intervals.add(entry.open() ? badge("agora", "badge-progress") : cell(Formats.clock(entry.end())),
+                        column++, row);
+            }
+            intervals.add(cell(Formats.hms(entry.duration())), column, row);
             row++;
         }
     }
@@ -257,9 +291,8 @@ public final class HistoryPage {
         Map<String, Duration> byTask = new LinkedHashMap<>();
         Map<String, Set<LocalDate>> daysByTask = new LinkedHashMap<>();
         for (Row entry : rows) {
-            String key = entry.entry().issueKey();
-            byTask.merge(key, entry.entry().activeTime(), Duration::plus);
-            daysByTask.computeIfAbsent(key, k -> new TreeSet<>()).add(day(entry.entry()));
+            byTask.merge(entry.key(), entry.duration(), Duration::plus);
+            daysByTask.computeIfAbsent(entry.key(), k -> new TreeSet<>()).add(entry.day());
         }
         int row = 1;
         for (Map.Entry<String, Duration> entry : byTask.entrySet().stream()
@@ -393,9 +426,9 @@ public final class HistoryPage {
         return label;
     }
 
-    private static Label badge(String text) {
+    private static Label badge(String text, String style) {
         Label label = new Label(text);
-        label.getStyleClass().addAll("badge", "badge-progress");
+        label.getStyleClass().addAll("badge", style);
         return label;
     }
 }
