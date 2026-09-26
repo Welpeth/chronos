@@ -19,6 +19,9 @@ O histórico é gravado em `chronos.db` (ou no caminho de `CHRONOS_DB_PATH`). Ca
 o início, o fim e o dia em que foi feito; períodos ociosos também ficam gravados. Ao abrir o app, os totais
 das tasks e o progresso do dia voltam do banco.
 
+Na página **Histórico** dá para escolher qualquer dia (os dias com tempo gravado aparecem destacados no
+calendário) e buscar uma task pela chave ou pelo título em todas as datas, vendo em que dias ela foi feita.
+
 ### Como o app conta o tempo
 
 A cada `POLLING_INTERVAL_SECONDS` o app consulta o Jira Cloud (`/rest/api/3/search/jql`) com e-mail +

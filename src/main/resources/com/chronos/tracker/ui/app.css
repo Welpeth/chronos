@@ -340,6 +340,20 @@
     -fx-padding: 7 12;
 }
 
+.date-link {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+    -fx-text-fill: #1d5be8;
+    -fx-cursor: hand;
+    -fx-underline: true;
+}
+
+.day-with-history {
+    -fx-background-color: #e3ecff;
+    -fx-text-fill: #1d5be8;
+    -fx-font-weight: bold;
+}
+
 .notice {
     -fx-background-color: #fff4d1;
     -fx-background-radius: 8;

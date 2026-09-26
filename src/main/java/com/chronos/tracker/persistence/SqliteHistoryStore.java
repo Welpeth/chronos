@@ -17,8 +17,10 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Histórico gravado num arquivo SQLite local.
@@ -151,6 +153,43 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
             }
         } catch (SQLException e) {
             throw new HistoryException("Falha ao ler o tempo ocioso de " + day, e);
+        }
+    }
+
+    @Override
+    public synchronized List<StoredEntry> search(String text, int limit) throws HistoryException {
+        String sql = """
+                SELECT e.issue_key, COALESCE(NULLIF(e.summary, ''), latest.summary, '') AS summary, e.started_at, e.ended_at
+                FROM time_entry e
+                LEFT JOIN (SELECT issue_key, summary FROM time_entry t
+                           WHERE summary <> '' AND started_at = (SELECT MAX(started_at) FROM time_entry
+                                                                 WHERE issue_key = t.issue_key AND summary <> '')) latest
+                       ON latest.issue_key = e.issue_key
+                WHERE e.issue_key LIKE ? ESCAPE '\\' OR COALESCE(NULLIF(e.summary, ''), latest.summary, '') LIKE ? ESCAPE '\\'
+                ORDER BY e.started_at DESC
+                LIMIT ?""";
+        String pattern = "%" + text.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, pattern);
+            statement.setString(2, pattern);
+            statement.setInt(3, limit);
+            return readEntries(statement);
+        } catch (SQLException e) {
+            throw new HistoryException("Falha ao buscar no histórico", e);
+        }
+    }
+
+    @Override
+    public synchronized Set<LocalDate> daysWithEntries() throws HistoryException {
+        Set<LocalDate> days = new HashSet<>();
+        try (Statement statement = connection.createStatement();
+             ResultSet rs = statement.executeQuery("SELECT DISTINCT work_date FROM time_entry")) {
+            while (rs.next()) {
+                days.add(LocalDate.parse(rs.getString(1)));
+            }
+            return days;
+        } catch (SQLException e) {
+            throw new HistoryException("Falha ao ler os dias do histórico", e);
         }
     }
 

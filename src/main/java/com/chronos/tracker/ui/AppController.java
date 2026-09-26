@@ -1,5 +1,6 @@
 package com.chronos.tracker.ui;
 
+import com.chronos.tracker.tracking.HistoryStore;
 import com.chronos.tracker.tracking.TaskView;
 import com.chronos.tracker.tracking.TrackingEngine;
 import com.chronos.tracker.tracking.TrackingEngine.Snapshot;
@@ -23,10 +24,10 @@ public final class AppController {
 
     private ScheduledExecutorService scheduler;
 
-    public AppController(TrackingEngine engine, Duration pollingInterval) {
+    public AppController(TrackingEngine engine, Duration pollingInterval, HistoryStore store) {
         this.engine = engine;
         this.pollingInterval = pollingInterval;
-        this.window = new MainWindow(this::toggle);
+        this.window = new MainWindow(this::toggle, store);
         window.render(engine.tick());
     }
 

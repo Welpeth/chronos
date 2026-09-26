@@ -75,4 +75,27 @@ class SqliteHistoryStoreTest {
             assertTrue(store.entriesOn(LocalDate.of(2026, 9, 27)).isEmpty());
         }
     }
+
+    @Test
+    void searchFindsTaskByKeyOrTitleAcrossDates() throws Exception {
+        try (SqliteHistoryStore store = new SqliteHistoryStore(dir.resolve("chronos.db"), ZoneOffset.UTC)) {
+            store.saveInterval(entry("SCRUM-1", NINE, Duration.ofMinutes(10)), "Ajustar login");
+            store.saveInterval(entry("SCRUM-1", NINE.plus(Duration.ofDays(3)), Duration.ofMinutes(20)), "");
+            store.saveInterval(entry("SCRUM-2", NINE, Duration.ofMinutes(5)), "Relatório mensal");
+
+            List<HistoryStore.StoredEntry> byKey = store.search("scrum-1", 50);
+            assertEquals(2, byKey.size());
+            // Mais recente primeiro; o intervalo sem título usa o último título gravado da task.
+            assertEquals(NINE.plus(Duration.ofDays(3)), byKey.get(0).entry().startedAt());
+            assertEquals("Ajustar login", byKey.get(0).summary());
+
+            assertEquals(2, store.search("LOGIN", 50).size());
+            assertEquals(1, store.search("mensal", 50).size());
+            assertTrue(store.search("100%", 50).isEmpty());
+            assertEquals(1, store.search("scrum", 1).size());
+
+            assertEquals(java.util.Set.of(LocalDate.of(2026, 9, 26), LocalDate.of(2026, 9, 29)),
+                    store.daysWithEntries());
+        }
+    }
 }

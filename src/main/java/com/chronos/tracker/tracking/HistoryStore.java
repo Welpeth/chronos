@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Onde o tempo contado fica gravado, para sobreviver a fechar o app ou a uma queda.
@@ -28,6 +29,15 @@ public interface HistoryStore {
 
     /** Tempo ocioso gravado no dia. */
     Duration idleOn(LocalDate day) throws HistoryException;
+
+    /**
+     * Intervalos cuja chave ou título contém o texto (sem diferenciar maiúsculas), do mais recente para o
+     * mais antigo, até {@code limit} resultados.
+     */
+    List<StoredEntry> search(String text, int limit) throws HistoryException;
+
+    /** Dias que têm algum intervalo gravado. */
+    Set<LocalDate> daysWithEntries() throws HistoryException;
 
     /** Um intervalo gravado, com o título da task no momento em que foi gravado. */
     record StoredEntry(TimeEntry entry, String summary) {
@@ -63,6 +73,16 @@ public interface HistoryStore {
         @Override
         public Duration idleOn(LocalDate day) {
             return Duration.ZERO;
+        }
+
+        @Override
+        public List<StoredEntry> search(String text, int limit) {
+            return List.of();
+        }
+
+        @Override
+        public Set<LocalDate> daysWithEntries() {
+            return Set.of();
         }
     };
 }
