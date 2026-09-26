@@ -292,7 +292,8 @@ public final class TrackingEngine {
                 lastSync,
                 user,
                 projectLabel,
-                recentEvents());
+                recentEvents(),
+                history());
     }
 
     private TaskView view(String key, String summary, String statusName, StatusCategory category) {
@@ -312,6 +313,18 @@ public final class TrackingEngine {
         return latestRunning.or(() -> tasks.stream()
                 .filter(task -> task.category() == StatusCategory.IN_PROGRESS)
                 .findFirst());
+    }
+
+    /** Intervalos encerrados mais os que estão contando agora, do mais recente para o mais antigo. */
+    private List<TimeEntry> history() {
+        List<TimeEntry> entries = new ArrayList<>(tracker.getCompletedEntries());
+        Instant now = clock.instant();
+        for (String key : tracker.runningKeys()) {
+            tracker.runningSince(key).ifPresent(since ->
+                    entries.add(new TimeEntry(key, since, now, Duration.between(since, now))));
+        }
+        entries.sort(Comparator.comparing(TimeEntry::startedAt).reversed());
+        return List.copyOf(entries);
     }
 
     private List<ActivityEvent> recentEvents() {
@@ -356,7 +369,8 @@ public final class TrackingEngine {
             Optional<Instant> lastSync,
             Optional<JiraUser> user,
             Optional<String> projectLabel,
-            List<ActivityEvent> recentEvents) {
+            List<ActivityEvent> recentEvents,
+            List<TimeEntry> history) {
 
         public long countByCategory(StatusCategory category) {
             return tasks.stream().filter(task -> task.category() == category).count();

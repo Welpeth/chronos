@@ -15,13 +15,22 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.Circle;
 
+import java.util.EnumMap;
+import java.util.Map;
 import java.util.function.Consumer;
 
 /** Janela principal: barra superior, menu lateral e a página atual. */
 public final class MainWindow {
 
+    private enum Page { DASHBOARD, TASKS, HISTORY }
+
     private final BorderPane root = new BorderPane();
     private final DashboardPage dashboard;
+    private final TasksPage tasks;
+    private final HistoryPage history;
+    private final Map<Page, HBox> navItems = new EnumMap<>(Page.class);
+    private Page page = Page.DASHBOARD;
+    private Snapshot last;
 
     private final Circle jiraDot = new Circle(4);
     private final Label jiraLabel = new Label();
@@ -32,6 +41,8 @@ public final class MainWindow {
 
     public MainWindow(Consumer<TaskView> onToggle) {
         this.dashboard = new DashboardPage(onToggle);
+        this.tasks = new TasksPage(onToggle);
+        this.history = new HistoryPage();
         root.getStyleClass().add("app");
         root.setTop(buildTopBar());
         root.setLeft(buildSidebar());
@@ -55,7 +66,36 @@ public final class MainWindow {
         userEmail.setText(user.email());
         avatar.setText(name.substring(0, 1).toUpperCase());
 
-        dashboard.render(snapshot);
+        last = snapshot;
+        renderPage();
+    }
+
+    private void show(Page target) {
+        page = target;
+        navItems.forEach((item, node) -> {
+            node.getStyleClass().remove("nav-selected");
+            if (item == target) {
+                node.getStyleClass().add("nav-selected");
+            }
+        });
+        root.setCenter(switch (target) {
+            case DASHBOARD -> dashboard.getView();
+            case TASKS -> tasks.getView();
+            case HISTORY -> history.getView();
+        });
+        renderPage();
+    }
+
+    /** Só a página visível é atualizada a cada segundo. */
+    private void renderPage() {
+        if (last == null) {
+            return;
+        }
+        switch (page) {
+            case DASHBOARD -> dashboard.render(last);
+            case TASKS -> tasks.render(last);
+            case HISTORY -> history.render(last);
+        }
     }
 
     private HBox buildTopBar() {
@@ -86,7 +126,11 @@ public final class MainWindow {
     }
 
     private VBox buildSidebar() {
-        VBox nav = new VBox(6, navItem(Icons.HOME, "Painel", true));
+        VBox nav = new VBox(6,
+                navItem(Page.DASHBOARD, Icons.HOME, "Painel"),
+                navItem(Page.TASKS, Icons.LIST, "Tarefas"),
+                navItem(Page.HISTORY, Icons.CLOCK, "Histórico"));
+        navItems.get(Page.DASHBOARD).getStyleClass().add("nav-selected");
 
         avatar.getStyleClass().add("avatar");
         avatar.setAlignment(Pos.CENTER);
@@ -105,15 +149,14 @@ public final class MainWindow {
         return sidebar;
     }
 
-    private static HBox navItem(String icon, String text, boolean selected) {
+    private HBox navItem(Page target, String icon, String text) {
         Label label = new Label(text);
         label.getStyleClass().add("nav-label");
         HBox item = new HBox(14, Icons.of(icon, 20, "icon-nav"), label);
         item.setAlignment(Pos.CENTER_LEFT);
         item.getStyleClass().add("nav-item");
-        if (selected) {
-            item.getStyleClass().add("nav-selected");
-        }
+        item.setOnMouseClicked(event -> show(target));
+        navItems.put(target, item);
         return item;
     }
 }
