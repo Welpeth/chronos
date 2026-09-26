@@ -33,6 +33,7 @@ public final class DashboardController {
     private final Circle statusDot = new Circle(6);
     private final Label statusLabel = new Label();
     private final Label taskLabel = new Label();
+    private final Label summaryLabel = new Label();
     private final Label timeLabel = new Label();
     private final Label totalLabel = new Label();
     private final Label jiraLabel = new Label();
@@ -91,6 +92,7 @@ public final class DashboardController {
         statusDot.getStyleClass().setAll("status-dot", "status-" + activity.name().toLowerCase().replace('_', '-'));
         statusLabel.setText(activity.label());
         taskLabel.setText(snapshot.issueKey().orElse("—"));
+        summaryLabel.setText(snapshot.issueSummary().orElse(""));
         timeLabel.setText(DurationFormat.hms(snapshot.elapsed()));
         totalLabel.setText(DurationFormat.hms(snapshot.totalForIssue()));
         jiraLabel.setText(snapshot.jiraStatus().label());
@@ -109,7 +111,10 @@ public final class DashboardController {
         GridPane grid = new GridPane();
         grid.getStyleClass().add("grid");
         grid.addRow(0, caption("Status"), status);
-        grid.addRow(1, caption("Task"), taskLabel);
+        summaryLabel.getStyleClass().add("summary");
+        summaryLabel.setWrapText(true);
+        summaryLabel.setMaxWidth(220);
+        grid.addRow(1, caption("Task"), new VBox(2, taskLabel, summaryLabel));
         grid.addRow(2, caption("Tempo"), timeLabel);
         grid.addRow(3, caption("Total na task"), totalLabel);
         grid.addRow(4, caption("Jira"), jiraLabel);
@@ -127,7 +132,7 @@ public final class DashboardController {
         HBox manual = new HBox(8, manualIssueField, startButton, stopButton);
         manual.setAlignment(Pos.CENTER_LEFT);
 
-        Label manualCaption = caption("Task manual (sem Jira)");
+        Label manualCaption = caption("Task manual (tem prioridade sobre o Jira)");
 
         VBox box = new VBox(14, title, grid, manualCaption, manual);
         box.getStyleClass().add("dashboard");

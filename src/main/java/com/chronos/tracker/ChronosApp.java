@@ -3,7 +3,7 @@ package com.chronos.tracker;
 import com.chronos.tracker.activity.ActivityClassifier;
 import com.chronos.tracker.activity.AlwaysActiveMonitor;
 import com.chronos.tracker.config.AppConfig;
-import com.chronos.tracker.jira.UnconfiguredJiraService;
+import com.chronos.tracker.jira.RestJiraService;
 import com.chronos.tracker.tracking.TimeTracker;
 import com.chronos.tracker.tracking.TrackingEngine;
 import com.chronos.tracker.ui.DashboardController;
@@ -33,7 +33,7 @@ public final class ChronosApp extends Application {
                 new TimeTracker(Clock.systemUTC()),
                 new AlwaysActiveMonitor(),
                 new ActivityClassifier(config.possiblyIdleAfter(), config.inactiveAfter()),
-                new UnconfiguredJiraService());
+                RestJiraService.from(config));
 
         dashboard = new DashboardController(engine, config.pollingInterval());
 

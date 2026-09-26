@@ -37,3 +37,8 @@
 .status-inactive {
     -fx-fill: #d93025;
 }
+
+.summary {
+    -fx-text-fill: #666a73;
+    -fx-font-size: 11px;
+}
