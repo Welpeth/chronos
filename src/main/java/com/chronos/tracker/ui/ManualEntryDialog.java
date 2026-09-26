@@ -1,24 +1,26 @@
 package com.chronos.tracker.ui;
 
 import com.chronos.tracker.tracking.TaskView;
-import javafx.event.ActionEvent;
-import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.Scene;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonBar;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DateCell;
 import javafx.scene.control.DatePicker;
-import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
-import javafx.scene.control.TextField;
-import javafx.scene.layout.ColumnConstraints;
-import javafx.scene.layout.GridPane;
+import javafx.scene.control.TextArea;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 import javafx.stage.Window;
 import javafx.util.StringConverter;
 
@@ -35,6 +37,7 @@ import java.util.List;
 public final class ManualEntryDialog {
 
     private static final String SEPARATOR = " — ";
+    private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     /** Tenta gravar a inserção; a mensagem da exceção é mostrada ao usuário. */
     @FunctionalInterface
@@ -46,33 +49,163 @@ public final class ManualEntryDialog {
     }
 
     public static void show(Window owner, List<TaskView> tasks, String preselectedKey, Submitter submitter) {
-        Dialog<ButtonType> dialog = new Dialog<>();
-        dialog.initOwner(owner);
-        dialog.setTitle("Adicionar tempo manual");
-        dialog.setHeaderText("Adicionar tempo manual");
+        Stage stage = new Stage(StageStyle.TRANSPARENT);
+        stage.initOwner(owner);
+        stage.initModality(Modality.WINDOW_MODAL);
+        stage.setTitle("Adicionar tempo manual");
 
+        // Campos
         ComboBox<String> task = new ComboBox<>();
         task.setEditable(true);
-        task.setPromptText("Chave da task, ex.: SCRUM-2");
+        task.setPromptText("Selecione uma task...");
         task.setMaxWidth(Double.MAX_VALUE);
+        task.getStyleClass().add("dialog-input");
         for (TaskView view : tasks) {
             task.getItems().add(view.summary().isEmpty() ? view.key() : view.key() + SEPARATOR + view.summary());
         }
         tasks.stream().filter(view -> view.key().equals(preselectedKey)).findFirst()
                 .ifPresent(view -> task.getSelectionModel().select(tasks.indexOf(view)));
 
+        DatePicker date = datePicker();
+
+        Spinner<Integer> hours = spinner(0, 8, 1, 1);
+        Spinner<Integer> minutes = spinner(0, 55, 0, 5);
+        HBox duration = new HBox(12, hours, unit("h"), minutes, unit("min"));
+        duration.setAlignment(Pos.CENTER_LEFT);
+
+        TextArea note = new TextArea();
+        note.setPromptText("Opcional: o que foi feito...");
+        note.setPrefRowCount(3);
+        note.setWrapText(true);
+        note.getStyleClass().add("dialog-input");
+
+        // Aviso do limite e erro de validação
+        Label info = new Label("O tempo manual soma com o tempo contado das tasks. O dia não pode passar de 8h.");
+        info.setWrapText(true);
+        info.getStyleClass().add("dialog-info-text");
+        Region divider = new Region();
+        divider.getStyleClass().add("dialog-info-divider");
+        HBox infoBox = new HBox(16, Icons.of(Icons.INFO, 24, "icon-blue"), divider, info);
+        infoBox.setAlignment(Pos.CENTER_LEFT);
+        infoBox.getStyleClass().add("dialog-info");
+        HBox.setHgrow(info, Priority.ALWAYS);
+
+        Label error = new Label();
+        error.getStyleClass().add("form-error");
+        error.setWrapText(true);
+        error.setMaxWidth(Double.MAX_VALUE);
+        error.setVisible(false);
+        error.setManaged(false);
+
+        VBox body = new VBox(18,
+                field(Icons.CLIPBOARD_CHECK, "Task", true, task),
+                field(Icons.CALENDAR, "Dia", true, date),
+                field(Icons.CLOCK, "Tempo", true, duration),
+                field(Icons.NOTE, "Nota", false, note),
+                infoBox,
+                error);
+        body.getStyleClass().add("dialog-body");
+
+        // Cabeçalho azul com fechar
+        Label title = new Label("Adicionar tempo manual");
+        title.getStyleClass().add("dialog-title");
+        Button close = new Button();
+        close.setGraphic(Icons.of(Icons.CLOSE, 22, "icon-white"));
+        close.getStyleClass().add("dialog-close");
+        close.setOnAction(e -> stage.close());
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox header = new HBox(14, Icons.of(Icons.CLOCK, 30, "icon-white"), title, spacer, close);
+        header.setAlignment(Pos.CENTER_LEFT);
+        header.getStyleClass().add("dialog-header");
+        makeDraggable(header, stage);
+
+        // Rodapé
+        Button add = new Button("Adicionar");
+        add.setGraphic(Icons.of(Icons.PLUS, 18, "icon-white"));
+        add.getStyleClass().add("dialog-primary");
+        add.setDefaultButton(true);
+        Button cancel = new Button("Cancelar");
+        cancel.getStyleClass().add("dialog-secondary");
+        cancel.setCancelButton(true);
+        cancel.setOnAction(e -> stage.close());
+        HBox footer = new HBox(14, add, cancel);
+        footer.setAlignment(Pos.CENTER_RIGHT);
+        footer.getStyleClass().add("dialog-footer");
+
+        add.setOnAction(event -> {
+            try {
+                commitSpinner(hours);
+                commitSpinner(minutes);
+                Duration chosen = Duration.ofHours(hours.getValue()).plusMinutes(minutes.getValue());
+                submitter.submit(keyOf(task), date.getValue(), chosen, note.getText());
+                stage.close();
+            } catch (Exception e) {
+                error.setText(e.getMessage());
+                error.setVisible(true);
+                error.setManaged(true);
+                stage.sizeToScene();
+            }
+        });
+
+        VBox card = new VBox(header, body, footer);
+        card.getStyleClass().add("manual-dialog");
+        card.setPrefWidth(620);
+        StackPane root = new StackPane(card);
+        root.getStyleClass().add("dialog-shadow-area");
+
+        Scene scene = new Scene(root);
+        scene.setFill(Color.TRANSPARENT);
+        if (owner != null && owner.getScene() != null) {
+            scene.getStylesheets().addAll(owner.getScene().getStylesheets());
+        }
+        scene.setOnKeyPressed(e -> {
+            if (e.getCode() == KeyCode.ESCAPE) {
+                stage.close();
+            }
+        });
+        stage.setScene(scene);
+        stage.setOnShown(e -> {
+            if (owner != null) {
+                stage.setX(owner.getX() + (owner.getWidth() - stage.getWidth()) / 2);
+                stage.setY(owner.getY() + (owner.getHeight() - stage.getHeight()) / 2);
+            }
+        });
+        stage.showAndWait();
+    }
+
+    /** Ícone à esquerda; rótulo (com * nos obrigatórios) e o campo à direita. */
+    private static HBox field(String icon, String label, boolean required, Node input) {
+        Label name = new Label(label);
+        name.getStyleClass().add("dialog-label");
+        HBox caption = new HBox(4, name);
+        if (required) {
+            Label star = new Label("*");
+            star.getStyleClass().add("dialog-required");
+            caption.getChildren().add(star);
+        }
+        VBox column = new VBox(8, caption, input);
+        HBox.setHgrow(column, Priority.ALWAYS);
+        StackPane iconBox = new StackPane(Icons.of(icon, 26, "icon-blue"));
+        iconBox.setMinWidth(34);
+        iconBox.setAlignment(Pos.TOP_CENTER);
+        HBox row = new HBox(16, iconBox, column);
+        row.setAlignment(Pos.TOP_LEFT);
+        return row;
+    }
+
+    private static DatePicker datePicker() {
         DatePicker date = new DatePicker(LocalDate.now());
-        DateTimeFormatter format = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         date.setConverter(new StringConverter<>() {
             @Override
             public String toString(LocalDate value) {
-                return value == null ? "" : format.format(value);
+                return value == null ? "" : DATE.format(value);
             }
 
             @Override
             public LocalDate fromString(String text) {
                 try {
-                    return text == null || text.isBlank() ? null : LocalDate.parse(text.strip(), format);
+                    return text == null || text.isBlank() ? null : LocalDate.parse(text.strip(), DATE);
                 } catch (DateTimeParseException e) {
                     return date.getValue();
                 }
@@ -85,67 +218,35 @@ public final class ManualEntryDialog {
                 setDisable(empty || item.isAfter(LocalDate.now()));
             }
         });
+        date.setPrefWidth(340);
+        date.getStyleClass().add("dialog-input");
+        return date;
+    }
 
-        Spinner<Integer> hours = new Spinner<>(0, 8, 1);
-        Spinner<Integer> minutes = new Spinner<>(0, 55, 0, 5);
-        hours.setEditable(true);
-        minutes.setEditable(true);
-        hours.setPrefWidth(80);
-        minutes.setPrefWidth(80);
-        HBox duration = new HBox(8, hours, label("h"), minutes, label("min"));
-        duration.setAlignment(Pos.CENTER_LEFT);
+    private static Spinner<Integer> spinner(int min, int max, int initial, int step) {
+        Spinner<Integer> spinner = new Spinner<>(min, max, initial, step);
+        spinner.setEditable(true);
+        spinner.setPrefWidth(170);
+        spinner.getStyleClass().add("dialog-input");
+        return spinner;
+    }
 
-        TextField note = new TextField();
-        note.setPromptText("Opcional: o que foi feito");
+    private static Label unit(String text) {
+        Label label = new Label(text);
+        label.getStyleClass().add("dialog-unit");
+        return label;
+    }
 
-        Label error = new Label();
-        error.getStyleClass().add("form-error");
-        error.setWrapText(true);
-        error.setMaxWidth(420);
-        error.setVisible(false);
-        error.setManaged(false);
-
-        GridPane form = new GridPane();
-        form.setHgap(12);
-        form.setVgap(12);
-        form.addRow(0, label("Task"), task);
-        form.addRow(1, label("Dia"), date);
-        form.addRow(2, label("Tempo"), duration);
-        form.addRow(3, label("Nota"), note);
-        GridPane.setFillWidth(task, true);
-        form.getColumnConstraints().addAll(new ColumnConstraints(60),
-                new ColumnConstraints(340));
-
-        Label hint = new Label("O tempo manual soma com o tempo contado das tasks. O dia não pode passar de 8h.");
-        hint.getStyleClass().add("muted");
-        hint.setWrapText(true);
-        hint.setMaxWidth(420);
-
-        VBox content = new VBox(14, form, hint, error);
-        content.setPadding(new Insets(8, 4, 4, 4));
-        dialog.getDialogPane().setContent(content);
-        dialog.getDialogPane().getStylesheets().addAll(owner == null || owner.getScene() == null
-                ? List.of() : owner.getScene().getStylesheets());
-
-        ButtonType add = new ButtonType("Adicionar", ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().addAll(add, new ButtonType("Cancelar", ButtonBar.ButtonData.CANCEL_CLOSE));
-        Button addButton = (Button) dialog.getDialogPane().lookupButton(add);
-        addButton.addEventFilter(ActionEvent.ACTION, event -> {
-            try {
-                commitSpinner(hours);
-                commitSpinner(minutes);
-                Duration chosen = Duration.ofHours(hours.getValue()).plusMinutes(minutes.getValue());
-                submitter.submit(keyOf(task), date.getValue(), chosen, note.getText());
-            } catch (Exception e) {
-                error.setText(e.getMessage());
-                error.setVisible(true);
-                error.setManaged(true);
-                dialog.getDialogPane().getScene().getWindow().sizeToScene();
-                event.consume();
-            }
+    private static void makeDraggable(Node handle, Stage stage) {
+        double[] offset = new double[2];
+        handle.setOnMousePressed(e -> {
+            offset[0] = e.getScreenX() - stage.getX();
+            offset[1] = e.getScreenY() - stage.getY();
         });
-
-        dialog.showAndWait();
+        handle.setOnMouseDragged(e -> {
+            stage.setX(e.getScreenX() - offset[0]);
+            stage.setY(e.getScreenY() - offset[1]);
+        });
     }
 
     private static String keyOf(ComboBox<String> task) {
@@ -169,11 +270,5 @@ public final class ManualEntryDialog {
         } catch (NumberFormatException e) {
             spinner.getEditor().setText(String.valueOf(spinner.getValue()));
         }
-    }
-
-    private static Node label(String text) {
-        Label label = new Label(text);
-        label.getStyleClass().add("form-label");
-        return label;
     }
 }
