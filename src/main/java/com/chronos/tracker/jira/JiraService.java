@@ -1,9 +1,11 @@
 package com.chronos.tracker.jira;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
- * Descobre no Jira em qual issue o usuário está trabalhando agora.
+ * Busca no Jira as issues do usuário. Todos os métodos podem bloquear e devem ser chamados fora
+ * da thread da UI.
  */
 public interface JiraService {
 
@@ -11,10 +13,20 @@ public interface JiraService {
     boolean isConfigured();
 
     /**
-     * Consulta o Jira. Pode bloquear e deve ser chamado fora da thread da UI.
+     * Issues atribuídas ao usuário que ainda não foram concluídas (ou foram concluídas hoje),
+     * da atualizada mais recentemente para a mais antiga.
      *
-     * @return a issue atual, ou vazio se não houver nenhuma em andamento
      * @throws JiraException se o Jira estiver inacessível ou responder com erro
      */
-    Optional<JiraIssue> fetchCurrentIssue() throws JiraException;
+    List<JiraIssue> fetchMyIssues() throws JiraException;
+
+    /** Dono do API token. */
+    default Optional<JiraUser> fetchCurrentUser() throws JiraException {
+        return Optional.empty();
+    }
+
+    /** Chave e nome dos projetos configurados, por exemplo "SCRUM · Minha equipe de software". */
+    default Optional<String> fetchProjectLabel() throws JiraException {
+        return Optional.empty();
+    }
 }

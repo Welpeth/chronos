@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -26,7 +27,7 @@ public final class JiraClient {
 
     private final HttpClient http;
     private final ObjectMapper mapper = new ObjectMapper();
-    private final URI searchUri;
+    private final String baseUrl;
     private final String authorization;
 
     public JiraClient(String baseUrl, String email, String apiToken) {
@@ -34,7 +35,7 @@ public final class JiraClient {
         Objects.requireNonNull(email, "email");
         Objects.requireNonNull(apiToken, "apiToken");
         this.http = HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build();
-        this.searchUri = URI.create(baseUrl.replaceAll("/+$", "") + "/rest/api/3/search/jql");
+        this.baseUrl = baseUrl.replaceAll("/+$", "");
         String credentials = email + ":" + apiToken;
         this.authorization = "Basic " + Base64.getEncoder().encodeToString(credentials.getBytes(StandardCharsets.UTF_8));
     }
@@ -46,16 +47,35 @@ public final class JiraClient {
         ObjectNode body = mapper.createObjectNode();
         body.put("jql", jql);
         body.put("maxResults", maxResults);
-        body.putArray("fields").add("summary");
+        body.putArray("fields").add("summary").add("status");
 
-        HttpRequest request = HttpRequest.newBuilder(searchUri)
-                .timeout(REQUEST_TIMEOUT)
-                .header("Authorization", authorization)
-                .header("Accept", "application/json")
+        HttpRequest request = request("/rest/api/3/search/jql")
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(body.toString(), StandardCharsets.UTF_8))
                 .build();
+        return parseIssues(send(request));
+    }
 
+    /** Usuário dono do API token. */
+    public JiraUser myself() throws JiraException {
+        JsonNode user = readTree(send(request("/rest/api/3/myself").GET().build()));
+        return new JiraUser(user.path("displayName").asText(""), user.path("emailAddress").asText(""));
+    }
+
+    /** Nome do projeto com a chave informada. */
+    public String projectName(String projectKey) throws JiraException {
+        String path = "/rest/api/3/project/" + URLEncoder.encode(projectKey, StandardCharsets.UTF_8);
+        return readTree(send(request(path).GET().build())).path("name").asText(projectKey);
+    }
+
+    private HttpRequest.Builder request(String path) {
+        return HttpRequest.newBuilder(URI.create(baseUrl + path))
+                .timeout(REQUEST_TIMEOUT)
+                .header("Authorization", authorization)
+                .header("Accept", "application/json");
+    }
+
+    private String send(HttpRequest request) throws JiraException {
         HttpResponse<String> response;
         try {
             response = http.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
@@ -70,21 +90,47 @@ public final class JiraClient {
         if (status == 401 || status == 403) {
             throw new JiraAuthException("O Jira recusou as credenciais (HTTP " + status + ")");
         }
+        if (status == 400) {
+            throw new JiraQueryException("O Jira recusou a consulta: " + errorMessages(response.body()));
+        }
         if (status != 200) {
             throw new JiraException("O Jira respondeu HTTP " + status + ": " + abbreviate(response.body()));
         }
-        return parseIssues(response.body());
+        return response.body();
     }
 
     private List<JiraIssue> parseIssues(String json) throws JiraException {
-        try {
-            JsonNode issues = mapper.readTree(json).path("issues");
-            return StreamSupport.stream(issues.spliterator(), false)
-                    .map(issue -> new JiraIssue(
+        JsonNode issues = readTree(json).path("issues");
+        return StreamSupport.stream(issues.spliterator(), false)
+                .map(issue -> {
+                    JsonNode fields = issue.path("fields");
+                    JsonNode status = fields.path("status");
+                    return new JiraIssue(
                             issue.path("key").asText(),
-                            issue.path("fields").path("summary").asText("")))
-                    .filter(issue -> !issue.key().isEmpty())
-                    .toList();
+                            fields.path("summary").asText(""),
+                            status.path("name").asText(""),
+                            StatusCategory.fromJiraKey(status.path("statusCategory").path("key").asText("")));
+                })
+                .filter(issue -> !issue.key().isEmpty())
+                .toList();
+    }
+
+    /** Junta as mensagens de erro do Jira, que vêm como {@code {"errorMessages": [...]}}. */
+    private String errorMessages(String body) {
+        try {
+            JsonNode messages = mapper.readTree(body).path("errorMessages");
+            if (messages.isArray() && !messages.isEmpty()) {
+                return String.join(" ", StreamSupport.stream(messages.spliterator(), false).map(JsonNode::asText).toList());
+            }
+        } catch (IOException ignored) {
+            // Corpo não é JSON: cai no texto bruto abaixo.
+        }
+        return abbreviate(body);
+    }
+
+    private JsonNode readTree(String json) throws JiraException {
+        try {
+            return mapper.readTree(json);
         } catch (IOException e) {
             throw new JiraException("Resposta inválida do Jira", e);
         }

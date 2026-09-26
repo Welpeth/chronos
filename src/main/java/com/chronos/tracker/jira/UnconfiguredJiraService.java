@@ -1,6 +1,6 @@
 package com.chronos.tracker.jira;
 
-import java.util.Optional;
+import java.util.List;
 
 /**
  * Serviço usado quando o {@code .env} não tem os dados do Jira.
@@ -13,7 +13,7 @@ public final class UnconfiguredJiraService implements JiraService {
     }
 
     @Override
-    public Optional<JiraIssue> fetchCurrentIssue() {
-        return Optional.empty();
+    public List<JiraIssue> fetchMyIssues() {
+        return List.of();
     }
 }

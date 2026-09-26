@@ -2,26 +2,30 @@ package com.chronos.tracker.jira;
 
 import com.chronos.tracker.config.AppConfig;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * Considera como "task atual" a issue mais recentemente atualizada que está atribuída ao usuário
- * e em andamento nos projetos configurados.
+ * Busca as issues do usuário nos projetos configurados: tudo que ainda não foi concluído, mais o que
+ * foi concluído hoje (para o resumo do dia).
  *
- * <p>Se o {@code .env} define {@code JIRA_JQL}, essa consulta é usada no lugar da padrão e a
- * primeira issue do resultado vira a task atual.
+ * <p>Se o {@code .env} define {@code JIRA_JQL}, essa consulta é usada no lugar da padrão.
  */
 public final class RestJiraService implements JiraService {
 
+    static final int MAX_ISSUES = 50;
+
     private final JiraClient client;
     private final String jql;
+    private final List<String> projectKeys;
 
-    public RestJiraService(JiraClient client, String jql) {
+    public RestJiraService(JiraClient client, String jql, List<String> projectKeys) {
         this.client = client;
         this.jql = jql;
+        this.projectKeys = List.copyOf(projectKeys);
     }
 
     public static JiraService from(AppConfig config) {
@@ -33,14 +37,15 @@ public final class RestJiraService implements JiraService {
                 config.jiraEmail().orElseThrow(),
                 config.jiraApiToken().orElseThrow());
         String jql = config.jiraJql().orElseGet(() -> defaultJql(config.jiraProjectKeys()));
-        return new RestJiraService(client, withOrdering(jql));
+        return new RestJiraService(client, withOrdering(jql), config.jiraProjectKeys());
     }
 
     static String defaultJql(List<String> projectKeys) {
         String projects = projectKeys.stream()
                 .map(key -> "\"" + key.replace("\"", "") + "\"")
                 .collect(Collectors.joining(", "));
-        return "project in (" + projects + ") AND assignee = currentUser() AND statusCategory = \"In Progress\"";
+        return "project in (" + projects + ") AND assignee = currentUser()"
+                + " AND (statusCategory != Done OR updated >= startOfDay())";
     }
 
     /** Garante uma ordem estável: sem ORDER BY, a issue atualizada por último vem primeiro. */
@@ -61,7 +66,29 @@ public final class RestJiraService implements JiraService {
     }
 
     @Override
-    public Optional<JiraIssue> fetchCurrentIssue() throws JiraException {
-        return client.search(jql, 1).stream().findFirst();
+    public List<JiraIssue> fetchMyIssues() throws JiraException {
+        return client.search(jql, MAX_ISSUES);
+    }
+
+    @Override
+    public Optional<JiraUser> fetchCurrentUser() throws JiraException {
+        return Optional.of(client.myself());
+    }
+
+    @Override
+    public Optional<String> fetchProjectLabel() throws JiraException {
+        if (projectKeys.isEmpty()) {
+            return Optional.empty();
+        }
+        if (projectKeys.size() > 1) {
+            return Optional.of(String.join(", ", projectKeys));
+        }
+        String key = projectKeys.get(0);
+        List<String> parts = new ArrayList<>(List.of(key));
+        String name = client.projectName(key);
+        if (!name.equals(key)) {
+            parts.add(name);
+        }
+        return Optional.of(String.join(" · ", parts));
     }
 }
