@@ -1,0 +1,430 @@
+package com.chronos.tracker.ui;
+
+import com.chronos.tracker.activity.ActivityState;
+import com.chronos.tracker.jira.JiraSyncStatus;
+import com.chronos.tracker.jira.StatusCategory;
+import com.chronos.tracker.tracking.ActivityEvent;
+import com.chronos.tracker.tracking.TaskView;
+import com.chronos.tracker.tracking.TrackingEngine.Snapshot;
+import javafx.geometry.Pos;
+import javafx.scene.Node;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Tooltip;
+import javafx.scene.layout.ColumnConstraints;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
+import javafx.scene.shape.Circle;
+
+import java.time.Duration;
+import java.util.List;
+import java.util.function.Consumer;
+
+/**
+ * Painel principal: task em destaque com o cronômetro grande, cartões de status, progresso do dia,
+ * lista de tarefas do projeto e atividade recente.
+ */
+public final class DashboardPage {
+
+    static final Duration DAILY_GOAL = Duration.ofHours(8);
+    private static final int VISIBLE_EVENTS = 6;
+
+    private final Consumer<TaskView> onToggle;
+    private final ScrollPane root;
+
+    // Task atual
+    private final VBox currentCard = card("current-card");
+    private final Label currentKey = new Label();
+    private final Label currentSummary = new Label();
+    private final HBox currentChips = new HBox(8);
+    private final Label currentTime = new Label();
+    private final Label currentSince = new Label();
+    private final Button currentToggle = new Button();
+    private final VBox currentBody = new VBox(14);
+    private final VBox currentEmpty = new VBox(6);
+    private TaskView featured;
+
+    // Cartões de status
+    private final Circle activityDot = new Circle(5);
+    private final Label activityValue = new Label();
+    private final Label activityDetail = new Label();
+    private final Circle jiraDot = new Circle(5);
+    private final Label jiraValue = new Label();
+    private final Label jiraDetail = new Label();
+    private final Label projectValue = new Label();
+    private final Label projectDetail = new Label();
+
+    // Progresso do dia
+    private final Label goalLabel = new Label();
+    private final ProgressTrack progress = new ProgressTrack();
+    private final Label activeValue = new Label();
+    private final Label inactiveValue = new Label();
+    private final Label doneValue = new Label();
+    private final Label inProgressValue = new Label();
+
+    // Coluna da direita
+    private final VBox taskList = new VBox(0);
+    private final VBox eventList = new VBox(0);
+
+    public DashboardPage(Consumer<TaskView> onToggle) {
+        this.onToggle = onToggle;
+
+        VBox left = new VBox(18, buildCurrentCard(), buildStatusCards(), buildProgressCard());
+        HBox.setHgrow(left, Priority.ALWAYS);
+        left.setMinWidth(0);
+
+        VBox right = new VBox(18, buildTasksCard(), buildEventsCard());
+        right.setPrefWidth(420);
+        right.setMinWidth(380);
+
+        HBox columns = new HBox(18, left, right);
+        columns.getStyleClass().add("page");
+
+        root = new ScrollPane(columns);
+        root.setFitToWidth(true);
+        root.getStyleClass().add("page-scroll");
+    }
+
+    public Node getView() {
+        return root;
+    }
+
+    public void render(Snapshot snapshot) {
+        renderCurrent(snapshot);
+        renderStatus(snapshot);
+        renderProgress(snapshot);
+        renderTasks(snapshot.tasks());
+        renderEvents(snapshot.recentEvents());
+    }
+
+    // ---- Task atual ------------------------------------------------------------------------------
+
+    private VBox buildCurrentCard() {
+        currentKey.getStyleClass().add("current-key");
+        currentSummary.getStyleClass().add("current-summary");
+        currentSummary.setWrapText(true);
+        HBox heading = new HBox(14, Icons.of(Icons.DIAMOND, 34, "icon-jira"), new VBox(4, currentKey, currentSummary));
+        heading.setAlignment(Pos.CENTER_LEFT);
+
+        Label timerCaption = new Label("Tempo na task");
+        timerCaption.getStyleClass().add("timer-caption");
+        HBox captionRow = new HBox(8, Icons.of(Icons.CLOCK, 22, "icon-blue"), timerCaption);
+        captionRow.setAlignment(Pos.CENTER_LEFT);
+        currentTime.getStyleClass().add("timer");
+        currentSince.getStyleClass().add("timer-since");
+        VBox timerText = new VBox(6, captionRow, currentTime, currentSince);
+        HBox.setHgrow(timerText, Priority.ALWAYS);
+
+        currentToggle.getStyleClass().add("big-toggle");
+        currentToggle.setOnAction(event -> {
+            if (featured != null) {
+                onToggle.accept(featured);
+            }
+        });
+        HBox timerBox = new HBox(16, timerText, currentToggle);
+        timerBox.setAlignment(Pos.CENTER_LEFT);
+        timerBox.getStyleClass().add("timer-box");
+
+        currentBody.getChildren().addAll(heading, currentChips, timerBox);
+        VBox.setMargin(currentChips, new javafx.geometry.Insets(0, 0, 0, 48));
+
+        Label emptyTitle = new Label("Nenhuma task contando tempo");
+        emptyTitle.getStyleClass().add("current-summary");
+        Label emptyHint = new Label("Mova uma task para \"Em andamento\" no Jira ou dê play numa task da lista.");
+        emptyHint.getStyleClass().add("muted");
+        emptyHint.setWrapText(true);
+        currentEmpty.getChildren().addAll(emptyTitle, emptyHint);
+
+        currentCard.getChildren().addAll(cardTitle("Task atual"), currentBody);
+        return currentCard;
+    }
+
+    private void renderCurrent(Snapshot snapshot) {
+        featured = snapshot.featuredTask().orElse(null);
+        Node body = featured == null ? currentEmpty : currentBody;
+        if (currentCard.getChildren().get(1) != body) {
+            currentCard.getChildren().set(1, body);
+        }
+        if (featured == null) {
+            return;
+        }
+        currentKey.setText(featured.key());
+        currentSummary.setText(featured.summary().isEmpty() ? "Task fora do Jira" : featured.summary());
+
+        currentChips.getChildren().setAll(TaskRows.statusBadge(featured));
+        long othersRunning = snapshot.runningCount() - (featured.running() ? 1 : 0);
+        if (othersRunning > 0) {
+            Label others = new Label("+" + othersRunning + (othersRunning == 1 ? " outra contando" : " outras contando"));
+            others.getStyleClass().addAll("badge", "badge-neutral");
+            currentChips.getChildren().add(others);
+        }
+
+        currentTime.setText(Formats.hms(featured.totalTime()));
+        if (featured.running()) {
+            currentSince.setText("Contando desde " + Formats.clock(featured.runningSince().orElseThrow()));
+        } else if (snapshot.pausedForInactivity()) {
+            currentSince.setText("Pausada por inatividade");
+        } else {
+            currentSince.setText("Pausada");
+        }
+
+        currentToggle.setGraphic(Icons.of(featured.running() ? Icons.PAUSE : Icons.PLAY, 30, "icon-dark"));
+        currentToggle.setTooltip(new Tooltip(featured.running() ? "Pausar o tempo desta task" : "Contar tempo nesta task"));
+    }
+
+    // ---- Cartões de status -----------------------------------------------------------------------
+
+    private GridPane buildStatusCards() {
+        GridPane row = new GridPane();
+        row.setHgap(18);
+        for (int i = 0; i < 3; i++) {
+            ColumnConstraints column = new ColumnConstraints();
+            column.setPercentWidth(100.0 / 3);
+            row.getColumnConstraints().add(column);
+        }
+        row.addRow(0,
+                statCard(Icons.MONITOR, "Status da atividade", activityDot, activityValue, activityDetail),
+                statCard(Icons.DIAMOND, "Sincronização Jira", jiraDot, jiraValue, jiraDetail),
+                statCard(Icons.CHART, "Projeto", null, projectValue, projectDetail));
+        return row;
+    }
+
+    private VBox statCard(String icon, String title, Circle dot, Label value, Label detail) {
+        Label caption = new Label(title);
+        caption.getStyleClass().add("stat-title");
+        caption.setWrapText(true);
+        HBox header = new HBox(10, Icons.of(icon, 18, "icon-blue"), caption);
+        header.setAlignment(Pos.CENTER_LEFT);
+
+        value.getStyleClass().add("stat-value");
+        value.setWrapText(true);
+        HBox valueRow = dot == null ? new HBox(value) : new HBox(8, dot, value);
+        valueRow.setAlignment(Pos.CENTER_LEFT);
+        detail.getStyleClass().add("muted");
+        detail.setWrapText(true);
+
+        VBox body = new VBox(8, valueRow, detail);
+        VBox.setMargin(body, new javafx.geometry.Insets(0, 0, 0, 28));
+        VBox card = card("stat-card");
+        card.getChildren().addAll(header, body);
+        card.setMinWidth(0);
+        card.setMaxWidth(Double.MAX_VALUE);
+        card.setMaxHeight(Double.MAX_VALUE);
+        return card;
+    }
+
+    private void renderStatus(Snapshot snapshot) {
+        ActivityState activity = snapshot.activity();
+        setDot(activityDot, switch (activity) {
+            case ACTIVE -> "dot-green";
+            case POSSIBLY_IDLE -> "dot-yellow";
+            case INACTIVE -> "dot-red";
+        });
+        activityValue.setText(switch (activity) {
+            case ACTIVE -> "Ativo";
+            case POSSIBLY_IDLE -> "Possivelmente ausente";
+            case INACTIVE -> "Inativo";
+        });
+        activityDetail.setText("Última interação: " + Formats.ago(snapshot.idleTime()));
+
+        JiraSyncStatus jira = snapshot.jiraStatus();
+        setDot(jiraDot, jira == JiraSyncStatus.SYNCED ? "dot-green" : jira.isError() ? "dot-red" : "dot-gray");
+        jiraValue.setText(switch (jira) {
+            case SYNCED -> "Conectado";
+            case SYNCING -> "Conectando...";
+            case NOT_CONFIGURED -> "Não configurado";
+            case AUTH_ERROR -> "Credenciais inválidas";
+            case QUERY_ERROR -> "Consulta recusada";
+            case ERROR -> "Sem conexão";
+        });
+        String lastSync = snapshot.lastSync().map(at -> "Última sync: " + Formats.clock(at)).orElse("Ainda não sincronizou");
+        jiraDetail.setText(snapshot.jiraError().map(error -> lastSync + "\n" + error).orElse(lastSync));
+
+        String label = snapshot.projectLabel().orElse("—");
+        int separator = label.indexOf(" · ");
+        projectValue.setText(separator < 0 ? label : label.substring(0, separator));
+        projectDetail.setText(separator < 0 ? "" : label.substring(separator + 3));
+    }
+
+    private static void setDot(Circle dot, String styleClass) {
+        dot.getStyleClass().setAll("dot", styleClass);
+    }
+
+    // ---- Progresso do dia ------------------------------------------------------------------------
+
+    private VBox buildProgressCard() {
+        Label title = cardTitle("Progresso do dia");
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        goalLabel.getStyleClass().add("goal");
+        HBox header = new HBox(title, spacer, goalLabel);
+        header.setAlignment(Pos.CENTER_LEFT);
+
+        GridPane metrics = new GridPane();
+        metrics.getStyleClass().add("metrics");
+        for (int i = 0; i < 4; i++) {
+            ColumnConstraints column = new ColumnConstraints();
+            column.setPercentWidth(25);
+            metrics.getColumnConstraints().add(column);
+        }
+        metrics.add(metric(Icons.PLAY, "Tempo ativo", "dot-yellow", activeValue), 0, 0);
+        metrics.add(metric(Icons.PAUSE, "Tempo inativo", "dot-gray", inactiveValue), 1, 0);
+        metrics.add(metric(Icons.CHECK_CIRCLE, "Tarefas concluídas", "dot-gray", doneValue), 2, 0);
+        metrics.add(metric(Icons.CIRCLE, "Tarefas em andamento", "dot-gray", inProgressValue), 3, 0);
+
+        VBox card = card("progress-card");
+        card.getChildren().addAll(header, progress, metrics);
+        return card;
+    }
+
+    private VBox metric(String icon, String caption, String dotClass, Label value) {
+        Label label = new Label(caption);
+        label.getStyleClass().add("metric-caption");
+        label.setWrapText(true);
+        HBox top = new HBox(8, Icons.of(icon, 14, "icon-dark"), label);
+        top.setAlignment(Pos.CENTER_LEFT);
+        Circle dot = new Circle(5);
+        setDot(dot, dotClass);
+        value.getStyleClass().add("metric-value");
+        HBox bottom = new HBox(10, dot, value);
+        bottom.setAlignment(Pos.CENTER_LEFT);
+        VBox box = new VBox(10, top, bottom);
+        box.getStyleClass().add("metric");
+        return box;
+    }
+
+    private void renderProgress(Snapshot snapshot) {
+        Duration worked = snapshot.activeToday();
+        goalLabel.setText(Formats.hoursMinutes(worked) + " / " + DAILY_GOAL.toHours() + "h");
+        progress.setFractions(fraction(worked), fraction(snapshot.inactiveToday()));
+        activeValue.setText(Formats.hoursMinutes(worked));
+        inactiveValue.setText(Formats.hoursMinutes(snapshot.inactiveToday()));
+        doneValue.setText(Long.toString(snapshot.countByCategory(StatusCategory.DONE)));
+        inProgressValue.setText(Long.toString(snapshot.countByCategory(StatusCategory.IN_PROGRESS)));
+    }
+
+    private static double fraction(Duration duration) {
+        return Math.min(1.0, (double) duration.toSeconds() / DAILY_GOAL.toSeconds());
+    }
+
+    /** Barra com o tempo ativo (azul) seguido do inativo (amarelo), proporcionais à meta do dia. */
+    private static final class ProgressTrack extends Pane {
+        private final Region active = new Region();
+        private final Region inactive = new Region();
+        private double activeFraction;
+        private double inactiveFraction;
+
+        ProgressTrack() {
+            getStyleClass().add("progress-track");
+            active.getStyleClass().add("progress-active");
+            inactive.getStyleClass().add("progress-inactive");
+            getChildren().addAll(active, inactive);
+            setPrefHeight(14);
+            setMinHeight(14);
+        }
+
+        void setFractions(double activeFraction, double inactiveFraction) {
+            this.activeFraction = activeFraction;
+            this.inactiveFraction = Math.min(inactiveFraction, 1.0 - activeFraction);
+            requestLayout();
+        }
+
+        @Override
+        protected void layoutChildren() {
+            double width = getWidth();
+            double height = getHeight();
+            double activeWidth = width * activeFraction;
+            active.resizeRelocate(0, 0, activeWidth, height);
+            inactive.resizeRelocate(activeWidth, 0, width * inactiveFraction, height);
+        }
+    }
+
+    // ---- Coluna da direita -----------------------------------------------------------------------
+
+    private VBox buildTasksCard() {
+        VBox card = card("list-card");
+        card.getChildren().addAll(cardTitle("Tarefas do projeto"), taskList);
+        return card;
+    }
+
+    private void renderTasks(List<TaskView> tasks) {
+        taskList.getChildren().clear();
+        if (tasks.isEmpty()) {
+            Label empty = new Label("Nenhuma task sua no Jira ainda.");
+            empty.getStyleClass().add("muted");
+            taskList.getChildren().add(empty);
+            return;
+        }
+        for (TaskView task : tasks) {
+            taskList.getChildren().add(TaskRows.row(task, onToggle));
+        }
+    }
+
+    private VBox buildEventsCard() {
+        VBox card = card("list-card");
+        card.getChildren().addAll(cardTitle("Atividade recente"), eventList);
+        return card;
+    }
+
+    private void renderEvents(List<ActivityEvent> events) {
+        eventList.getChildren().clear();
+        if (events.isEmpty()) {
+            Label empty = new Label("Nada por aqui ainda.");
+            empty.getStyleClass().add("muted");
+            eventList.getChildren().add(empty);
+            return;
+        }
+        events.stream().limit(VISIBLE_EVENTS).forEach(event -> eventList.getChildren().add(eventRow(event)));
+    }
+
+    private static HBox eventRow(ActivityEvent event) {
+        Circle dot = new Circle(5);
+        setDot(dot, switch (event.kind()) {
+            case SYNC -> "dot-green";
+            case ACTIVITY -> "dot-yellow";
+            case TASK -> "dot-blue";
+            case ERROR -> "dot-red";
+        });
+        StackPane dotBox = new StackPane(dot);
+        dotBox.setMinWidth(14);
+        dotBox.setAlignment(Pos.TOP_CENTER);
+        dotBox.setPadding(new javafx.geometry.Insets(5, 0, 0, 0));
+
+        Label time = new Label(Formats.clock(event.at()));
+        time.getStyleClass().add("event-time");
+        time.setMinWidth(Region.USE_PREF_SIZE);
+        Label title = new Label(event.title());
+        title.getStyleClass().add("event-title");
+        title.setWrapText(true);
+        Label detail = new Label(event.detail());
+        detail.getStyleClass().add("muted");
+        detail.setWrapText(true);
+        VBox text = new VBox(4, title, detail);
+        text.setMinWidth(0);
+        HBox.setHgrow(text, Priority.ALWAYS);
+
+        HBox row = new HBox(14, dotBox, time, text);
+        row.getStyleClass().add("event-row");
+        return row;
+    }
+
+    // ---- Utilitários -----------------------------------------------------------------------------
+
+    private static VBox card(String styleClass) {
+        VBox card = new VBox(16);
+        card.getStyleClass().addAll("card", styleClass);
+        return card;
+    }
+
+    private static Label cardTitle(String text) {
+        Label label = new Label(text);
+        label.getStyleClass().add("card-title");
+        return label;
+    }
+}

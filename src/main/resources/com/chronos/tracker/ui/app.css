@@ -1,0 +1,312 @@
+/* Cores: azul #1d5be8, azul-escuro #0f2a5a, amarelo #f8c630, fundo #f3f6fb. */
+
+.app {
+    -fx-background-color: #f3f6fb;
+    -fx-font-size: 13px;
+}
+
+.label {
+    -fx-text-fill: #0f2a5a;
+}
+
+.muted, .muted .label {
+    -fx-text-fill: #7b8aa3;
+    -fx-font-size: 12px;
+}
+
+/* Ícones */
+.icon { -fx-fill: #0f2a5a; }
+.icon-blue { -fx-fill: #1d5be8; }
+.icon-jira { -fx-fill: #1d5be8; }
+.icon-dark { -fx-fill: #0f2a5a; }
+.icon-logo { -fx-fill: #f8c630; }
+.icon-nav { -fx-fill: #0f2a5a; }
+
+/* Barra superior */
+.topbar {
+    -fx-background-color: white;
+    -fx-padding: 14 24;
+    -fx-border-color: transparent transparent #e6ebf3 transparent;
+}
+
+.logo {
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1d5be8;
+}
+
+.topbar-text {
+    -fx-text-fill: #52627f;
+}
+
+/* Menu lateral */
+.sidebar {
+    -fx-background-color: white;
+    -fx-padding: 16 12;
+    -fx-pref-width: 240;
+    -fx-min-width: 240;
+}
+
+.nav-item {
+    -fx-padding: 12 16;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+}
+
+.nav-item:hover {
+    -fx-background-color: #f3f6fb;
+}
+
+.nav-selected, .nav-selected:hover {
+    -fx-background-color: #f8c630;
+}
+
+.nav-label {
+    -fx-font-size: 15px;
+}
+
+.nav-selected .nav-label {
+    -fx-font-weight: bold;
+}
+
+.user-card {
+    -fx-padding: 12 8;
+}
+
+.avatar {
+    -fx-min-width: 38;
+    -fx-min-height: 38;
+    -fx-max-width: 38;
+    -fx-max-height: 38;
+    -fx-background-color: #dfe6f2;
+    -fx-background-radius: 19;
+    -fx-font-weight: bold;
+    -fx-font-size: 15px;
+}
+
+.user-name {
+    -fx-font-size: 13px;
+}
+
+.user-email {
+    -fx-text-fill: #7b8aa3;
+    -fx-font-size: 11px;
+}
+
+/* Página */
+.page-scroll, .page-scroll > .viewport {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+
+.page {
+    -fx-padding: 20 24;
+}
+
+.card {
+    -fx-background-color: white;
+    -fx-background-radius: 12;
+    -fx-padding: 20 24;
+    -fx-effect: dropshadow(gaussian, rgba(15, 42, 90, 0.06), 12, 0, 0, 2);
+}
+
+.card-title {
+    -fx-font-size: 17px;
+    -fx-font-weight: bold;
+}
+
+/* Task atual */
+.current-key {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1d5be8;
+}
+
+.current-summary {
+    -fx-font-size: 18px;
+}
+
+.timer-box {
+    -fx-background-color: #eef4fd;
+    -fx-background-radius: 12;
+    -fx-padding: 24 28;
+}
+
+.timer-caption {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+}
+
+.timer {
+    -fx-font-size: 52px;
+    -fx-font-weight: bold;
+    -fx-font-family: "Segoe UI Semibold", "Segoe UI", "System";
+}
+
+.timer-since {
+    -fx-text-fill: #52627f;
+    -fx-font-size: 14px;
+}
+
+.big-toggle {
+    -fx-min-width: 88;
+    -fx-min-height: 88;
+    -fx-max-width: 88;
+    -fx-max-height: 88;
+    -fx-background-color: #f8c630;
+    -fx-background-radius: 44;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(248, 198, 48, 0.45), 14, 0, 0, 4);
+}
+
+.big-toggle:hover {
+    -fx-background-color: #f5bb12;
+}
+
+/* Etiquetas de status */
+.badge {
+    -fx-padding: 4 12;
+    -fx-background-radius: 999;
+    -fx-font-size: 12px;
+}
+
+.badge-progress {
+    -fx-background-color: #dbe7fd;
+    -fx-text-fill: #1d4fc4;
+}
+
+.badge-todo {
+    -fx-background-color: #eef1f6;
+    -fx-text-fill: #52627f;
+}
+
+.badge-done {
+    -fx-background-color: #dcf5e6;
+    -fx-text-fill: #16804a;
+}
+
+.badge-neutral {
+    -fx-background-color: #fff4d1;
+    -fx-text-fill: #8a6300;
+}
+
+/* Cartões de status */
+.stat-card {
+    -fx-spacing: 12;
+    -fx-padding: 18 20;
+}
+
+.stat-title {
+    -fx-font-size: 13px;
+}
+
+.stat-value {
+    -fx-font-size: 16px;
+}
+
+.dot { -fx-fill: #c3ccda; }
+.dot-green { -fx-fill: #1fbf6c; }
+.dot-yellow { -fx-fill: #f8c630; }
+.dot-red { -fx-fill: #e5484d; }
+.dot-blue { -fx-fill: #1d5be8; }
+.dot-gray { -fx-fill: #d5dce8; }
+
+/* Progresso do dia */
+.goal {
+    -fx-font-size: 15px;
+    -fx-text-fill: #52627f;
+}
+
+.progress-track {
+    -fx-background-color: #e6ebf3;
+    -fx-background-radius: 7;
+}
+
+.progress-active {
+    -fx-background-color: #1d5be8;
+    -fx-background-radius: 7 0 0 7;
+}
+
+.progress-inactive {
+    -fx-background-color: #f8c630;
+}
+
+.metrics {
+    -fx-padding: 8 0 0 0;
+}
+
+.metric {
+    -fx-padding: 4 16;
+    -fx-border-color: transparent #e6ebf3 transparent transparent;
+}
+
+.metric-caption {
+    -fx-text-fill: #52627f;
+    -fx-font-size: 12px;
+}
+
+.metric-value {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+}
+
+/* Lista de tarefas */
+.task-row {
+    -fx-padding: 12 4;
+    -fx-border-color: transparent transparent #eef1f6 transparent;
+}
+
+.task-row-running .task-key {
+    -fx-text-fill: #1d5be8;
+}
+
+.task-key {
+    -fx-font-size: 14px;
+}
+
+.task-summary {
+    -fx-text-fill: #52627f;
+    -fx-font-size: 12px;
+}
+
+.task-time {
+    -fx-text-fill: #52627f;
+}
+
+.task-time-running {
+    -fx-text-fill: #1d5be8;
+    -fx-font-weight: bold;
+}
+
+.row-toggle {
+    -fx-background-color: transparent;
+    -fx-padding: 6;
+    -fx-cursor: hand;
+    -fx-background-radius: 999;
+}
+
+.row-toggle .icon {
+    -fx-fill: #1d5be8;
+}
+
+.row-toggle:hover {
+    -fx-background-color: #eef4fd;
+}
+
+.row-toggle-running {
+    -fx-background-color: #fff4d1;
+}
+
+/* Atividade recente */
+.event-row {
+    -fx-padding: 8 0 10 0;
+}
+
+.event-time {
+    -fx-text-fill: #7b8aa3;
+}
+
+.event-title {
+    -fx-font-size: 13px;
+}

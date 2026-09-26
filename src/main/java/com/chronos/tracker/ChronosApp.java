@@ -6,7 +6,7 @@ import com.chronos.tracker.config.AppConfig;
 import com.chronos.tracker.jira.RestJiraService;
 import com.chronos.tracker.tracking.MultiTaskTracker;
 import com.chronos.tracker.tracking.TrackingEngine;
-import com.chronos.tracker.ui.DashboardController;
+import com.chronos.tracker.ui.AppController;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
@@ -17,7 +17,7 @@ import java.time.Clock;
 
 public final class ChronosApp extends Application {
 
-    private DashboardController dashboard;
+    private AppController controller;
 
     @Override
     public void start(Stage stage) {
@@ -37,21 +37,23 @@ public final class ChronosApp extends Application {
                 RestJiraService.from(config),
                 clock);
 
-        dashboard = new DashboardController(engine, config.pollingInterval());
+        controller = new AppController(engine, config.pollingInterval());
 
-        Scene scene = new Scene(dashboard.getView(), 420, 520);
-        scene.getStylesheets().add(getClass().getResource("ui/dashboard.css").toExternalForm());
-        stage.setTitle("Chronos — Work Tracker");
+        Scene scene = new Scene(controller.getView(), 1320, 860);
+        scene.getStylesheets().add(getClass().getResource("ui/app.css").toExternalForm());
+        stage.setTitle("Chronos");
+        stage.setMinWidth(1100);
+        stage.setMinHeight(700);
         stage.setScene(scene);
         stage.show();
 
-        dashboard.start();
+        controller.start();
     }
 
     @Override
     public void stop() {
-        if (dashboard != null) {
-            dashboard.stop();
+        if (controller != null) {
+            controller.stop();
         }
     }
 }

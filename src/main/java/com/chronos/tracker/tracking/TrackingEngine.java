@@ -17,6 +17,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -299,11 +300,15 @@ public final class TrackingEngine {
                 overrides.containsKey(key), tracker.runningSince(key));
     }
 
-    /** Task em destaque no painel: a que começou a contar por último; senão, a primeira em andamento. */
+    /**
+     * Task em destaque no painel: a que começou a contar por último; senão, a primeira em andamento.
+     * Tasks que começaram no mesmo segundo desempatam pela ordem do Jira.
+     */
     private static Optional<TaskView> featured(List<TaskView> tasks) {
         Optional<TaskView> latestRunning = tasks.stream()
                 .filter(TaskView::running)
-                .max(Comparator.comparing(task -> task.runningSince().orElse(Instant.MIN)));
+                .max(Comparator.comparing(task ->
+                        task.runningSince().orElse(Instant.MIN).truncatedTo(ChronoUnit.SECONDS)));
         return latestRunning.or(() -> tasks.stream()
                 .filter(task -> task.category() == StatusCategory.IN_PROGRESS)
                 .findFirst());
