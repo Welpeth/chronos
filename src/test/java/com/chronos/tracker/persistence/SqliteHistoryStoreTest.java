@@ -1,6 +1,7 @@
 package com.chronos.tracker.persistence;
 
 import com.chronos.tracker.tracking.HistoryStore;
+import com.chronos.tracker.tracking.ManualEntry;
 import com.chronos.tracker.tracking.TimeEntry;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -96,6 +97,43 @@ class SqliteHistoryStoreTest {
 
             assertEquals(java.util.Set.of(LocalDate.of(2026, 9, 26), LocalDate.of(2026, 9, 29)),
                     store.daysWithEntries());
+        }
+    }
+
+    @Test
+    void manualEntriesAreStoredByDayAndCountInTotals() throws Exception {
+        LocalDate day = LocalDate.of(2026, 9, 26);
+        try (SqliteHistoryStore store = new SqliteHistoryStore(dir.resolve("chronos.db"), ZoneOffset.UTC)) {
+            store.saveInterval(entry("SCRUM-1", NINE, Duration.ofMinutes(10)), "Ajustar login");
+            ManualEntry saved = store.saveManual(new ManualEntry(0, "SCRUM-1", "Ajustar login", day.minusDays(2),
+                    Duration.ofMinutes(45), "reunião com o time", NINE));
+
+            assertTrue(saved.id() > 0);
+            assertEquals(List.of(saved), store.manualOn(day.minusDays(2)));
+            assertTrue(store.manualOn(day).isEmpty());
+            assertEquals(Duration.ofMinutes(55), store.totalsByTask().get("SCRUM-1"));
+            assertEquals(1, store.searchManual("REUNIÃO".toLowerCase(), 10).size());
+            assertEquals(1, store.searchManual("login", 10).size());
+            assertTrue(store.daysWithEntries().contains(day.minusDays(2)));
+        }
+    }
+
+    @Test
+    void openingAVersionOneDatabaseAddsTheManualTable() throws Exception {
+        Path file = dir.resolve("v1.db");
+        try (java.sql.Connection c = java.sql.DriverManager.getConnection("jdbc:sqlite:" + file);
+             java.sql.Statement st = c.createStatement()) {
+            st.executeUpdate("CREATE TABLE time_entry (issue_key TEXT NOT NULL, summary TEXT NOT NULL DEFAULT '', "
+                    + "started_at INTEGER NOT NULL, ended_at INTEGER NOT NULL, seconds INTEGER NOT NULL, "
+                    + "work_date TEXT NOT NULL, PRIMARY KEY (issue_key, started_at))");
+            st.executeUpdate("CREATE TABLE idle_period (started_at INTEGER PRIMARY KEY, ended_at INTEGER NOT NULL, "
+                    + "seconds INTEGER NOT NULL, work_date TEXT NOT NULL)");
+            st.executeUpdate("INSERT INTO time_entry VALUES ('SCRUM-1', '', 0, 60000, 60, '1970-01-01')");
+            st.executeUpdate("PRAGMA user_version = 1");
+        }
+        try (SqliteHistoryStore store = new SqliteHistoryStore(file, ZoneOffset.UTC)) {
+            store.saveManual(new ManualEntry(0, "SCRUM-1", "", LocalDate.of(2026, 9, 26), Duration.ofMinutes(5), "", NINE));
+            assertEquals(Duration.ofMinutes(6), store.totalsByTask().get("SCRUM-1"));
         }
     }
 }

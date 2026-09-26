@@ -17,10 +17,12 @@ import java.nio.file.Path;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TrackingEngineTest {
@@ -294,6 +296,72 @@ class TrackingEngineTest {
             withStore.tick();
 
             assertEquals(Duration.ofMinutes(10), store.idleOn(java.time.LocalDate.of(2026, 9, 26)));
+        }
+    }
+
+    @Test
+    void manualTimeAddsToTheTaskAndToTheDay() throws Exception {
+        jira.issues = List.of(DOING_1);
+        engine.pollJira();
+        engine.tick();
+        advance(Duration.ofHours(1));
+
+        engine.addManual("proj-1", LocalDate.of(2026, 9, 26), Duration.ofMinutes(90), "reunião");
+        TrackingEngine.Snapshot snapshot = engine.tick();
+
+        assertEquals(Duration.ofMinutes(150), task(snapshot, "PROJ-1").totalTime());
+        assertEquals(Duration.ofHours(1), snapshot.activeToday());
+        assertEquals(Duration.ofMinutes(90), snapshot.manualToday());
+        assertEquals(Duration.ofMinutes(150), snapshot.workedToday());
+        assertEquals("reunião", snapshot.manualEntries().get(0).note());
+    }
+
+    @Test
+    void manualTimeThatWouldPassEightHoursIsRejected() throws Exception {
+        jira.issues = List.of(DOING_1);
+        engine.pollJira();
+        engine.tick();
+        advance(Duration.ofHours(6));
+        engine.addManual("PROJ-2", LocalDate.of(2026, 9, 26), Duration.ofHours(1), "");
+
+        InvalidManualEntryException error = assertThrows(InvalidManualEntryException.class,
+                () -> engine.addManual("PROJ-2", LocalDate.of(2026, 9, 26), Duration.ofMinutes(61), ""));
+        assertTrue(error.getMessage().startsWith("Tempo manual inválido"), error.getMessage());
+
+        // Exatamente 8h ainda vale.
+        engine.addManual("PROJ-2", LocalDate.of(2026, 9, 26), Duration.ofMinutes(60), "");
+        assertEquals(Duration.ofHours(8), engine.tick().workedToday());
+    }
+
+    @Test
+    void manualTimeNeedsTaskDurationAndPastDay() {
+        LocalDate today = LocalDate.of(2026, 9, 26);
+        assertThrows(InvalidManualEntryException.class, () -> engine.addManual(" ", today, Duration.ofHours(1), ""));
+        assertThrows(InvalidManualEntryException.class, () -> engine.addManual("PROJ-1", today, Duration.ZERO, ""));
+        assertThrows(InvalidManualEntryException.class,
+                () -> engine.addManual("PROJ-1", today.plusDays(1), Duration.ofHours(1), ""));
+    }
+
+    @Test
+    void manualTimeOnAnotherDayChecksThatDaysHistory(@TempDir Path dir) throws Exception {
+        try (SqliteHistoryStore store = new SqliteHistoryStore(dir.resolve("chronos.db"), clock.getZone())) {
+            Instant yesterday = Instant.parse("2026-09-25T09:00:00Z");
+            store.saveInterval(new TimeEntry("PROJ-1", yesterday, yesterday.plus(Duration.ofHours(7)),
+                    Duration.ofHours(7)), "");
+            TrackingEngine withStore = new TrackingEngine(new MultiTaskTracker(clock), () -> idle, classifier, jira, clock, store);
+
+            assertThrows(InvalidManualEntryException.class,
+                    () -> withStore.addManual("PROJ-1", LocalDate.of(2026, 9, 25), Duration.ofHours(2), ""));
+            withStore.addManual("PROJ-1", LocalDate.of(2026, 9, 25), Duration.ofMinutes(30), "");
+
+            // Não entra no dia de hoje, mas soma no total da task e fica gravado.
+            TrackingEngine.Snapshot snapshot = withStore.tick();
+            assertEquals(Duration.ZERO, snapshot.manualToday());
+            assertEquals(Duration.ofMinutes(450), store.totalsByTask().get("PROJ-1"));
+
+            TrackingEngine reopened = new TrackingEngine(new MultiTaskTracker(clock), () -> idle, classifier, jira, clock, store);
+            reopened.play("PROJ-1");
+            assertEquals(Duration.ofMinutes(450), task(reopened.tick(), "PROJ-1").totalTime());
         }
     }
 

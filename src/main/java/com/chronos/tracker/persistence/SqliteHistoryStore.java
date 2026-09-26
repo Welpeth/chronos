@@ -1,6 +1,7 @@
 package com.chronos.tracker.persistence;
 
 import com.chronos.tracker.tracking.HistoryStore;
+import com.chronos.tracker.tracking.ManualEntry;
 import com.chronos.tracker.tracking.TimeEntry;
 
 import java.nio.file.Files;
@@ -30,7 +31,7 @@ import java.util.Set;
  */
 public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
 
-    private static final int SCHEMA_VERSION = 1;
+    private static final int SCHEMA_VERSION = 2;
 
     private final Connection connection;
     private final ZoneId zone;
@@ -75,6 +76,19 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
                             work_date  TEXT    NOT NULL
                         )""");
                 statement.executeUpdate("CREATE INDEX IF NOT EXISTS idle_period_date ON idle_period (work_date)");
+            }
+            if (version < 2) {
+                statement.executeUpdate("""
+                        CREATE TABLE IF NOT EXISTS manual_entry (
+                            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                            issue_key  TEXT    NOT NULL,
+                            summary    TEXT    NOT NULL DEFAULT '',
+                            work_date  TEXT    NOT NULL,
+                            seconds    INTEGER NOT NULL,
+                            note       TEXT    NOT NULL DEFAULT '',
+                            created_at INTEGER NOT NULL
+                        )""");
+                statement.executeUpdate("CREATE INDEX IF NOT EXISTS manual_entry_date ON manual_entry (work_date)");
             }
             statement.executeUpdate("PRAGMA user_version = " + SCHEMA_VERSION);
         }
@@ -122,7 +136,12 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
     public synchronized Map<String, Duration> totalsByTask() throws HistoryException {
         Map<String, Duration> totals = new HashMap<>();
         try (Statement statement = connection.createStatement();
-             ResultSet rs = statement.executeQuery("SELECT issue_key, SUM(ended_at - started_at) FROM time_entry GROUP BY issue_key")) {
+             ResultSet rs = statement.executeQuery("""
+                     SELECT issue_key, SUM(millis) FROM (
+                         SELECT issue_key, ended_at - started_at AS millis FROM time_entry
+                         UNION ALL
+                         SELECT issue_key, seconds * 1000 FROM manual_entry)
+                     GROUP BY issue_key""")) {
             while (rs.next()) {
                 totals.put(rs.getString(1), Duration.ofMillis(rs.getLong(2)));
             }
@@ -168,7 +187,7 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
                 WHERE e.issue_key LIKE ? ESCAPE '\\' OR COALESCE(NULLIF(e.summary, ''), latest.summary, '') LIKE ? ESCAPE '\\'
                 ORDER BY e.started_at DESC
                 LIMIT ?""";
-        String pattern = "%" + text.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+        String pattern = likePattern(text);
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, pattern);
             statement.setString(2, pattern);
@@ -180,10 +199,86 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
     }
 
     @Override
+    public synchronized ManualEntry saveManual(ManualEntry entry) throws HistoryException {
+        String sql = """
+                INSERT INTO manual_entry (issue_key, summary, work_date, seconds, note, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)""";
+        try (PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            statement.setString(1, entry.issueKey());
+            statement.setString(2, entry.summary() == null ? "" : entry.summary());
+            statement.setString(3, entry.day().toString());
+            statement.setLong(4, entry.duration().toSeconds());
+            statement.setString(5, entry.note() == null ? "" : entry.note());
+            statement.setLong(6, entry.createdAt().toEpochMilli());
+            statement.executeUpdate();
+            try (ResultSet keys = statement.getGeneratedKeys()) {
+                long id = keys.next() ? keys.getLong(1) : 0;
+                return new ManualEntry(id, entry.issueKey(), entry.summary(), entry.day(), entry.duration(),
+                        entry.note(), entry.createdAt());
+            }
+        } catch (SQLException e) {
+            throw new HistoryException("Falha ao gravar o tempo manual de " + entry.issueKey(), e);
+        }
+    }
+
+    @Override
+    public synchronized List<ManualEntry> manualOn(LocalDate day) throws HistoryException {
+        String sql = "SELECT * FROM manual_entry WHERE work_date = ? ORDER BY created_at, id";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, day.toString());
+            return readManual(statement);
+        } catch (SQLException e) {
+            throw new HistoryException("Falha ao ler o tempo manual de " + day, e);
+        }
+    }
+
+    @Override
+    public synchronized List<ManualEntry> searchManual(String text, int limit) throws HistoryException {
+        String sql = """
+                SELECT * FROM manual_entry
+                WHERE issue_key LIKE ? ESCAPE '\\' OR summary LIKE ? ESCAPE '\\' OR note LIKE ? ESCAPE '\\'
+                ORDER BY work_date DESC, created_at DESC
+                LIMIT ?""";
+        String pattern = likePattern(text);
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, pattern);
+            statement.setString(2, pattern);
+            statement.setString(3, pattern);
+            statement.setInt(4, limit);
+            return readManual(statement);
+        } catch (SQLException e) {
+            throw new HistoryException("Falha ao buscar no tempo manual", e);
+        }
+    }
+
+    private static List<ManualEntry> readManual(PreparedStatement statement) throws SQLException {
+        List<ManualEntry> entries = new ArrayList<>();
+        try (ResultSet rs = statement.executeQuery()) {
+            while (rs.next()) {
+                entries.add(new ManualEntry(
+                        rs.getLong("id"),
+                        rs.getString("issue_key"),
+                        rs.getString("summary"),
+                        LocalDate.parse(rs.getString("work_date")),
+                        Duration.ofSeconds(rs.getLong("seconds")),
+                        rs.getString("note"),
+                        Instant.ofEpochMilli(rs.getLong("created_at"))));
+            }
+        }
+        return entries;
+    }
+
+    /** Texto para {@code LIKE '%texto%' ESCAPE '\'}, sem que % e _ digitados virem curingas. */
+    private static String likePattern(String text) {
+        return "%" + text.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+    }
+
+    @Override
     public synchronized Set<LocalDate> daysWithEntries() throws HistoryException {
         Set<LocalDate> days = new HashSet<>();
         try (Statement statement = connection.createStatement();
-             ResultSet rs = statement.executeQuery("SELECT DISTINCT work_date FROM time_entry")) {
+             ResultSet rs = statement.executeQuery(
+                     "SELECT work_date FROM time_entry UNION SELECT work_date FROM manual_entry")) {
             while (rs.next()) {
                 days.add(LocalDate.parse(rs.getString(1)));
             }
