@@ -82,9 +82,26 @@ class AppConfigTest {
     @Test
     void workingStatusesHaveADefault() {
         assertEquals(AppConfig.DEFAULT_WORKING_STATUSES, AppConfig.fromMap(Map.of()).workingStatuses());
-        assertEquals(List.of("Doing", "Em revisão"),
-                AppConfig.fromMap(Map.of("JIRA_IN_PROGRESS_STATUSES", "Doing, Em revisão")).workingStatuses());
         assertEquals(AppConfig.DEFAULT_WORKING_STATUSES,
                 AppConfig.fromMap(Map.of("JIRA_IN_PROGRESS_STATUSES", " ")).workingStatuses());
+        assertTrue(AppConfig.fromMap(Map.of()).autoStart());
+    }
+
+    @Test
+    void typedColumnsAddToTheDefaultsUnlessTheDefaultsAreOff() {
+        assertEquals(List.of("Em andamento", "Em progresso", "In Progress", "Test"),
+                AppConfig.fromMap(Map.of("JIRA_IN_PROGRESS_STATUSES", "Test, in progress")).workingStatuses());
+        assertEquals(List.of("Test"), AppConfig.fromMap(Map.of(
+                "JIRA_IN_PROGRESS_STATUSES", "Test", "JIRA_USE_DEFAULT_STATUSES", "false")).workingStatuses());
+        // Sem padrão e sem nada digitado, as padrão continuam valendo.
+        assertEquals(AppConfig.DEFAULT_WORKING_STATUSES,
+                AppConfig.fromMap(Map.of("JIRA_USE_DEFAULT_STATUSES", "false")).workingStatuses());
+    }
+
+    @Test
+    void autoStartCanBeTurnedOff() {
+        assertFalse(AppConfig.fromMap(Map.of("CHRONOS_AUTO_START", "false")).autoStart());
+        assertThrows(IllegalArgumentException.class,
+                () -> AppConfig.fromMap(Map.of("CHRONOS_AUTO_START", "talvez")));
     }
 }

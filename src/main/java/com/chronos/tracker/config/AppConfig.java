@@ -26,13 +26,16 @@ public record AppConfig(
         Duration inactiveAfter,
         Path databasePath,
         List<String> workingStatuses,
-        List<String> alertIssueTypes) {
+        List<String> alertIssueTypes,
+        List<String> typedStatuses,
+        boolean useDefaultStatuses,
+        boolean autoStart) {
 
     public static final Duration DEFAULT_POLLING_INTERVAL = Duration.ofSeconds(5);
     public static final Duration DEFAULT_POSSIBLY_IDLE_AFTER = Duration.ofMinutes(2);
     public static final Duration DEFAULT_INACTIVE_AFTER = Duration.ofMinutes(5);
     public static final String DEFAULT_DATABASE = "chronos.db";
-    /** Colunas do quadro em que o tempo conta, quando JIRA_IN_PROGRESS_STATUSES não é definido. */
+    /** Colunas padrão em que o tempo conta; somam com as de JIRA_IN_PROGRESS_STATUSES se JIRA_USE_DEFAULT_STATUSES. */
     public static final List<String> DEFAULT_WORKING_STATUSES = List.of("Em andamento", "Em progresso", "In Progress");
 
     public static AppConfig load(Path envFile) throws IOException {
@@ -52,6 +55,10 @@ public record AppConfig(
                 .map(AppConfig::splitList)
                 .orElse(List.of());
 
+        List<String> typedStatuses = nonBlank.apply("JIRA_IN_PROGRESS_STATUSES").map(AppConfig::splitList)
+                .orElse(List.of());
+        boolean useDefaultStatuses = flag(nonBlank, "JIRA_USE_DEFAULT_STATUSES", true);
+
         return new AppConfig(
                 nonBlank.apply("JIRA_BASE_URL").map(url -> url.replaceAll("/+$", "")),
                 nonBlank.apply("JIRA_EMAIL"),
@@ -62,8 +69,24 @@ public record AppConfig(
                 seconds(nonBlank, "POSSIBLY_IDLE_SECONDS", DEFAULT_POSSIBLY_IDLE_AFTER),
                 seconds(nonBlank, "IDLE_THRESHOLD_SECONDS", DEFAULT_INACTIVE_AFTER),
                 Path.of(nonBlank.apply("CHRONOS_DB_PATH").orElse(DEFAULT_DATABASE)),
-                nonBlank.apply("JIRA_IN_PROGRESS_STATUSES").map(AppConfig::splitList).orElse(DEFAULT_WORKING_STATUSES),
-                nonBlank.apply("CHRONOS_ALERT_ISSUE_TYPES").map(AppConfig::splitList).orElse(List.of()));
+                workingStatuses(typedStatuses, useDefaultStatuses),
+                nonBlank.apply("CHRONOS_ALERT_ISSUE_TYPES").map(AppConfig::splitList).orElse(List.of()),
+                typedStatuses,
+                useDefaultStatuses,
+                flag(nonBlank, "CHRONOS_AUTO_START", true));
+    }
+
+    /**
+     * Colunas que contam tempo: as padrão (se ligadas) mais as digitadas, sem repetir. Sem nenhuma, valem as
+     * padrão, para o tempo nunca ficar sem coluna.
+     */
+    static List<String> workingStatuses(List<String> typed, boolean useDefaults) {
+        Map<String, String> byName = new java.util.LinkedHashMap<>();
+        if (useDefaults) {
+            DEFAULT_WORKING_STATUSES.forEach(name -> byName.putIfAbsent(name.toLowerCase(java.util.Locale.ROOT), name));
+        }
+        typed.forEach(name -> byName.putIfAbsent(name.toLowerCase(java.util.Locale.ROOT), name));
+        return byName.isEmpty() ? DEFAULT_WORKING_STATUSES : List.copyOf(byName.values());
     }
 
     /** Indica se há dados suficientes para falar com o Jira. */
@@ -85,6 +108,14 @@ public record AppConfig(
                 .map(String::strip)
                 .filter(s -> !s.isEmpty())
                 .toList();
+    }
+
+    private static boolean flag(Function<String, Optional<String>> lookup, String key, boolean fallback) {
+        return lookup.apply(key).map(value -> switch (value.toLowerCase(java.util.Locale.ROOT)) {
+            case "true", "sim", "1" -> true;
+            case "false", "nao", "não", "0" -> false;
+            default -> throw new IllegalArgumentException(key + " deve ser true ou false: " + value);
+        }).orElse(fallback);
     }
 
     private static Duration seconds(Function<String, Optional<String>> lookup, String key, Duration fallback) {
@@ -113,6 +144,7 @@ public record AppConfig(
                 + ", inactiveAfter=" + inactiveAfter
                 + ", databasePath=" + databasePath
                 + ", workingStatuses=" + workingStatuses
-                + ", alertIssueTypes=" + alertIssueTypes + "]";
+                + ", alertIssueTypes=" + alertIssueTypes
+                + ", autoStart=" + autoStart + "]";
     }
 }

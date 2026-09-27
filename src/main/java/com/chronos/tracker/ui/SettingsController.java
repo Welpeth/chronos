@@ -142,6 +142,7 @@ final class SettingsController implements SettingsPage.Handler {
             engine.switchJira(RestJiraService.from(config), config.jiraSite());
         }
         engine.setWorkingStatuses(config.workingStatuses());
+        engine.setAutoStart(config.autoStart());
         engine.setClassifier(new ActivityClassifier(config.possiblyIdleAfter(), config.inactiveAfter()));
         AppConfig previous = current;
         current = config;

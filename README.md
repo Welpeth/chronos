@@ -72,8 +72,12 @@ A cada `POLLING_INTERVAL_SECONDS` o app consulta o Jira Cloud (`/rest/api/3/sear
   concluídas hoje;
 - com `JIRA_JQL`: a sua consulta, na ordem dela (ou por `updated DESC` se não tiver `ORDER BY`).
 
-Conta tempo toda issue que está na coluna "Em andamento" do quadro (as colunas que contam ficam em
-`JIRA_IN_PROGRESS_STATUSES`; o padrão é "Em andamento", "Em progresso" e "In Progress"). Ao mudar de
+Conta tempo toda issue que está numa coluna que conta. As colunas padrão são "Em andamento", "Em progresso" e
+"In Progress"; em `JIRA_IN_PROGRESS_STATUSES` dá para acrescentar outras escritas como no quadro (por exemplo
+"Test", para quem testa). Com `JIRA_USE_DEFAULT_STATUSES=false`, só as digitadas contam. Com
+`CHRONOS_AUTO_START=false`, entrar numa dessas colunas não liga o tempo: ele só conta depois do play, e
+continua contando se a task passar para outra coluna que conta. As duas opções também ficam em
+Configurações e começam ligadas. Ao mudar de
 coluna, por exemplo para "Em análise" ou "Concluído", a task pausa. Várias contam ao mesmo tempo: uma hora trabalhada com duas tasks em andamento soma uma hora em
 cada uma. O "tempo hoje" conta o relógio, então essa hora aparece como uma hora só.
 

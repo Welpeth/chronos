@@ -384,6 +384,44 @@ class TrackingEngineTest {
     }
 
     @Test
+    void withoutAutoStartOnlyPlayStartsTheTime() {
+        engine.setAutoStart(false);
+        jira.issues = List.of(DOING_1);
+        engine.pollJira();
+        engine.tick();
+        TrackingEngine.Snapshot snapshot = advance(Duration.ofMinutes(5));
+        assertFalse(task(snapshot, "PROJ-1").running());
+
+        engine.play("PROJ-1");
+        advance(Duration.ofMinutes(10));
+
+        // Passar para outra coluna que conta não pausa quem foi ligado no play.
+        engine.setWorkingStatuses(List.of("Em andamento", "Test"));
+        jira.issues = List.of(new JiraIssue("PROJ-1", "Título de PROJ-1", "Test", StatusCategory.IN_PROGRESS));
+        engine.pollJira();
+        engine.tick();
+        snapshot = advance(Duration.ofMinutes(5));
+        assertTrue(task(snapshot, "PROJ-1").running());
+        assertEquals(Duration.ofMinutes(15), task(snapshot, "PROJ-1").totalTime());
+
+        // Sair das colunas que contam pausa.
+        jira.issues = List.of(new JiraIssue("PROJ-1", "Título de PROJ-1", "Concluído", StatusCategory.DONE));
+        engine.pollJira();
+        snapshot = advance(Duration.ofMinutes(5));
+        assertFalse(task(snapshot, "PROJ-1").running());
+    }
+
+    @Test
+    void typedColumnStartsTheTimeWithAutoStart() {
+        engine.setWorkingStatuses(List.of("Em andamento", "Test"));
+        jira.issues = List.of(new JiraIssue("PROJ-1", "Título de PROJ-1", "test", StatusCategory.IN_PROGRESS));
+        engine.pollJira();
+        engine.tick();
+        TrackingEngine.Snapshot snapshot = advance(Duration.ofMinutes(5));
+        assertTrue(task(snapshot, "PROJ-1").running());
+    }
+
+    @Test
     void leavingTheColumnPausesATaskStartedByHand() {
         jira.issues = List.of(DOING_1);
         engine.pollJira();

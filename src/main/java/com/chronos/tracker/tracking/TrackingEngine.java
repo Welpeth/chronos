@@ -74,6 +74,8 @@ public final class TrackingEngine {
     private final Map<String, Boolean> overrides = new HashMap<>();
     private final Map<String, String> lastStatus = new HashMap<>();
     private volatile Predicate<JiraIssue> working = JiraIssue::isInProgress;
+    /** Se o tempo começa sozinho quando a task entra numa coluna que conta; senão, só pelo play. */
+    private volatile boolean autoStart = true;
     private long seenIssuesVersion;
     private boolean inactivityPause;
     private Instant inactiveSince;
@@ -393,8 +395,17 @@ public final class TrackingEngine {
     }
 
     /**
+     * Com {@code false}, entrar numa coluna que conta não liga o tempo: só o play liga. Sair dessas colunas
+     * continua pausando.
+     */
+    public synchronized void setAutoStart(boolean enabled) {
+        autoStart = enabled;
+    }
+
+    /**
      * Quando uma issue muda de coluna no Jira (ou some da busca), o play/pause manual dela deixa de valer:
-     * saiu de "em andamento", pausa; entrou, começa a contar.
+     * saiu de "em andamento", pausa; entrou, começa a contar. Sem o início automático, uma task ligada no
+     * play continua contando enquanto passa de uma coluna que conta para outra.
      */
     private void dropOverridesWhenJiraChanges(List<JiraIssue> currentIssues) {
         long version = issuesVersion;
@@ -407,7 +418,11 @@ public final class TrackingEngine {
             present.add(issue.key());
             String before = lastStatus.put(issue.key(), issue.statusName());
             if (before != null && !before.equals(issue.statusName())) {
-                overrides.remove(issue.key());
+                boolean keepPlaying = !autoStart && Boolean.TRUE.equals(overrides.get(issue.key()))
+                        && working.test(issue);
+                if (!keepPlaying) {
+                    overrides.remove(issue.key());
+                }
             }
         }
         lastStatus.keySet().removeIf(key -> {
@@ -422,7 +437,7 @@ public final class TrackingEngine {
     private Set<String> wantedRunning(List<JiraIssue> currentIssues) {
         Set<String> wanted = new LinkedHashSet<>();
         for (JiraIssue issue : currentIssues) {
-            if (overrides.getOrDefault(issue.key(), working.test(issue))) {
+            if (overrides.getOrDefault(issue.key(), autoStart && working.test(issue))) {
                 wanted.add(issue.key());
             }
         }
