@@ -3,6 +3,7 @@ package com.chronos.tracker.tracking;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -44,6 +45,12 @@ public interface HistoryStore {
      * mais antigo, até {@code limit} resultados.
      */
     List<StoredEntry> search(String text, int limit) throws HistoryException;
+
+    /** Tasks que já geraram aviso (ou foram vistas quando os avisos foram ligados). */
+    Set<String> alertedKeys() throws HistoryException;
+
+    /** Marca tasks como já avisadas, para não avisar de novo. */
+    void markAlerted(Collection<String> issueKeys, Instant at) throws HistoryException;
 
     /** Dias que têm algum intervalo ou inserção manual gravada. */
     Set<LocalDate> daysWithEntries() throws HistoryException;
@@ -102,6 +109,15 @@ public interface HistoryStore {
         @Override
         public List<StoredEntry> search(String text, int limit) {
             return List.of();
+        }
+
+        @Override
+        public Set<String> alertedKeys() {
+            return Set.of();
+        }
+
+        @Override
+        public void markAlerted(Collection<String> issueKeys, Instant at) {
         }
 
         @Override

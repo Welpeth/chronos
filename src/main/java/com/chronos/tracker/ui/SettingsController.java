@@ -12,12 +12,11 @@ import com.chronos.tracker.tracking.TrackingEngine;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 
 /** Lê e grava o {@code .env} pela tela de configurações e aplica o que mudou sem reabrir o app. */
 final class SettingsController implements SettingsPage.Handler {
@@ -27,14 +26,16 @@ final class SettingsController implements SettingsPage.Handler {
 
     private final Path envFile;
     private final TrackingEngine engine;
-    private final Consumer<Duration> onPollingChanged;
+    private final BiConsumer<AppConfig, AppConfig> onApplied;
     private AppConfig current;
 
-    SettingsController(Path envFile, AppConfig current, TrackingEngine engine, Consumer<Duration> onPollingChanged) {
+    /** @param onApplied recebe a configuração anterior e a nova depois de salvar */
+    SettingsController(Path envFile, AppConfig current, TrackingEngine engine,
+                       BiConsumer<AppConfig, AppConfig> onApplied) {
         this.envFile = envFile;
         this.current = current;
         this.engine = engine;
-        this.onPollingChanged = onPollingChanged;
+        this.onApplied = onApplied;
     }
 
     @Override
@@ -138,7 +139,8 @@ final class SettingsController implements SettingsPage.Handler {
         engine.setJiraService(RestJiraService.from(config));
         engine.setWorkingStatuses(config.workingStatuses());
         engine.setClassifier(new ActivityClassifier(config.possiblyIdleAfter(), config.inactiveAfter()));
-        onPollingChanged.accept(config.pollingInterval());
+        AppConfig previous = current;
         current = config;
+        onApplied.accept(previous, config);
     }
 }

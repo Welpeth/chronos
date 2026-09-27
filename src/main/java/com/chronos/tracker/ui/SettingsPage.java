@@ -82,6 +82,16 @@ public final class SettingsPage {
         row(timing, 2, "IDLE_THRESHOLD_SECONDS", "Pausar por inatividade após (segundos)", "300", new TextField());
         VBox timingCard = card("Tempo", timing);
 
+        GridPane alerts = form();
+        row(alerts, 0, "CHRONOS_ALERT_ISSUE_TYPES", "Tipos de task que geram aviso",
+                "Ex.: Bug Cliente (separe vários por vírgula)", new TextField());
+        Label alertsHint = new Label("Quando uma task desses tipos é criada nos projetos acima, de qualquer pessoa, "
+                + "o Chronos mostra uma notificação do Windows e deixa uma bolinha vermelha no ícone até você abrir "
+                + "a janela. Precisa dos projetos preenchidos (não vale só com JQL).");
+        alertsHint.getStyleClass().add("muted");
+        alertsHint.setWrapText(true);
+        VBox alertsCard = card("Avisos de task", alerts, alertsHint);
+
         GridPane storage = form();
         row(storage, 0, "CHRONOS_DB_PATH", "Arquivo do histórico", "chronos.db (vale ao reabrir o app)",
                 new TextField());
@@ -101,7 +111,7 @@ public final class SettingsPage {
         HBox actions = new HBox(12, save, revert, feedback);
         actions.setAlignment(Pos.CENTER_LEFT);
 
-        VBox page = new VBox(18, heading, jiraCard, timingCard, storageCard, systemCard, actions);
+        VBox page = new VBox(18, heading, jiraCard, alertsCard, timingCard, storageCard, systemCard, actions);
         page.getStyleClass().add("page");
         page.setMaxWidth(900);
 

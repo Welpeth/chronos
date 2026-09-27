@@ -76,6 +76,26 @@ public final class RestJiraService implements JiraService {
     }
 
     @Override
+    public List<JiraIssue> fetchRecentIssuesOfTypes(List<String> issueTypes) throws JiraException {
+        if (projectKeys.isEmpty() || issueTypes.isEmpty()) {
+            return List.of();
+        }
+        return client.search(alertJql(projectKeys, issueTypes), MAX_ISSUES);
+    }
+
+    /** Tasks dos tipos avisados criadas nos últimos dias, de qualquer responsável. */
+    static String alertJql(List<String> projectKeys, List<String> issueTypes) {
+        return "project in (" + quoted(projectKeys) + ") AND issuetype in (" + quoted(issueTypes) + ")"
+                + " AND created >= -3d ORDER BY created DESC";
+    }
+
+    private static String quoted(List<String> values) {
+        return values.stream()
+                .map(value -> "\"" + value.replace("\"", "") + "\"")
+                .collect(Collectors.joining(", "));
+    }
+
+    @Override
     public String completeIssue(String issueKey) throws JiraException {
         return client.transitionToDone(issueKey);
     }

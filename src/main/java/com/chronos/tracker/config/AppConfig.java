@@ -25,7 +25,8 @@ public record AppConfig(
         Duration possiblyIdleAfter,
         Duration inactiveAfter,
         Path databasePath,
-        List<String> workingStatuses) {
+        List<String> workingStatuses,
+        List<String> alertIssueTypes) {
 
     public static final Duration DEFAULT_POLLING_INTERVAL = Duration.ofSeconds(5);
     public static final Duration DEFAULT_POSSIBLY_IDLE_AFTER = Duration.ofMinutes(2);
@@ -61,7 +62,8 @@ public record AppConfig(
                 seconds(nonBlank, "POSSIBLY_IDLE_SECONDS", DEFAULT_POSSIBLY_IDLE_AFTER),
                 seconds(nonBlank, "IDLE_THRESHOLD_SECONDS", DEFAULT_INACTIVE_AFTER),
                 Path.of(nonBlank.apply("CHRONOS_DB_PATH").orElse(DEFAULT_DATABASE)),
-                nonBlank.apply("JIRA_IN_PROGRESS_STATUSES").map(AppConfig::splitList).orElse(DEFAULT_WORKING_STATUSES));
+                nonBlank.apply("JIRA_IN_PROGRESS_STATUSES").map(AppConfig::splitList).orElse(DEFAULT_WORKING_STATUSES),
+                nonBlank.apply("CHRONOS_ALERT_ISSUE_TYPES").map(AppConfig::splitList).orElse(List.of()));
     }
 
     /** Indica se há dados suficientes para falar com o Jira. */
@@ -102,6 +104,7 @@ public record AppConfig(
                 + ", possiblyIdleAfter=" + possiblyIdleAfter
                 + ", inactiveAfter=" + inactiveAfter
                 + ", databasePath=" + databasePath
-                + ", workingStatuses=" + workingStatuses + "]";
+                + ", workingStatuses=" + workingStatuses
+                + ", alertIssueTypes=" + alertIssueTypes + "]";
     }
 }

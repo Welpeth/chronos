@@ -47,7 +47,7 @@ public final class JiraClient {
         ObjectNode body = mapper.createObjectNode();
         body.put("jql", jql);
         body.put("maxResults", maxResults);
-        body.putArray("fields").add("summary").add("status");
+        body.putArray("fields").add("summary").add("status").add("issuetype");
 
         HttpRequest request = request("/rest/api/3/search/jql")
                 .header("Content-Type", "application/json")
@@ -131,7 +131,8 @@ public final class JiraClient {
                             issue.path("key").asText(),
                             fields.path("summary").asText(""),
                             status.path("name").asText(""),
-                            StatusCategory.fromJiraKey(status.path("statusCategory").path("key").asText("")));
+                            StatusCategory.fromJiraKey(status.path("statusCategory").path("key").asText("")),
+                            fields.path("issuetype").path("name").asText(""));
                 })
                 .filter(issue -> !issue.key().isEmpty())
                 .toList();

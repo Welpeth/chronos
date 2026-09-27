@@ -3,10 +3,8 @@ package com.chronos.tracker.ui;
 import com.chronos.tracker.tracking.TaskView;
 import com.chronos.tracker.tracking.TrackingEngine.Snapshot;
 
-import javax.imageio.ImageIO;
 import java.awt.AWTException;
 import java.awt.EventQueue;
-import java.awt.Image;
 import java.awt.Menu;
 import java.awt.MenuItem;
 import java.awt.PopupMenu;
@@ -14,7 +12,7 @@ import java.awt.SystemTray;
 import java.awt.TrayIcon;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Objects;
@@ -44,6 +42,8 @@ public final class TrayIconController {
     private TrayIcon trayIcon;
     private boolean installed;
     private List<String> menuState = List.of();
+    private int iconSize = 16;
+    private boolean badge;
 
     public TrayIconController(Actions actions) {
         this.actions = Objects.requireNonNull(actions, "actions");
@@ -56,8 +56,8 @@ public final class TrayIconController {
         }
         try {
             SystemTray tray = SystemTray.getSystemTray();
-            Image image = ImageIO.read(AppIcons.logo(tray.getTrayIconSize().width > 16 ? 32 : 16));
-            TrayIcon icon = new TrayIcon(image, "Chronos");
+            iconSize = tray.getTrayIconSize().width > 16 ? 32 : 16;
+            TrayIcon icon = new TrayIcon(AppIcons.awtLogo(iconSize, false), "Chronos");
             icon.setImageAutoSize(true);
             icon.addMouseListener(new MouseAdapter() {
                 @Override
@@ -72,7 +72,7 @@ public final class TrayIconController {
             trayIcon = icon;
             installed = true;
             return true;
-        } catch (AWTException | IOException | UnsupportedOperationException | SecurityException e) {
+        } catch (AWTException | UncheckedIOException | UnsupportedOperationException | SecurityException e) {
             return false;
         }
     }
@@ -110,6 +110,31 @@ public final class TrayIconController {
         EventQueue.invokeLater(() -> {
             if (trayIcon != null) {
                 trayIcon.displayMessage(title, message, TrayIcon.MessageType.INFO);
+            }
+        });
+    }
+
+    /** Liga ou desliga a bolinha vermelha de aviso no ícone. */
+    public void setBadge(boolean on) {
+        if (trayIcon == null) {
+            return;
+        }
+        EventQueue.invokeLater(() -> {
+            if (trayIcon != null && badge != on) {
+                badge = on;
+                trayIcon.setImage(AppIcons.awtLogo(iconSize, on));
+            }
+        });
+    }
+
+    /** Aviso de task nova: balão de notificação com ícone de alerta. */
+    public void alert(String title, String message) {
+        if (trayIcon == null) {
+            return;
+        }
+        EventQueue.invokeLater(() -> {
+            if (trayIcon != null) {
+                trayIcon.displayMessage(title, message, TrayIcon.MessageType.WARNING);
             }
         });
     }

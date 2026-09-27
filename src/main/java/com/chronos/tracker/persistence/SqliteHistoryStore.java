@@ -17,6 +17,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -31,7 +32,7 @@ import java.util.Set;
  */
 public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
 
-    private static final int SCHEMA_VERSION = 2;
+    private static final int SCHEMA_VERSION = 3;
 
     private final Connection connection;
     private final ZoneId zone;
@@ -89,6 +90,13 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
                             created_at INTEGER NOT NULL
                         )""");
                 statement.executeUpdate("CREATE INDEX IF NOT EXISTS manual_entry_date ON manual_entry (work_date)");
+            }
+            if (version < 3) {
+                statement.executeUpdate("""
+                        CREATE TABLE IF NOT EXISTS alerted_issue (
+                            issue_key  TEXT    PRIMARY KEY,
+                            alerted_at INTEGER NOT NULL
+                        )""");
             }
             statement.executeUpdate("PRAGMA user_version = " + SCHEMA_VERSION);
         }
@@ -271,6 +279,35 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
     /** Texto para {@code LIKE '%texto%' ESCAPE '\'}, sem que % e _ digitados virem curingas. */
     private static String likePattern(String text) {
         return "%" + text.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+    }
+
+    @Override
+    public synchronized Set<String> alertedKeys() throws HistoryException {
+        Set<String> keys = new HashSet<>();
+        try (Statement statement = connection.createStatement();
+             ResultSet rs = statement.executeQuery("SELECT issue_key FROM alerted_issue")) {
+            while (rs.next()) {
+                keys.add(rs.getString(1));
+            }
+            return keys;
+        } catch (SQLException e) {
+            throw new HistoryException("Falha ao ler os avisos de task", e);
+        }
+    }
+
+    @Override
+    public synchronized void markAlerted(Collection<String> issueKeys, Instant at) throws HistoryException {
+        String sql = "INSERT OR IGNORE INTO alerted_issue (issue_key, alerted_at) VALUES (?, ?)";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            for (String key : issueKeys) {
+                statement.setString(1, key);
+                statement.setLong(2, at.toEpochMilli());
+                statement.addBatch();
+            }
+            statement.executeBatch();
+        } catch (SQLException e) {
+            throw new HistoryException("Falha ao gravar os avisos de task", e);
+        }
     }
 
     @Override

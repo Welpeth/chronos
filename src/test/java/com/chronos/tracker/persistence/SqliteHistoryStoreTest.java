@@ -136,4 +136,16 @@ class SqliteHistoryStoreTest {
             assertEquals(Duration.ofMinutes(6), store.totalsByTask().get("SCRUM-1"));
         }
     }
+
+    @Test
+    void alertedIssuesSurviveReopening() throws Exception {
+        Path file = dir.resolve("chronos.db");
+        try (SqliteHistoryStore store = new SqliteHistoryStore(file, ZoneOffset.UTC)) {
+            store.markAlerted(List.of("SCRUM-7", "SCRUM-8"), NINE);
+            store.markAlerted(List.of("SCRUM-7"), NINE.plusSeconds(60));
+        }
+        try (SqliteHistoryStore store = new SqliteHistoryStore(file, ZoneOffset.UTC)) {
+            assertEquals(java.util.Set.of("SCRUM-7", "SCRUM-8"), store.alertedKeys());
+        }
+    }
 }

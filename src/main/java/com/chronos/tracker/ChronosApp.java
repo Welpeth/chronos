@@ -3,6 +3,7 @@ package com.chronos.tracker;
 import com.chronos.tracker.activity.ActivityClassifier;
 import com.chronos.tracker.activity.AlwaysActiveMonitor;
 import com.chronos.tracker.config.AppConfig;
+import com.chronos.tracker.jira.JiraIssue;
 import com.chronos.tracker.jira.RestJiraService;
 import com.chronos.tracker.persistence.SqliteHistoryStore;
 import com.chronos.tracker.system.WindowsStartup;
@@ -20,6 +21,7 @@ import javafx.stage.Stage;
 
 import java.nio.file.Path;
 import java.time.Clock;
+import java.util.List;
 
 public final class ChronosApp extends Application {
 
@@ -29,6 +31,7 @@ public final class ChronosApp extends Application {
     private SqliteHistoryStore store;
     private TrayIconController tray;
     private boolean trayHintShown;
+    private boolean badge;
 
     @Override
     public void start(Stage stage) {
@@ -86,6 +89,13 @@ public final class ChronosApp extends Application {
             });
             controller.setSnapshotListener(tray::update);
         }
+        controller.setAlertListener(issues -> showAlerts(stage, issues));
+        // Abriu a janela: os avisos foram vistos.
+        stage.focusedProperty().addListener((obs, was, focused) -> {
+            if (focused) {
+                setBadge(stage, false);
+            }
+        });
 
         boolean background = getParameters().getRaw().contains(WindowsStartup.BACKGROUND_ARG);
         if (!background || !inTray) {
@@ -99,6 +109,28 @@ public final class ChronosApp extends Application {
         controller.start();
     }
 
+    private void showAlerts(Stage stage, List<JiraIssue> issues) {
+        for (JiraIssue issue : issues) {
+            String type = issue.issueType().isEmpty() ? "Nova task" : issue.issueType();
+            String message = issue.summary().isEmpty() ? issue.key() : issue.key() + " · " + issue.summary();
+            if (tray.wasInstalled()) {
+                tray.alert(type, message);
+            }
+        }
+        if (!stage.isShowing() || !stage.isFocused()) {
+            setBadge(stage, true);
+        }
+    }
+
+    private void setBadge(Stage stage, boolean on) {
+        if (badge == on) {
+            return;
+        }
+        badge = on;
+        AppIcons.applyTo(stage, on);
+        tray.setBadge(on);
+    }
+
     private TrayIconController.Actions trayActions(Stage stage) {
         return new TrayIconController.Actions() {
             @Override
@@ -107,6 +139,7 @@ public final class ChronosApp extends Application {
                     stage.show();
                     stage.setIconified(false);
                     stage.toFront();
+                    setBadge(stage, false);
                 });
             }
 

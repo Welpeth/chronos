@@ -21,6 +21,13 @@ O Chronos fica com um ícone na bandeja do Windows (área de notificação, pert
 só a esconde e o tempo continua contando; clique no ícone para abrir de novo. Com o botão direito aparecem
 as tasks que estão contando, cada uma com **Pausar** e **Finalizar** (move a task para um status concluído
 no Jira), além de **Pausar todas** e **Sair**.
+
+Em **Configurações > Avisos de task** dá para escolher tipos de task (por exemplo "Bug Cliente",
+`CHRONOS_ALERT_ISSUE_TYPES`). A cada 30 segundos o Chronos procura tasks desses tipos criadas nos projetos nos
+últimos 3 dias, de qualquer responsável. Cada task nova gera uma notificação do Windows, entra na atividade
+recente e deixa uma bolinha vermelha no ícone da bandeja e da barra de tarefas até a janela ser aberta. As tasks
+já avisadas ficam no banco; ao ligar o aviso (ou trocar os tipos), as que já existiam não geram notificação.
+
 Sem `.env` o app abre com os valores padrão e o Jira aparece como "não configurado".
 
 O histórico é gravado em `chronos.db` (ou no caminho de `CHRONOS_DB_PATH`). Cada intervalo guarda a task,

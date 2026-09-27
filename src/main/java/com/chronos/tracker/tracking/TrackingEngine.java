@@ -280,6 +280,12 @@ public final class TrackingEngine {
         pollJira();
     }
 
+    /** Registra em "Atividade recente" que chegou uma task de um tipo avisado. */
+    public void recordAlert(JiraIssue issue) {
+        String type = issue.issueType().isEmpty() ? "Nova task" : issue.issueType();
+        addEvent(ActivityEvent.Kind.ALERT, type + ": " + issue.key(), issue.summary());
+    }
+
     /** Pausa todas as tasks que estão contando. */
     public synchronized void pauseAll() {
         for (String key : List.copyOf(tracker.runningKeys())) {

@@ -1,7 +1,10 @@
 package com.chronos.tracker.ui;
 
 import com.chronos.tracker.config.AppConfig;
+import com.chronos.tracker.jira.JiraIssue;
+import com.chronos.tracker.jira.RestJiraService;
 import com.chronos.tracker.tracking.HistoryStore;
+import com.chronos.tracker.tracking.IssueAlertMonitor;
 import com.chronos.tracker.tracking.TaskView;
 import com.chronos.tracker.tracking.TrackingEngine;
 import com.chronos.tracker.tracking.TrackingEngine.Snapshot;
@@ -9,7 +12,9 @@ import javafx.application.Platform;
 import javafx.scene.Parent;
 
 import java.nio.file.Path;
+import java.time.Clock;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -22,9 +27,15 @@ import java.util.function.Consumer;
  */
 public final class AppController {
 
+    /** De quanto em quanto tempo procura tasks novas dos tipos com aviso. */
+    private static final Duration ALERT_INTERVAL = Duration.ofSeconds(30);
+
     private final TrackingEngine engine;
     private final MainWindow window;
+    private final HistoryStore store;
     private Duration pollingInterval;
+    private volatile IssueAlertMonitor alerts;
+    private volatile Consumer<List<JiraIssue>> alertListener = issues -> { };
 
     private ScheduledExecutorService scheduler;
     private ScheduledFuture<?> polling;
@@ -32,8 +43,10 @@ public final class AppController {
 
     public AppController(TrackingEngine engine, AppConfig config, HistoryStore store, Path envFile) {
         this.engine = engine;
+        this.store = store;
         this.pollingInterval = config.pollingInterval();
-        SettingsController settings = new SettingsController(envFile, config, engine, this::setPollingInterval);
+        this.alerts = alertMonitor(config, false);
+        SettingsController settings = new SettingsController(envFile, config, engine, this::applyConfig);
         this.window = new MainWindow(this::toggle, this::addManual, store, settings);
         window.render(engine.tick());
     }
@@ -50,6 +63,12 @@ public final class AppController {
         });
         schedulePolling();
         scheduler.scheduleAtFixedRate(this::safeTick, 0, 1, TimeUnit.SECONDS);
+        scheduler.scheduleWithFixedDelay(this::checkAlerts, 3, ALERT_INTERVAL.toSeconds(), TimeUnit.SECONDS);
+    }
+
+    /** Recebe as tasks novas dos tipos com aviso, na thread da UI. */
+    public void setAlertListener(Consumer<List<JiraIssue>> listener) {
+        alertListener = listener;
     }
 
     /** Recebe cada estado novo, na thread da UI (usado pelo ícone da bandeja). */
@@ -90,6 +109,32 @@ public final class AppController {
             window.render(snapshot);
             snapshotListener.accept(snapshot);
         });
+    }
+
+    /** Configurações salvas: novo intervalo do Jira e, se mudou algo, novos avisos. */
+    private void applyConfig(AppConfig previous, AppConfig next) {
+        setPollingInterval(next.pollingInterval());
+        // Tipos novos: registra o que já existe sem avisar, para não chover notificação das tasks antigas.
+        alerts = alertMonitor(next, !previous.alertIssueTypes().equals(next.alertIssueTypes()));
+    }
+
+    private IssueAlertMonitor alertMonitor(AppConfig config, boolean seedSilently) {
+        return new IssueAlertMonitor(RestJiraService.from(config), store, config.alertIssueTypes(),
+                Clock.systemDefaultZone(), seedSilently);
+    }
+
+    private void checkAlerts() {
+        try {
+            List<JiraIssue> fresh = alerts.check();
+            if (fresh.isEmpty()) {
+                return;
+            }
+            fresh.forEach(engine::recordAlert);
+            Platform.runLater(() -> alertListener.accept(fresh));
+        } catch (Exception e) {
+            // Jira fora ou banco ocupado: tenta de novo na próxima rodada.
+            System.err.println("Avisos de task: " + e.getMessage());
+        }
     }
 
     /** Reagenda o Jira com o novo intervalo e consulta na hora (as configurações acabaram de mudar). */
