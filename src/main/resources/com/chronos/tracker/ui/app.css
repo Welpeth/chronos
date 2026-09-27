@@ -677,3 +677,13 @@
 }
 
 .icon-warning { -fx-fill: #c68a00; }
+
+.token-expiry-soon {
+    -fx-text-fill: #8a6300;
+    -fx-font-weight: bold;
+}
+
+.token-expiry-expired {
+    -fx-text-fill: #a11a1a;
+    -fx-font-weight: bold;
+}

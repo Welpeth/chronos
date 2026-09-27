@@ -3,6 +3,8 @@ package com.chronos.tracker;
 import com.chronos.tracker.activity.ActivityClassifier;
 import com.chronos.tracker.activity.AlwaysActiveMonitor;
 import com.chronos.tracker.config.AppConfig;
+import com.chronos.tracker.config.EnvFile;
+import com.chronos.tracker.config.TokenExpiry;
 import com.chronos.tracker.jira.JiraIssue;
 import com.chronos.tracker.jira.RestJiraService;
 import com.chronos.tracker.persistence.SqliteHistoryStore;
@@ -19,9 +21,12 @@ import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.stage.Stage;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Clock;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 public final class ChronosApp extends Application {
 
@@ -107,6 +112,24 @@ public final class ChronosApp extends Application {
         }
 
         controller.start();
+        warnAboutTokenExpiry();
+    }
+
+    /** Ao abrir: avisa se o API token do Jira vence em até duas semanas ou já venceu. */
+    private void warnAboutTokenExpiry() {
+        Map<String, String> env;
+        try {
+            env = EnvFile.read(ENV_FILE);
+        } catch (IOException e) {
+            return;
+        }
+        TokenExpiry.from(env).ifPresent(expires -> {
+            LocalDate today = LocalDate.now();
+            if (TokenExpiry.level(expires, today) != TokenExpiry.Level.OK && tray.wasInstalled()) {
+                tray.alert("API token do Jira", TokenExpiry.describe(expires, today)
+                        + ". Gere um novo em id.atlassian.com e troque em Configurações.");
+            }
+        });
     }
 
     private void showAlerts(Stage stage, List<JiraIssue> issues) {
