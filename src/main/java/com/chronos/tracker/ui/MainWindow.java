@@ -120,7 +120,7 @@ public final class MainWindow {
     private HBox buildTopBar() {
         ImageView logoImage = new ImageView(new Image(
                 MainWindow.class.getResource("logo-full.png").toExternalForm(), 0, 120, true, true));
-        logoImage.setFitHeight(58);
+        logoImage.setFitHeight(46);
         logoImage.setPreserveRatio(true);
         logoImage.setSmooth(true);
         HBox logo = new HBox(logoImage);
