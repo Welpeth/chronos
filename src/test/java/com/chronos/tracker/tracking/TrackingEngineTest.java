@@ -365,6 +365,57 @@ class TrackingEngineTest {
         }
     }
 
+    @Test
+    void movingToAnotherColumnPausesEvenInsideTheSameCategory() {
+        engine.setWorkingStatuses(List.of("Em andamento"));
+        jira.issues = List.of(DOING_1);
+        engine.pollJira();
+        engine.tick();
+        advance(Duration.ofMinutes(10));
+
+        // "Em análise" também é da categoria "em andamento" no Jira, mas é outra coluna.
+        jira.issues = List.of(new JiraIssue("PROJ-1", "Título de PROJ-1", "Em análise", StatusCategory.IN_PROGRESS));
+        engine.pollJira();
+        engine.tick();
+        TrackingEngine.Snapshot snapshot = advance(Duration.ofMinutes(5));
+
+        assertFalse(task(snapshot, "PROJ-1").running());
+        assertEquals(Duration.ofMinutes(10), task(snapshot, "PROJ-1").totalTime());
+    }
+
+    @Test
+    void leavingTheColumnPausesATaskStartedByHand() {
+        jira.issues = List.of(DOING_1);
+        engine.pollJira();
+        engine.tick();
+        engine.pause("PROJ-1");
+        engine.play("PROJ-1");
+        advance(Duration.ofMinutes(10));
+
+        jira.issues = List.of(new JiraIssue("PROJ-1", "Título de PROJ-1", "Concluído", StatusCategory.DONE));
+        engine.pollJira();
+        TrackingEngine.Snapshot snapshot = advance(Duration.ofMinutes(5));
+
+        assertFalse(task(snapshot, "PROJ-1").running());
+    }
+
+    @Test
+    void taskThatLeavesTheSearchStopsCounting() {
+        jira.issues = List.of(DOING_1, DOING_2);
+        engine.pollJira();
+        engine.tick();
+        engine.play("PROJ-2");
+        advance(Duration.ofMinutes(10));
+
+        jira.issues = List.of(DOING_1);
+        engine.pollJira();
+        engine.tick();
+        advance(Duration.ofMinutes(5));
+
+        assertEquals(List.of("PROJ-1"), List.copyOf(engine.tick().tasks().stream()
+                .filter(TaskView::running).map(TaskView::key).toList()));
+    }
+
     private static final class FakeJira implements JiraService {
         List<JiraIssue> issues = List.of();
         JiraException failure;

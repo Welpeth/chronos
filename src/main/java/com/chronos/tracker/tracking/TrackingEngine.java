@@ -24,12 +24,15 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Predicate;
 
 /**
  * Junta atividade, Jira e os cronômetros. Não depende de JavaFX, então pode rodar em qualquer thread.
@@ -69,7 +72,8 @@ public final class TrackingEngine {
 
     // Protegidos por "this".
     private final Map<String, Boolean> overrides = new HashMap<>();
-    private final Map<String, Boolean> lastInProgress = new HashMap<>();
+    private final Map<String, String> lastStatus = new HashMap<>();
+    private volatile Predicate<JiraIssue> working = JiraIssue::isInProgress;
     private long seenIssuesVersion;
     private boolean inactivityPause;
     private Instant inactiveSince;
@@ -301,25 +305,49 @@ public final class TrackingEngine {
         }
     }
 
-    /** Quando uma issue entra ou sai de "em andamento" no Jira, o play/pause manual dela deixa de valer. */
+    /**
+     * Quais status do Jira contam tempo, pelo nome da coluna (sem diferenciar maiúsculas). Com a lista vazia,
+     * vale a categoria do status: tudo que o Jira considera "em andamento" conta.
+     */
+    public void setWorkingStatuses(List<String> statusNames) {
+        Set<String> names = new HashSet<>();
+        statusNames.forEach(name -> names.add(name.strip().toLowerCase(Locale.ROOT)));
+        working = names.isEmpty()
+                ? JiraIssue::isInProgress
+                : issue -> names.contains(issue.statusName().strip().toLowerCase(Locale.ROOT));
+    }
+
+    /**
+     * Quando uma issue muda de coluna no Jira (ou some da busca), o play/pause manual dela deixa de valer:
+     * saiu de "em andamento", pausa; entrou, começa a contar.
+     */
     private void dropOverridesWhenJiraChanges(List<JiraIssue> currentIssues) {
         long version = issuesVersion;
         if (version == seenIssuesVersion) {
             return;
         }
         seenIssuesVersion = version;
+        Set<String> present = new HashSet<>();
         for (JiraIssue issue : currentIssues) {
-            Boolean before = lastInProgress.put(issue.key(), issue.isInProgress());
-            if (before != null && before != issue.isInProgress()) {
+            present.add(issue.key());
+            String before = lastStatus.put(issue.key(), issue.statusName());
+            if (before != null && !before.equals(issue.statusName())) {
                 overrides.remove(issue.key());
             }
         }
+        lastStatus.keySet().removeIf(key -> {
+            if (present.contains(key)) {
+                return false;
+            }
+            overrides.remove(key);
+            return true;
+        });
     }
 
     private Set<String> wantedRunning(List<JiraIssue> currentIssues) {
         Set<String> wanted = new LinkedHashSet<>();
         for (JiraIssue issue : currentIssues) {
-            if (overrides.getOrDefault(issue.key(), issue.isInProgress())) {
+            if (overrides.getOrDefault(issue.key(), working.test(issue))) {
                 wanted.add(issue.key());
             }
         }
@@ -505,8 +533,8 @@ public final class TrackingEngine {
         }
     }
 
-    private static String describeSync(List<JiraIssue> fetched) {
-        long inProgress = fetched.stream().filter(JiraIssue::isInProgress).count();
+    private String describeSync(List<JiraIssue> fetched) {
+        long inProgress = fetched.stream().filter(working).count();
         return fetched.size() + (fetched.size() == 1 ? " task, " : " tasks, ") + inProgress + " em andamento";
     }
 

@@ -78,4 +78,12 @@ class AppConfigTest {
         assertThrows(IllegalArgumentException.class,
                 () -> AppConfig.fromMap(Map.of("IDLE_THRESHOLD_SECONDS", "0")));
     }
+
+    @Test
+    void workingStatusesHaveADefaultAndCanBeCleared() {
+        assertEquals(AppConfig.DEFAULT_WORKING_STATUSES, AppConfig.fromMap(Map.of()).workingStatuses());
+        assertEquals(List.of("Doing", "Em revisão"),
+                AppConfig.fromMap(Map.of("JIRA_IN_PROGRESS_STATUSES", "Doing, Em revisão")).workingStatuses());
+        assertEquals(List.of(), AppConfig.fromMap(Map.of("JIRA_IN_PROGRESS_STATUSES", "")).workingStatuses());
+    }
 }
