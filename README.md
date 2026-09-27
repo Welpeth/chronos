@@ -16,6 +16,10 @@ A configuração é lida do arquivo `.env` na pasta onde o app é aberto. Veja `
 Tudo isso também pode ser editado na tela **Configurações** do app, que grava no mesmo `.env` e aplica na
 hora (o caminho do banco vale ao reabrir). Lá também fica a opção de abrir o Chronos ao entrar no Windows
 (chave `Run` do usuário no registro; disponível rodando pelo executável instalado).
+Embaixo do API token fica a **data de validade** dele (`JIRA_API_TOKEN_EXPIRES`). A Atlassian não informa essa
+data pela API, então ela é digitada a partir da lista de tokens em id.atlassian.com. A tela mostra quanto falta
+(em amarelo nas duas últimas semanas, em vermelho depois de vencer) e, ao abrir, o app mostra uma notificação se
+o token vence em até 14 dias ou já venceu.
 
 O Chronos fica com um ícone na bandeja do Windows (área de notificação, perto do relógio). Fechar a janela
 só a esconde e o tempo continua contando; clique no ícone para abrir de novo. Com o botão direito aparecem

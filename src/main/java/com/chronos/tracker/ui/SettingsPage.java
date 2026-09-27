@@ -1,10 +1,12 @@
 package com.chronos.tracker.ui;
 
+import com.chronos.tracker.config.TokenExpiry;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.ScrollPane;
@@ -15,7 +17,11 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.util.StringConverter;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -24,6 +30,8 @@ import java.util.concurrent.CompletableFuture;
  * Configurações do app: tudo que fica no {@code .env} (Jira, tempos, banco) e abrir ao entrar no Windows.
  */
 public final class SettingsPage {
+
+    private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     /** O que a página precisa do resto do app. */
     public interface Handler {
@@ -48,6 +56,8 @@ public final class SettingsPage {
     private final Label startHint = new Label();
     private final Label feedback = new Label();
     private final Label connection = new Label();
+    private final DatePicker tokenExpires = new DatePicker();
+    private final Label tokenExpiresStatus = new Label();
 
     public SettingsPage(Handler handler) {
         this.handler = handler;
@@ -63,9 +73,10 @@ public final class SettingsPage {
         row(jira, 0, "JIRA_BASE_URL", "Endereço do Jira", "https://empresa.atlassian.net", new TextField());
         row(jira, 1, "JIRA_EMAIL", "E-mail", "seu-email@empresa.com", new TextField());
         row(jira, 2, "JIRA_API_TOKEN", "API token", "Gerado em id.atlassian.com", new PasswordField());
-        row(jira, 3, "JIRA_PROJECT_KEY", "Projetos", "Chaves separadas por vírgula, ex.: SCRUM", new TextField());
-        row(jira, 4, "JIRA_JQL", "JQL (opcional)", "Substitui a busca padrão pelos projetos", new TextField());
-        row(jira, 5, "JIRA_IN_PROGRESS_STATUSES", "Colunas que contam tempo",
+        jira.add(tokenExpiryRow(), 1, 3);
+        row(jira, 4, "JIRA_PROJECT_KEY", "Projetos", "Chaves separadas por vírgula, ex.: SCRUM", new TextField());
+        row(jira, 5, "JIRA_JQL", "JQL (opcional)", "Substitui a busca padrão pelos projetos", new TextField());
+        row(jira, 6, "JIRA_IN_PROGRESS_STATUSES", "Colunas que contam tempo",
                 "Padrão: Em andamento, Em progresso, In Progress", new TextField());
         Button test = new Button("Testar conexão");
         test.getStyleClass().add("secondary-button");
@@ -129,6 +140,8 @@ public final class SettingsPage {
     public void load() {
         Map<String, String> values = handler.currentValues();
         fields.forEach((key, field) -> field.setText(value(values, key)));
+        tokenExpires.setValue(TokenExpiry.from(values).orElse(null));
+        showTokenExpiry();
         boolean available = handler.startWithWindowsAvailable();
         startWithWindows.setSelected(handler.startWithWindowsEnabled());
         startWithWindows.setDisable(!available);
@@ -151,6 +164,8 @@ public final class SettingsPage {
     private Map<String, String> typedValues() {
         Map<String, String> values = new LinkedHashMap<>();
         fields.forEach((key, field) -> values.put(key, field.getText() == null ? "" : field.getText().strip()));
+        tokenExpires.setValue(tokenExpires.getConverter().fromString(tokenExpires.getEditor().getText()));
+        values.put(TokenExpiry.KEY, tokenExpires.getValue() == null ? "" : tokenExpires.getValue().toString());
         return values;
     }
 
@@ -180,6 +195,55 @@ public final class SettingsPage {
             cause = cause.getCause();
         }
         return cause.getMessage() == null ? cause.toString() : cause.getMessage();
+    }
+
+    /** Embaixo do API token: "Data de validade:", o calendário e quanto falta para vencer. */
+    private HBox tokenExpiryRow() {
+        Label caption = new Label("Data de validade:");
+        caption.getStyleClass().add("muted");
+        tokenExpires.setPromptText("dd/mm/aaaa");
+        tokenExpires.setPrefWidth(160);
+        tokenExpires.getStyleClass().add("settings-input");
+        tokenExpires.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(LocalDate date) {
+                return date == null ? "" : DATE.format(date);
+            }
+
+            @Override
+            public LocalDate fromString(String text) {
+                if (text == null || text.isBlank()) {
+                    return null;
+                }
+                try {
+                    return LocalDate.parse(text.strip(), DATE);
+                } catch (DateTimeParseException e) {
+                    return tokenExpires.getValue();
+                }
+            }
+        });
+        tokenExpires.valueProperty().addListener((obs, before, now) -> showTokenExpiry());
+        tokenExpiresStatus.setWrapText(true);
+        HBox row = new HBox(10, caption, tokenExpires, tokenExpiresStatus);
+        row.setAlignment(Pos.CENTER_LEFT);
+        return row;
+    }
+
+    private void showTokenExpiry() {
+        LocalDate expires = tokenExpires.getValue();
+        tokenExpiresStatus.getStyleClass().removeAll("muted", "token-expiry-soon", "token-expiry-expired");
+        if (expires == null) {
+            tokenExpiresStatus.setText("Veja em id.atlassian.com, na lista de API tokens");
+            tokenExpiresStatus.getStyleClass().add("muted");
+            return;
+        }
+        LocalDate today = LocalDate.now();
+        tokenExpiresStatus.setText(TokenExpiry.remaining(expires, today));
+        tokenExpiresStatus.getStyleClass().add(switch (TokenExpiry.level(expires, today)) {
+            case OK -> "muted";
+            case SOON -> "token-expiry-soon";
+            case EXPIRED -> "token-expiry-expired";
+        });
     }
 
     private void row(GridPane grid, int index, String key, String label, String prompt, TextInputControl field) {
