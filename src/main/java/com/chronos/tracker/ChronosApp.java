@@ -11,7 +11,9 @@ import com.chronos.tracker.tracking.MultiTaskTracker;
 import com.chronos.tracker.tracking.TrackingEngine;
 import com.chronos.tracker.ui.AppController;
 import com.chronos.tracker.ui.AppIcons;
+import com.chronos.tracker.ui.TrayIconController;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.stage.Stage;
@@ -25,6 +27,8 @@ public final class ChronosApp extends Application {
 
     private AppController controller;
     private SqliteHistoryStore store;
+    private TrayIconController tray;
+    private boolean trayHintShown;
 
     @Override
     public void start(Stage stage) {
@@ -65,22 +69,83 @@ public final class ChronosApp extends Application {
         stage.setMinWidth(1100);
         stage.setMinHeight(700);
         stage.setScene(scene);
-        stage.show();
-        if (getParameters().getRaw().contains(WindowsStartup.BACKGROUND_ARG)) {
-            // Aberto pelo Windows ao entrar: fica minimizado.
+
+        tray = new TrayIconController(trayActions(stage));
+        boolean inTray = tray.install();
+        if (inTray) {
+            // Fechar a janela só esconde: o Chronos continua contando na bandeja até "Sair".
+            Platform.setImplicitExit(false);
+            stage.setOnCloseRequest(event -> {
+                event.consume();
+                stage.hide();
+                if (!trayHintShown) {
+                    trayHintShown = true;
+                    tray.notify("O Chronos continua rodando",
+                            "Clique no ícone da bandeja para abrir, ou com o botão direito para pausar ou sair.");
+                }
+            });
+            controller.setSnapshotListener(tray::update);
+        }
+
+        boolean background = getParameters().getRaw().contains(WindowsStartup.BACKGROUND_ARG);
+        if (!background || !inTray) {
+            stage.show();
+        }
+        if (background && !inTray) {
+            // Aberto pelo Windows ao entrar, sem bandeja: fica minimizado.
             stage.setIconified(true);
         }
 
         controller.start();
     }
 
+    private TrayIconController.Actions trayActions(Stage stage) {
+        return new TrayIconController.Actions() {
+            @Override
+            public void open() {
+                Platform.runLater(() -> {
+                    stage.show();
+                    stage.setIconified(false);
+                    stage.toFront();
+                });
+            }
+
+            @Override
+            public void pause(String issueKey) {
+                Platform.runLater(() -> controller.pauseTask(issueKey));
+            }
+
+            @Override
+            public void finish(String issueKey) {
+                controller.finishTask(issueKey, message -> tray.notify("Chronos", message));
+            }
+
+            @Override
+            public void pauseAll() {
+                Platform.runLater(controller::pauseAllTasks);
+            }
+
+            @Override
+            public void exit() {
+                Platform.runLater(Platform::exit);
+            }
+        };
+    }
+
     @Override
     public void stop() {
+        if (tray != null) {
+            tray.remove();
+        }
         if (controller != null) {
             controller.stop();
         }
         if (store != null) {
             store.close();
+        }
+        if (tray != null && tray.wasInstalled()) {
+            // A thread do AWT (bandeja) seguraria o processo aberto.
+            System.exit(0);
         }
     }
 }

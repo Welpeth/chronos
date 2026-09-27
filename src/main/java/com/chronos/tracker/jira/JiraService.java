@@ -25,6 +25,11 @@ public interface JiraService {
         return Optional.empty();
     }
 
+    /** Move a issue para "Concluído" no Jira e devolve o nome do status em que ela ficou. */
+    default String completeIssue(String issueKey) throws JiraException {
+        throw new JiraException("O Jira não está configurado");
+    }
+
     /** Chave e nome dos projetos configurados, por exemplo "SCRUM · Minha equipe de software". */
     default Optional<String> fetchProjectLabel() throws JiraException {
         return Optional.empty();

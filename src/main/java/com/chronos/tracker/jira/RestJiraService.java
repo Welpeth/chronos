@@ -76,6 +76,11 @@ public final class RestJiraService implements JiraService {
     }
 
     @Override
+    public String completeIssue(String issueKey) throws JiraException {
+        return client.transitionToDone(issueKey);
+    }
+
+    @Override
     public Optional<String> fetchProjectLabel() throws JiraException {
         if (projectKeys.isEmpty()) {
             return Optional.empty();

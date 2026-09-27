@@ -14,6 +14,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 /**
  * Liga o motor de tracking à janela. O monitoramento e o Jira rodam em threads de fundo;
@@ -27,6 +28,7 @@ public final class AppController {
 
     private ScheduledExecutorService scheduler;
     private ScheduledFuture<?> polling;
+    private volatile Consumer<Snapshot> snapshotListener = snapshot -> { };
 
     public AppController(TrackingEngine engine, AppConfig config, HistoryStore store, Path envFile) {
         this.engine = engine;
@@ -48,6 +50,46 @@ public final class AppController {
         });
         schedulePolling();
         scheduler.scheduleAtFixedRate(this::safeTick, 0, 1, TimeUnit.SECONDS);
+    }
+
+    /** Recebe cada estado novo, na thread da UI (usado pelo ícone da bandeja). */
+    public void setSnapshotListener(Consumer<Snapshot> listener) {
+        snapshotListener = listener;
+    }
+
+    public void pauseTask(String issueKey) {
+        engine.pause(issueKey);
+        refresh();
+    }
+
+    public void pauseAllTasks() {
+        engine.pauseAll();
+        refresh();
+    }
+
+    /**
+     * Pausa a task e a move para "Concluído" no Jira, fora da thread da UI. {@code onError} recebe a mensagem
+     * se o Jira recusar.
+     */
+    public void finishTask(String issueKey, Consumer<String> onError) {
+        Thread worker = new Thread(() -> {
+            try {
+                engine.finish(issueKey);
+            } catch (Exception e) {
+                onError.accept("Não foi possível finalizar " + issueKey + ": " + e.getMessage());
+            }
+            refresh();
+        }, "chronos-finish");
+        worker.setDaemon(true);
+        worker.start();
+    }
+
+    private void refresh() {
+        Snapshot snapshot = engine.tick();
+        Platform.runLater(() -> {
+            window.render(snapshot);
+            snapshotListener.accept(snapshot);
+        });
     }
 
     /** Reagenda o Jira com o novo intervalo e consulta na hora (as configurações acabaram de mudar). */
@@ -102,7 +144,10 @@ public final class AppController {
     private void safeTick() {
         try {
             Snapshot snapshot = engine.tick();
-            Platform.runLater(() -> window.render(snapshot));
+            Platform.runLater(() -> {
+                window.render(snapshot);
+                snapshotListener.accept(snapshot);
+            });
         } catch (RuntimeException e) {
             e.printStackTrace();
         }

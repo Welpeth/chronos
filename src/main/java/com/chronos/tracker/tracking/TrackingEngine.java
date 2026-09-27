@@ -268,6 +268,25 @@ public final class TrackingEngine {
         return entries.stream().map(ManualEntry::duration).reduce(Duration.ZERO, Duration::plus);
     }
 
+    /**
+     * Pausa a task e a move para "Concluído" no Jira. Bloqueia durante a chamada ao Jira; nunca chamar na
+     * thread da UI.
+     */
+    public void finish(String issueKey) throws JiraException {
+        String key = normalize(issueKey);
+        pause(key);
+        String status = jiraService.completeIssue(key);
+        addEvent(ActivityEvent.Kind.TASK, "Task finalizada", key + " movida para " + status);
+        pollJira();
+    }
+
+    /** Pausa todas as tasks que estão contando. */
+    public synchronized void pauseAll() {
+        for (String key : List.copyOf(tracker.runningKeys())) {
+            pause(key);
+        }
+    }
+
     /** Encerra e grava todos os intervalos abertos, por exemplo ao fechar o aplicativo. */
     public synchronized List<TimeEntry> shutdown() {
         if (inactivityPause) {
