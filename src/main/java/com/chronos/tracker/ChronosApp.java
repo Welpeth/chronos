@@ -67,6 +67,7 @@ public final class ChronosApp extends Application {
                 clock,
                 history);
         engine.setWorkingStatuses(config.workingStatuses());
+        engine.setAutoStart(config.autoStart());
 
         controller = new AppController(engine, config, history, ENV_FILE);
 

@@ -52,6 +52,8 @@ public final class SettingsPage {
     private final Handler handler;
     private final ScrollPane root;
     private final Map<String, TextInputControl> fields = new LinkedHashMap<>();
+    /** Opções liga/desliga gravadas como true/false; todas começam ligadas. */
+    private final Map<String, CheckBox> flags = new LinkedHashMap<>();
     private final CheckBox startWithWindows = new CheckBox("Abrir o Chronos quando eu entrar no Windows");
     private final Label startHint = new Label();
     private final Label feedback = new Label();
@@ -77,7 +79,16 @@ public final class SettingsPage {
         row(jira, 4, "JIRA_PROJECT_KEY", "Projetos", "Chaves separadas por vírgula, ex.: SCRUM", new TextField());
         row(jira, 5, "JIRA_JQL", "JQL (opcional)", "Substitui a busca padrão pelos projetos", new TextField());
         row(jira, 6, "JIRA_IN_PROGRESS_STATUSES", "Colunas que contam tempo",
-                "Padrão: Em andamento, Em progresso, In Progress", new TextField());
+                "Ex.: Test (escreva como aparece no quadro do Jira)", new TextField());
+        jira.add(flag("JIRA_USE_DEFAULT_STATUSES",
+                "Contar também as colunas padrão (Em andamento, Em progresso, In Progress)"), 1, 7);
+        jira.add(flag("CHRONOS_AUTO_START",
+                "Começar a contar sozinho quando a task entrar numa dessas colunas"), 1, 8);
+        Label columnsHint = new Label("Sem começar sozinho, o tempo só conta depois do play. Nos dois casos, a task "
+                + "pausa quando sai dessas colunas.");
+        columnsHint.getStyleClass().add("muted");
+        columnsHint.setWrapText(true);
+        jira.add(columnsHint, 1, 9);
         Button test = new Button("Testar conexão");
         test.getStyleClass().add("secondary-button");
         test.setOnAction(e -> testConnection(test));
@@ -140,6 +151,7 @@ public final class SettingsPage {
     public void load() {
         Map<String, String> values = handler.currentValues();
         fields.forEach((key, field) -> field.setText(value(values, key)));
+        flags.forEach((key, box) -> box.setSelected(!isOff(values.getOrDefault(key, ""))));
         tokenExpires.setValue(TokenExpiry.from(values).orElse(null));
         showTokenExpiry();
         boolean available = handler.startWithWindowsAvailable();
@@ -164,6 +176,7 @@ public final class SettingsPage {
     private Map<String, String> typedValues() {
         Map<String, String> values = new LinkedHashMap<>();
         fields.forEach((key, field) -> values.put(key, field.getText() == null ? "" : field.getText().strip()));
+        flags.forEach((key, box) -> values.put(key, Boolean.toString(box.isSelected())));
         tokenExpires.setValue(tokenExpires.getConverter().fromString(tokenExpires.getEditor().getText()));
         values.put(TokenExpiry.KEY, tokenExpires.getValue() == null ? "" : tokenExpires.getValue().toString());
         return values;
@@ -244,6 +257,18 @@ public final class SettingsPage {
             case SOON -> "token-expiry-soon";
             case EXPIRED -> "token-expiry-expired";
         });
+    }
+
+    private CheckBox flag(String key, String label) {
+        CheckBox box = new CheckBox(label);
+        box.setWrapText(true);
+        flags.put(key, box);
+        return box;
+    }
+
+    private static boolean isOff(String value) {
+        String normalized = value.strip().toLowerCase(java.util.Locale.ROOT);
+        return normalized.equals("false") || normalized.equals("0") || normalized.startsWith("n");
     }
 
     private void row(GridPane grid, int index, String key, String label, String prompt, TextInputControl field) {
