@@ -50,6 +50,7 @@ public final class ChronosApp extends Application {
                 RestJiraService.from(config),
                 clock,
                 history);
+        engine.setWorkingStatuses(config.workingStatuses());
 
         controller = new AppController(engine, config.pollingInterval(), history);
 

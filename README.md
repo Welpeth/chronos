@@ -36,12 +36,13 @@ A cada `POLLING_INTERVAL_SECONDS` o app consulta o Jira Cloud (`/rest/api/3/sear
   concluídas hoje;
 - com `JIRA_JQL`: a sua consulta, na ordem dela (ou por `updated DESC` se não tiver `ORDER BY`).
 
-Toda issue com status na categoria "Em andamento" do Jira (inclusive status como "Em análise") conta
-tempo, e várias contam ao mesmo tempo: uma hora trabalhada com duas tasks em andamento soma uma hora em
+Conta tempo toda issue que está na coluna "Em andamento" do quadro (as colunas que contam ficam em
+`JIRA_IN_PROGRESS_STATUSES`; o padrão é "Em andamento", "Em progresso" e "In Progress"). Ao mudar de
+coluna, por exemplo para "Em análise" ou "Concluído", a task pausa. Várias contam ao mesmo tempo: uma hora trabalhada com duas tasks em andamento soma uma hora em
 cada uma. O "tempo hoje" conta o relógio, então essa hora aparece como uma hora só.
 
-O botão de cada task liga ou pausa o tempo dela. Essa escolha vale até o status da task mudar no Jira;
-aí o app volta a seguir o Jira. Sem atividade por `IDLE_THRESHOLD_SECONDS`, todas as tasks pausam e
+O botão de cada task liga ou pausa o tempo dela. Essa escolha vale até a task mudar de coluna no Jira
+(ou sair da busca); aí o app volta a seguir o Jira. Sem atividade por `IDLE_THRESHOLD_SECONDS`, todas as tasks pausam e
 retomam juntas quando você volta. Se o Jira cair, o app continua com as últimas tasks conhecidas.
 
 ## Estado atual
