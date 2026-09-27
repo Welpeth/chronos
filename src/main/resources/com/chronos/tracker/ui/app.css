@@ -641,3 +641,39 @@
     -fx-text-fill: #a11a1a;
     -fx-font-weight: bold;
 }
+
+/* Apontamentos */
+.worklog-summary {
+    -fx-padding: 16 20;
+    -fx-max-width: 260;
+}
+
+.worklog-pending-total {
+    -fx-font-size: 26px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #8a6300;
+}
+
+.worklog-caption {
+    -fx-font-size: 11px;
+    -fx-text-fill: #7a879c;
+}
+
+.worklog-button {
+    -fx-padding: 6 16;
+}
+
+.time-tracking-warning {
+    -fx-background-color: #fff4d1;
+    -fx-border-color: #f5c542;
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
+    -fx-padding: 12 16;
+}
+
+.time-tracking-warning-text {
+    -fx-text-fill: #7a5600;
+    -fx-font-weight: bold;
+}
+
+.icon-warning { -fx-fill: #c68a00; }

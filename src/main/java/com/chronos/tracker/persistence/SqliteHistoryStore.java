@@ -32,7 +32,7 @@ import java.util.Set;
  */
 public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
 
-    private static final int SCHEMA_VERSION = 3;
+    private static final int SCHEMA_VERSION = 4;
 
     private final Connection connection;
     private final ZoneId zone;
@@ -98,6 +98,17 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
                             alerted_at INTEGER NOT NULL
                         )""");
             }
+            if (version < 4) {
+                statement.executeUpdate("""
+                        CREATE TABLE IF NOT EXISTS worklog (
+                            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                            issue_key   TEXT    NOT NULL,
+                            seconds     INTEGER NOT NULL,
+                            logged_at   INTEGER NOT NULL,
+                            worklog_id  TEXT    NOT NULL DEFAULT ''
+                        )""");
+                statement.executeUpdate("CREATE INDEX IF NOT EXISTS worklog_issue ON worklog (issue_key)");
+            }
             statement.executeUpdate("PRAGMA user_version = " + SCHEMA_VERSION);
         }
     }
@@ -156,6 +167,56 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
             return totals;
         } catch (SQLException e) {
             throw new HistoryException("Falha ao ler os totais do histórico", e);
+        }
+    }
+
+    @Override
+    public synchronized List<TaskTime> taskTimes() throws HistoryException {
+        String sql = """
+                SELECT w.issue_key,
+                       COALESCE((SELECT t.summary FROM time_entry t
+                                 WHERE t.issue_key = w.issue_key AND t.summary <> ''
+                                 ORDER BY t.started_at DESC LIMIT 1),
+                                (SELECT m.summary FROM manual_entry m
+                                 WHERE m.issue_key = w.issue_key AND m.summary <> ''
+                                 ORDER BY m.created_at DESC LIMIT 1), '') AS summary,
+                       w.millis,
+                       w.last_at,
+                       COALESCE((SELECT SUM(l.seconds) FROM worklog l WHERE l.issue_key = w.issue_key), 0) AS logged
+                FROM (SELECT issue_key, SUM(millis) AS millis, MAX(last_at) AS last_at FROM (
+                          SELECT issue_key, ended_at - started_at AS millis, ended_at AS last_at FROM time_entry
+                          UNION ALL
+                          SELECT issue_key, seconds * 1000, created_at FROM manual_entry)
+                      GROUP BY issue_key) w
+                ORDER BY w.last_at DESC""";
+        List<TaskTime> times = new ArrayList<>();
+        try (Statement statement = connection.createStatement(); ResultSet rs = statement.executeQuery(sql)) {
+            while (rs.next()) {
+                times.add(new TaskTime(
+                        rs.getString(1),
+                        rs.getString(2),
+                        Duration.ofMillis(rs.getLong(3)),
+                        Duration.ofSeconds(rs.getLong(5)),
+                        Instant.ofEpochMilli(rs.getLong(4))));
+            }
+            return times;
+        } catch (SQLException e) {
+            throw new HistoryException("Falha ao ler o tempo das tasks", e);
+        }
+    }
+
+    @Override
+    public synchronized void saveWorklog(String issueKey, Duration spent, Instant at, String worklogId)
+            throws HistoryException {
+        String sql = "INSERT INTO worklog (issue_key, seconds, logged_at, worklog_id) VALUES (?, ?, ?, ?)";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, issueKey);
+            statement.setLong(2, spent.toSeconds());
+            statement.setLong(3, at.toEpochMilli());
+            statement.setString(4, worklogId == null ? "" : worklogId);
+            statement.executeUpdate();
+        } catch (SQLException e) {
+            throw new HistoryException("Falha ao gravar o apontamento de " + issueKey, e);
         }
     }
 

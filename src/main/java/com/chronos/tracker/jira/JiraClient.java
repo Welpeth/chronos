@@ -12,6 +12,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.List;
 import java.util.Objects;
@@ -24,6 +26,8 @@ public final class JiraClient {
 
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
+    /** Formato que o Jira aceita no início de um registro de horas, ex.: 2026-09-27T10:00:00.000-0300. */
+    static final DateTimeFormatter WORKLOG_STARTED = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
 
     private final HttpClient http;
     private final ObjectMapper mapper = new ObjectMapper();
@@ -88,6 +92,40 @@ public final class JiraClient {
                 .POST(HttpRequest.BodyPublishers.ofString(body.toString(), StandardCharsets.UTF_8))
                 .build());
         return done.path("to").path("name").asText(done.path("name").asText("Concluído"));
+    }
+
+    /**
+     * Registra horas trabalhadas na issue (o "Controle de tempo" dela) e devolve o id do registro criado.
+     * O Jira guarda em minutos, então {@code spent} precisa ter pelo menos um minuto.
+     */
+    public String addWorklog(String issueKey, Duration spent, ZonedDateTime started) throws JiraException {
+        String path = "/rest/api/3/issue/" + URLEncoder.encode(issueKey, StandardCharsets.UTF_8)
+                + "/worklog?adjustEstimate=auto";
+        ObjectNode body = mapper.createObjectNode();
+        body.put("timeSpentSeconds", spent.toSeconds());
+        body.put("started", WORKLOG_STARTED.format(started));
+        ObjectNode comment = body.putObject("comment");
+        comment.put("type", "doc");
+        comment.put("version", 1);
+        comment.putArray("content").addObject()
+                .put("type", "paragraph")
+                .putArray("content").addObject()
+                .put("type", "text")
+                .put("text", "Apontado pelo Chronos");
+        String response = send(request(path)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body.toString(), StandardCharsets.UTF_8))
+                .build());
+        return readTree(response).path("id").asText("");
+    }
+
+    /**
+     * Se a issue tem o campo "Controle de tempo" (timetracking) na tela dela. Sem esse campo o quadro não
+     * aceita apontamento de horas.
+     */
+    public boolean hasTimeTrackingField(String issueKey) throws JiraException {
+        String path = "/rest/api/3/issue/" + URLEncoder.encode(issueKey, StandardCharsets.UTF_8) + "/editmeta";
+        return readTree(send(request(path).GET().build())).path("fields").has("timetracking");
     }
 
     private HttpRequest.Builder request(String path) {

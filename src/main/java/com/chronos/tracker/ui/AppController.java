@@ -7,6 +7,7 @@ import com.chronos.tracker.tracking.HistoryStore;
 import com.chronos.tracker.tracking.IssueAlertMonitor;
 import com.chronos.tracker.tracking.TaskView;
 import com.chronos.tracker.tracking.TrackingEngine;
+import com.chronos.tracker.tracking.WorklogBook;
 import com.chronos.tracker.tracking.TrackingEngine.Snapshot;
 import javafx.application.Platform;
 import javafx.scene.Parent;
@@ -15,6 +16,9 @@ import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -47,8 +51,42 @@ public final class AppController {
         this.pollingInterval = config.pollingInterval();
         this.alerts = alertMonitor(config, false);
         SettingsController settings = new SettingsController(envFile, config, engine, this::applyConfig);
-        this.window = new MainWindow(this::toggle, this::addManual, store, settings);
+        WorklogBook book = new WorklogBook(store, engine::jiraService, Clock.systemDefaultZone());
+        this.window = new MainWindow(this::toggle, this::addManual, store, worklogHandler(book), settings);
         window.render(engine.tick());
+    }
+
+    private WorklogPage.Handler worklogHandler(WorklogBook book) {
+        return new WorklogPage.Handler() {
+            @Override
+            public List<WorklogBook.Item> items(List<TaskView> live) throws Exception {
+                return book.items(live);
+            }
+
+            @Override
+            public CompletableFuture<Duration> log(String issueKey) {
+                return CompletableFuture.supplyAsync(() -> {
+                    try {
+                        Duration spent = book.log(issueKey);
+                        engine.recordWorklog(issueKey, spent);
+                        return spent;
+                    } catch (Exception e) {
+                        throw new CompletionException(e);
+                    }
+                });
+            }
+
+            @Override
+            public CompletableFuture<Optional<Boolean>> timeTrackingAvailable(List<TaskView> live) {
+                return CompletableFuture.supplyAsync(() -> {
+                    try {
+                        return book.timeTrackingAvailable(live);
+                    } catch (Exception e) {
+                        throw new CompletionException(e);
+                    }
+                });
+            }
+        };
     }
 
     public Parent getView() {

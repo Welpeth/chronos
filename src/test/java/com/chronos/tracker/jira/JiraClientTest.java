@@ -139,4 +139,50 @@ class JiraClientTest {
         assertEquals("Concluído", status);
         assertTrue(posted.get().contains("\"id\":\"31\""), posted.get());
     }
+
+    @Test
+    void addWorklogPostsTheTimeAndStart() throws Exception {
+        AtomicReference<String> posted = new AtomicReference<>();
+        AtomicReference<String> query = new AtomicReference<>();
+        server.createContext("/rest/api/3/issue/PROJ-1/worklog", exchange -> {
+            query.set(exchange.getRequestURI().getQuery());
+            posted.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            byte[] bytes = "{\"id\":\"10042\"}".getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(201, bytes.length);
+            try (OutputStream out = exchange.getResponseBody()) {
+                out.write(bytes);
+            }
+        });
+
+        String id = new JiraClient(baseUrl, "e", "t").addWorklog("PROJ-1", java.time.Duration.ofMinutes(80),
+                java.time.ZonedDateTime.parse("2026-09-27T10:00:00-03:00"));
+
+        assertEquals("10042", id);
+        assertEquals("adjustEstimate=auto", query.get());
+        assertTrue(posted.get().contains("\"timeSpentSeconds\":4800"), posted.get());
+        assertTrue(posted.get().contains("\"started\":\"2026-09-27T10:00:00.000-0300\""), posted.get());
+        assertTrue(posted.get().contains("Apontado pelo Chronos"), posted.get());
+    }
+
+    @Test
+    void editmetaTellsWhetherTheIssueHasTimeTracking() throws Exception {
+        server.createContext("/rest/api/3/issue/PROJ-1/editmeta", exchange -> {
+            byte[] bytes = "{\"fields\":{\"summary\":{},\"timetracking\":{}}}".getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, bytes.length);
+            try (OutputStream out = exchange.getResponseBody()) {
+                out.write(bytes);
+            }
+        });
+        server.createContext("/rest/api/3/issue/PROJ-2/editmeta", exchange -> {
+            byte[] bytes = "{\"fields\":{\"summary\":{}}}".getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, bytes.length);
+            try (OutputStream out = exchange.getResponseBody()) {
+                out.write(bytes);
+            }
+        });
+        JiraClient client = new JiraClient(baseUrl, "e", "t");
+
+        assertTrue(client.hasTimeTrackingField("PROJ-1"));
+        assertEquals(false, client.hasTimeTrackingField("PROJ-2"));
+    }
 }

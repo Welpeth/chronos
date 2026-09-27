@@ -55,6 +55,19 @@ public interface HistoryStore {
     /** Dias que têm algum intervalo ou inserção manual gravada. */
     Set<LocalDate> daysWithEntries() throws HistoryException;
 
+    /**
+     * Tempo de cada task que tem algo gravado: total contado (com as inserções manuais), quanto já foi
+     * apontado no Jira e quando ela foi trabalhada pela última vez.
+     */
+    List<TaskTime> taskTimes() throws HistoryException;
+
+    /** Grava que {@code spent} da task foi apontado no Jira (registro {@code worklogId}). */
+    void saveWorklog(String issueKey, Duration spent, Instant at, String worklogId) throws HistoryException;
+
+    /** Tempo de uma task no histórico. */
+    record TaskTime(String issueKey, String summary, Duration total, Duration logged, Instant lastWorkedAt) {
+    }
+
     /** Um intervalo gravado, com o título da task no momento em que foi gravado. */
     record StoredEntry(TimeEntry entry, String summary) {
     }
@@ -68,6 +81,15 @@ public interface HistoryStore {
 
     /** Não grava nada; usado quando não há banco configurado. */
     HistoryStore NONE = new HistoryStore() {
+        @Override
+        public List<TaskTime> taskTimes() {
+            return List.of();
+        }
+
+        @Override
+        public void saveWorklog(String issueKey, Duration spent, Instant at, String worklogId) {
+        }
+
         @Override
         public void saveInterval(TimeEntry entry, String summary) {
         }
