@@ -7,12 +7,13 @@ import com.chronos.tracker.tracking.TaskView;
 import com.chronos.tracker.tracking.TrackingEngine.Snapshot;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.control.Label;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
-import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.Circle;
 
@@ -100,10 +101,12 @@ public final class MainWindow {
     }
 
     private HBox buildTopBar() {
-        Label logoText = new Label("Chronos");
-        logoText.getStyleClass().add("logo");
-        StackPane logoIcon = new StackPane(Icons.of(Icons.CLOCK, 30, "icon-logo"));
-        HBox logo = new HBox(10, logoIcon, logoText);
+        ImageView logoImage = new ImageView(new Image(
+                MainWindow.class.getResource("logo-full.png").toExternalForm(), 0, 120, true, true));
+        logoImage.setFitHeight(58);
+        logoImage.setPreserveRatio(true);
+        logoImage.setSmooth(true);
+        HBox logo = new HBox(logoImage);
         logo.setAlignment(Pos.CENTER_LEFT);
         logo.setPrefWidth(250);
 

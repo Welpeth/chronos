@@ -25,7 +25,7 @@
 /* Barra superior */
 .topbar {
     -fx-background-color: white;
-    -fx-padding: 14 24;
+    -fx-padding: 6 24;
     -fx-border-color: transparent transparent #e6ebf3 transparent;
 }
 
