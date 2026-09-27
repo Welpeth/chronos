@@ -55,8 +55,8 @@ public final class TrackingEngine {
 
     private final MultiTaskTracker tracker;
     private final ActivityMonitor activityMonitor;
-    private final ActivityClassifier classifier;
-    private final JiraService jiraService;
+    private volatile ActivityClassifier classifier;
+    private volatile JiraService jiraService;
     private final Clock clock;
     private final ZoneId zone;
     private final HistoryStore store;
@@ -154,18 +154,19 @@ public final class TrackingEngine {
 
     /** Consulta o Jira. Bloqueia durante as chamadas de rede; nunca chamar na thread da UI. */
     public void pollJira() {
-        if (!jiraService.isConfigured()) {
+        JiraService service = jiraService;
+        if (!service.isConfigured()) {
             jiraStatus = JiraSyncStatus.NOT_CONFIGURED;
             return;
         }
         JiraSyncStatus previous = jiraStatus;
         try {
-            List<JiraIssue> fetched = jiraService.fetchMyIssues();
+            List<JiraIssue> fetched = service.fetchMyIssues();
             if (user.isEmpty()) {
-                user = jiraService.fetchCurrentUser();
+                user = service.fetchCurrentUser();
             }
             if (projectLabel.isEmpty()) {
-                projectLabel = jiraService.fetchProjectLabel();
+                projectLabel = service.fetchProjectLabel();
             }
             boolean changed = !fetched.equals(issues);
             synchronized (this) {
@@ -303,6 +304,23 @@ public final class TrackingEngine {
         } else if (inactivityPause) {
             inactiveToday = inactiveToday.plus(delta);
         }
+    }
+
+    /**
+     * Troca a conexão com o Jira (por exemplo, depois de salvar as configurações). As tasks já conhecidas
+     * continuam na tela até a próxima sincronização.
+     */
+    public void setJiraService(JiraService service) {
+        jiraService = Objects.requireNonNull(service, "jiraService");
+        user = Optional.empty();
+        projectLabel = Optional.empty();
+        jiraError = Optional.empty();
+        jiraStatus = service.isConfigured() ? JiraSyncStatus.SYNCING : JiraSyncStatus.NOT_CONFIGURED;
+    }
+
+    /** Troca os limites de "possivelmente ausente" e "inativo". */
+    public void setClassifier(ActivityClassifier newClassifier) {
+        classifier = Objects.requireNonNull(newClassifier, "classifier");
     }
 
     /**

@@ -13,6 +13,9 @@ mvn test         # roda os testes
 ```
 
 A configuração é lida do arquivo `.env` na pasta onde o app é aberto. Veja `.env.example`.
+Tudo isso também pode ser editado na tela **Configurações** do app, que grava no mesmo `.env` e aplica na
+hora (o caminho do banco vale ao reabrir). Lá também fica a opção de abrir o Chronos ao entrar no Windows
+(chave `Run` do usuário no registro; disponível rodando pelo executável instalado).
 Sem `.env` o app abre com os valores padrão e o Jira aparece como "não configurado".
 
 O histórico é gravado em `chronos.db` (ou no caminho de `CHRONOS_DB_PATH`). Cada intervalo guarda a task,

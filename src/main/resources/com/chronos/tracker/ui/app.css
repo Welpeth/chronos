@@ -586,3 +586,58 @@
 .dialog-secondary:hover {
     -fx-background-color: #aeb9cb, #f6f8fb;
 }
+
+/* Configurações */
+.settings-label {
+    -fx-text-fill: #0f2a5a;
+    -fx-font-size: 13px;
+}
+
+.settings-input {
+    -fx-background-color: #cfd8e6, white;
+    -fx-background-insets: 0, 1;
+    -fx-background-radius: 8, 7;
+    -fx-padding: 8 12;
+    -fx-font-size: 13px;
+}
+
+.settings-input:focused {
+    -fx-background-color: #2466d6, white;
+    -fx-background-insets: 0, 1.5;
+}
+
+.primary-button {
+    -fx-background-color: #1d5be8;
+    -fx-background-radius: 8;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-padding: 9 22;
+    -fx-cursor: hand;
+}
+
+.primary-button:hover {
+    -fx-background-color: #174bc0;
+}
+
+.secondary-button {
+    -fx-background-color: #c8d1df, white;
+    -fx-background-insets: 0, 1;
+    -fx-background-radius: 8, 7;
+    -fx-text-fill: #0f2a5a;
+    -fx-padding: 9 18;
+    -fx-cursor: hand;
+}
+
+.secondary-button:hover {
+    -fx-background-color: #aeb9cb, #f6f8fb;
+}
+
+.feedback-ok {
+    -fx-text-fill: #177a3c;
+    -fx-font-weight: bold;
+}
+
+.feedback-error {
+    -fx-text-fill: #a11a1a;
+    -fx-font-weight: bold;
+}

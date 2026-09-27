@@ -1,5 +1,6 @@
 package com.chronos.tracker.ui;
 
+import com.chronos.tracker.config.AppConfig;
 import com.chronos.tracker.tracking.HistoryStore;
 import com.chronos.tracker.tracking.TaskView;
 import com.chronos.tracker.tracking.TrackingEngine;
@@ -7,9 +8,11 @@ import com.chronos.tracker.tracking.TrackingEngine.Snapshot;
 import javafx.application.Platform;
 import javafx.scene.Parent;
 
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -19,15 +22,17 @@ import java.util.concurrent.TimeUnit;
 public final class AppController {
 
     private final TrackingEngine engine;
-    private final Duration pollingInterval;
     private final MainWindow window;
+    private Duration pollingInterval;
 
     private ScheduledExecutorService scheduler;
+    private ScheduledFuture<?> polling;
 
-    public AppController(TrackingEngine engine, Duration pollingInterval, HistoryStore store) {
+    public AppController(TrackingEngine engine, AppConfig config, HistoryStore store, Path envFile) {
         this.engine = engine;
-        this.pollingInterval = pollingInterval;
-        this.window = new MainWindow(this::toggle, this::addManual, store);
+        this.pollingInterval = config.pollingInterval();
+        SettingsController settings = new SettingsController(envFile, config, engine, this::setPollingInterval);
+        this.window = new MainWindow(this::toggle, this::addManual, store, settings);
         window.render(engine.tick());
     }
 
@@ -41,8 +46,24 @@ public final class AppController {
             thread.setDaemon(true);
             return thread;
         });
-        scheduler.scheduleWithFixedDelay(this::safePollJira, 0, pollingInterval.toMillis(), TimeUnit.MILLISECONDS);
+        schedulePolling();
         scheduler.scheduleAtFixedRate(this::safeTick, 0, 1, TimeUnit.SECONDS);
+    }
+
+    /** Reagenda o Jira com o novo intervalo e consulta na hora (as configurações acabaram de mudar). */
+    private synchronized void setPollingInterval(Duration interval) {
+        pollingInterval = interval;
+        if (scheduler != null) {
+            schedulePolling();
+        }
+    }
+
+    private synchronized void schedulePolling() {
+        if (polling != null) {
+            polling.cancel(false);
+        }
+        polling = scheduler.scheduleWithFixedDelay(this::safePollJira, 0, pollingInterval.toMillis(),
+                TimeUnit.MILLISECONDS);
     }
 
     public void stop() {

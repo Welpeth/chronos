@@ -61,7 +61,7 @@ public record AppConfig(
                 seconds(nonBlank, "POSSIBLY_IDLE_SECONDS", DEFAULT_POSSIBLY_IDLE_AFTER),
                 seconds(nonBlank, "IDLE_THRESHOLD_SECONDS", DEFAULT_INACTIVE_AFTER),
                 Path.of(nonBlank.apply("CHRONOS_DB_PATH").orElse(DEFAULT_DATABASE)),
-                lookup.apply("JIRA_IN_PROGRESS_STATUSES").map(AppConfig::splitList).orElse(DEFAULT_WORKING_STATUSES));
+                nonBlank.apply("JIRA_IN_PROGRESS_STATUSES").map(AppConfig::splitList).orElse(DEFAULT_WORKING_STATUSES));
     }
 
     /** Indica se há dados suficientes para falar com o Jira. */

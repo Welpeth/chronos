@@ -24,12 +24,13 @@ import java.util.function.Consumer;
 /** Janela principal: barra superior, menu lateral e a página atual. */
 public final class MainWindow {
 
-    private enum Page { DASHBOARD, TASKS, HISTORY }
+    private enum Page { DASHBOARD, TASKS, HISTORY, SETTINGS }
 
     private final BorderPane root = new BorderPane();
     private final DashboardPage dashboard;
     private final TasksPage tasks;
     private final HistoryPage history;
+    private final SettingsPage settings;
     private final Map<Page, HBox> navItems = new EnumMap<>(Page.class);
     private Page page = Page.DASHBOARD;
     private Snapshot last;
@@ -41,10 +42,12 @@ public final class MainWindow {
     private final Label userName = new Label();
     private final Label userEmail = new Label();
 
-    public MainWindow(Consumer<TaskView> onToggle, Runnable onAddManual, HistoryStore store) {
+    public MainWindow(Consumer<TaskView> onToggle, Runnable onAddManual, HistoryStore store,
+                      SettingsPage.Handler settingsHandler) {
         this.dashboard = new DashboardPage(onToggle, onAddManual);
         this.tasks = new TasksPage(onToggle);
         this.history = new HistoryPage(store);
+        this.settings = new SettingsPage(settingsHandler);
         root.getStyleClass().add("app");
         root.setTop(buildTopBar());
         root.setLeft(buildSidebar());
@@ -84,6 +87,10 @@ public final class MainWindow {
             case DASHBOARD -> dashboard.getView();
             case TASKS -> tasks.getView();
             case HISTORY -> history.getView();
+            case SETTINGS -> {
+                settings.load();
+                yield settings.getView();
+            }
         });
         renderPage();
     }
@@ -97,6 +104,9 @@ public final class MainWindow {
             case DASHBOARD -> dashboard.render(last);
             case TASKS -> tasks.render(last);
             case HISTORY -> history.render(last);
+            case SETTINGS -> {
+                // Nada muda sozinho nas configurações.
+            }
         }
     }
 
@@ -133,7 +143,8 @@ public final class MainWindow {
         VBox nav = new VBox(6,
                 navItem(Page.DASHBOARD, Icons.HOME, "Painel"),
                 navItem(Page.TASKS, Icons.LIST, "Tarefas"),
-                navItem(Page.HISTORY, Icons.CLOCK, "Histórico"));
+                navItem(Page.HISTORY, Icons.CLOCK, "Histórico"),
+                navItem(Page.SETTINGS, Icons.GEAR, "Configurações"));
         navItems.get(Page.DASHBOARD).getStyleClass().add("nav-selected");
 
         avatar.getStyleClass().add("avatar");
