@@ -316,6 +316,59 @@
     -fx-font-size: 13px;
 }
 
+/* Listas do painel: mais compactas, com "Mostrar mais" embaixo */
+.list-card {
+    -fx-spacing: 10;
+}
+
+.list-card .task-row {
+    -fx-padding: 7 4;
+}
+
+.list-card .task-summary {
+    -fx-font-size: 11px;
+}
+
+.list-card .event-row {
+    -fx-padding: 4 0 6 0;
+}
+
+.list-card .event-row .muted {
+    -fx-font-size: 11px;
+}
+
+.show-more {
+    -fx-background-color: #eef4fd;
+    -fx-background-radius: 8;
+    -fx-text-fill: #1d5be8;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-padding: 8 12;
+    -fx-cursor: hand;
+}
+
+.show-more:hover {
+    -fx-background-color: #dbe7fb;
+}
+
+.paged-scroll,
+.paged-scroll > .viewport {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+
+.paged-rows {
+    -fx-background-color: white;
+    -fx-background-radius: 10;
+    -fx-padding: 4 16;
+}
+
+.paged-label {
+    -fx-text-fill: #52627f;
+    -fx-font-size: 13px;
+}
+
 /* Páginas de Tarefas e Histórico */
 .page-title {
     -fx-font-size: 24px;
