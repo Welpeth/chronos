@@ -16,6 +16,7 @@ public record ActivityEvent(Instant at, Kind kind, String title, String detail) 
         SYNC,
         ACTIVITY,
         TASK,
+        ALERT,
         ERROR
     }
 }

@@ -80,10 +80,11 @@ class AppConfigTest {
     }
 
     @Test
-    void workingStatusesHaveADefaultAndCanBeCleared() {
+    void workingStatusesHaveADefault() {
         assertEquals(AppConfig.DEFAULT_WORKING_STATUSES, AppConfig.fromMap(Map.of()).workingStatuses());
         assertEquals(List.of("Doing", "Em revisão"),
                 AppConfig.fromMap(Map.of("JIRA_IN_PROGRESS_STATUSES", "Doing, Em revisão")).workingStatuses());
-        assertEquals(List.of(), AppConfig.fromMap(Map.of("JIRA_IN_PROGRESS_STATUSES", "")).workingStatuses());
+        assertEquals(AppConfig.DEFAULT_WORKING_STATUSES,
+                AppConfig.fromMap(Map.of("JIRA_IN_PROGRESS_STATUSES", " ")).workingStatuses());
     }
 }

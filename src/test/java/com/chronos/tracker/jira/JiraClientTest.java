@@ -109,4 +109,34 @@ class JiraClientTest {
 
         assertThrows(JiraException.class, () -> new JiraClient(baseUrl, "e", "t").search("x", 1));
     }
+
+    @Test
+    void transitionToDonePicksTheDoneTransition() throws Exception {
+        AtomicReference<String> posted = new AtomicReference<>();
+        server.createContext("/rest/api/3/issue/PROJ-1/transitions", exchange -> {
+            byte[] bytes;
+            int code;
+            if (exchange.getRequestMethod().equals("POST")) {
+                posted.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+                bytes = new byte[0];
+                code = 204;
+            } else {
+                bytes = """
+                        {"transitions":[
+                          {"id":"21","name":"Iniciar","to":{"name":"Em andamento","statusCategory":{"key":"indeterminate"}}},
+                          {"id":"31","name":"Concluir","to":{"name":"Concluído","statusCategory":{"key":"done"}}}
+                        ]}""".getBytes(StandardCharsets.UTF_8);
+                code = 200;
+            }
+            exchange.sendResponseHeaders(code, bytes.length == 0 ? -1 : bytes.length);
+            try (OutputStream out = exchange.getResponseBody()) {
+                out.write(bytes);
+            }
+        });
+
+        String status = new JiraClient(baseUrl, "e", "t").transitionToDone("PROJ-1");
+
+        assertEquals("Concluído", status);
+        assertTrue(posted.get().contains("\"id\":\"31\""), posted.get());
+    }
 }

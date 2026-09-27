@@ -7,12 +7,13 @@ import com.chronos.tracker.tracking.TaskView;
 import com.chronos.tracker.tracking.TrackingEngine.Snapshot;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.control.Label;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
-import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.Circle;
 
@@ -23,12 +24,13 @@ import java.util.function.Consumer;
 /** Janela principal: barra superior, menu lateral e a página atual. */
 public final class MainWindow {
 
-    private enum Page { DASHBOARD, TASKS, HISTORY }
+    private enum Page { DASHBOARD, TASKS, HISTORY, SETTINGS }
 
     private final BorderPane root = new BorderPane();
     private final DashboardPage dashboard;
     private final TasksPage tasks;
     private final HistoryPage history;
+    private final SettingsPage settings;
     private final Map<Page, HBox> navItems = new EnumMap<>(Page.class);
     private Page page = Page.DASHBOARD;
     private Snapshot last;
@@ -40,10 +42,12 @@ public final class MainWindow {
     private final Label userName = new Label();
     private final Label userEmail = new Label();
 
-    public MainWindow(Consumer<TaskView> onToggle, Runnable onAddManual, HistoryStore store) {
+    public MainWindow(Consumer<TaskView> onToggle, Runnable onAddManual, HistoryStore store,
+                      SettingsPage.Handler settingsHandler) {
         this.dashboard = new DashboardPage(onToggle, onAddManual);
         this.tasks = new TasksPage(onToggle);
         this.history = new HistoryPage(store);
+        this.settings = new SettingsPage(settingsHandler);
         root.getStyleClass().add("app");
         root.setTop(buildTopBar());
         root.setLeft(buildSidebar());
@@ -83,6 +87,10 @@ public final class MainWindow {
             case DASHBOARD -> dashboard.getView();
             case TASKS -> tasks.getView();
             case HISTORY -> history.getView();
+            case SETTINGS -> {
+                settings.load();
+                yield settings.getView();
+            }
         });
         renderPage();
     }
@@ -96,14 +104,19 @@ public final class MainWindow {
             case DASHBOARD -> dashboard.render(last);
             case TASKS -> tasks.render(last);
             case HISTORY -> history.render(last);
+            case SETTINGS -> {
+                // Nada muda sozinho nas configurações.
+            }
         }
     }
 
     private HBox buildTopBar() {
-        Label logoText = new Label("Chronos");
-        logoText.getStyleClass().add("logo");
-        StackPane logoIcon = new StackPane(Icons.of(Icons.CLOCK, 30, "icon-logo"));
-        HBox logo = new HBox(10, logoIcon, logoText);
+        ImageView logoImage = new ImageView(new Image(
+                MainWindow.class.getResource("logo-full.png").toExternalForm(), 0, 120, true, true));
+        logoImage.setFitHeight(58);
+        logoImage.setPreserveRatio(true);
+        logoImage.setSmooth(true);
+        HBox logo = new HBox(logoImage);
         logo.setAlignment(Pos.CENTER_LEFT);
         logo.setPrefWidth(250);
 
@@ -130,7 +143,8 @@ public final class MainWindow {
         VBox nav = new VBox(6,
                 navItem(Page.DASHBOARD, Icons.HOME, "Painel"),
                 navItem(Page.TASKS, Icons.LIST, "Tarefas"),
-                navItem(Page.HISTORY, Icons.CLOCK, "Histórico"));
+                navItem(Page.HISTORY, Icons.CLOCK, "Histórico"),
+                navItem(Page.SETTINGS, Icons.GEAR, "Configurações"));
         navItems.get(Page.DASHBOARD).getStyleClass().add("nav-selected");
 
         avatar.getStyleClass().add("avatar");

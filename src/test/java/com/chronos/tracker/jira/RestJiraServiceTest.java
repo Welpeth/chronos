@@ -49,4 +49,12 @@ class RestJiraServiceTest {
         assertInstanceOf(UnconfiguredJiraService.class, service);
         assertFalse(service.isConfigured());
     }
+
+    @Test
+    void alertJqlLooksForRecentIssuesOfTheChosenTypesFromAnyone() {
+        assertEquals(
+                "project in (\"SCRUM\") AND issuetype in (\"Bug Cliente\", \"Incidente\")"
+                        + " AND created >= -3d ORDER BY created DESC",
+                RestJiraService.alertJql(List.of("SCRUM"), List.of("Bug Cliente", "Incidente")));
+    }
 }

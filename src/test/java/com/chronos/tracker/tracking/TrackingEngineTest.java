@@ -416,6 +416,36 @@ class TrackingEngineTest {
                 .filter(TaskView::running).map(TaskView::key).toList()));
     }
 
+    @Test
+    void finishingATaskPausesItAndMovesItToDone() throws Exception {
+        jira.issues = List.of(DOING_1, DOING_2);
+        engine.pollJira();
+        engine.tick();
+        advance(Duration.ofMinutes(10));
+
+        engine.finish("PROJ-1");
+        TrackingEngine.Snapshot snapshot = advance(Duration.ofMinutes(5));
+
+        assertFalse(task(snapshot, "PROJ-1").running());
+        assertEquals(StatusCategory.DONE, task(snapshot, "PROJ-1").category());
+        assertEquals(Duration.ofMinutes(10), task(snapshot, "PROJ-1").totalTime());
+        assertTrue(task(snapshot, "PROJ-2").running());
+        assertEquals("Task finalizada", snapshot.recentEvents().stream()
+                .filter(e -> e.title().equals("Task finalizada")).findFirst().orElseThrow().title());
+    }
+
+    @Test
+    void pauseAllStopsEveryRunningTask() {
+        jira.issues = List.of(DOING_1, DOING_2);
+        engine.pollJira();
+        engine.tick();
+        advance(Duration.ofMinutes(10));
+
+        engine.pauseAll();
+
+        assertEquals(0, advance(Duration.ofMinutes(5)).runningCount());
+    }
+
     private static final class FakeJira implements JiraService {
         List<JiraIssue> issues = List.of();
         JiraException failure;
@@ -431,6 +461,16 @@ class TrackingEngineTest {
                 throw failure;
             }
             return issues;
+        }
+
+        @Override
+        public String completeIssue(String issueKey) {
+            issues = issues.stream()
+                    .map(issue -> issue.key().equals(issueKey)
+                            ? new JiraIssue(issue.key(), issue.summary(), "Concluído", StatusCategory.DONE)
+                            : issue)
+                    .toList();
+            return "Concluído";
         }
     }
 }

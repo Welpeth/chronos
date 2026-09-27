@@ -406,7 +406,7 @@ public final class DashboardPage {
             case SYNC -> "dot-green";
             case ACTIVITY -> "dot-yellow";
             case TASK -> "dot-blue";
-            case ERROR -> "dot-red";
+            case ALERT, ERROR -> "dot-red";
         });
         StackPane dotBox = new StackPane(dot);
         dotBox.setMinWidth(14);

@@ -47,7 +47,7 @@ public final class JiraClient {
         ObjectNode body = mapper.createObjectNode();
         body.put("jql", jql);
         body.put("maxResults", maxResults);
-        body.putArray("fields").add("summary").add("status");
+        body.putArray("fields").add("summary").add("status").add("issuetype");
 
         HttpRequest request = request("/rest/api/3/search/jql")
                 .header("Content-Type", "application/json")
@@ -66,6 +66,28 @@ public final class JiraClient {
     public String projectName(String projectKey) throws JiraException {
         String path = "/rest/api/3/project/" + URLEncoder.encode(projectKey, StandardCharsets.UTF_8);
         return readTree(send(request(path).GET().build())).path("name").asText(projectKey);
+    }
+
+    /**
+     * Move a issue para o primeiro status da categoria "Concluído" que o fluxo dela permite, e devolve o nome
+     * desse status.
+     */
+    public String transitionToDone(String issueKey) throws JiraException {
+        String path = "/rest/api/3/issue/" + URLEncoder.encode(issueKey, StandardCharsets.UTF_8) + "/transitions";
+        JsonNode transitions = readTree(send(request(path).GET().build())).path("transitions");
+        JsonNode done = StreamSupport.stream(transitions.spliterator(), false)
+                .filter(t -> "done".equals(t.path("to").path("statusCategory").path("key").asText()))
+                .findFirst()
+                .orElseThrow(() -> new JiraException(
+                        "O fluxo de " + issueKey + " não tem como ir direto para um status concluído"));
+
+        ObjectNode body = mapper.createObjectNode();
+        body.putObject("transition").put("id", done.path("id").asText());
+        send(request(path)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body.toString(), StandardCharsets.UTF_8))
+                .build());
+        return done.path("to").path("name").asText(done.path("name").asText("Concluído"));
     }
 
     private HttpRequest.Builder request(String path) {
@@ -93,7 +115,7 @@ public final class JiraClient {
         if (status == 400) {
             throw new JiraQueryException("O Jira recusou a consulta: " + errorMessages(response.body()));
         }
-        if (status != 200) {
+        if (status < 200 || status >= 300) {
             throw new JiraException("O Jira respondeu HTTP " + status + ": " + abbreviate(response.body()));
         }
         return response.body();
@@ -109,7 +131,8 @@ public final class JiraClient {
                             issue.path("key").asText(),
                             fields.path("summary").asText(""),
                             status.path("name").asText(""),
-                            StatusCategory.fromJiraKey(status.path("statusCategory").path("key").asText("")));
+                            StatusCategory.fromJiraKey(status.path("statusCategory").path("key").asText("")),
+                            fields.path("issuetype").path("name").asText(""));
                 })
                 .filter(issue -> !issue.key().isEmpty())
                 .toList();
