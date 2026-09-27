@@ -54,6 +54,10 @@ o dele de volta. O que foi gravado antes dessa separação continua no banco, ma
 Na página **Histórico** dá para escolher qualquer dia (os dias com tempo gravado aparecem destacados no
 calendário) e buscar uma task pela chave ou pelo título em todas as datas, vendo em que dias ela foi feita.
 
+No painel, as listas "Tarefas do projeto" e "Atividade recente" mostram só os primeiros itens (5 tasks e
+4 eventos). O botão **Mostrar mais** abre uma janela com a lista completa, 25 itens por página, que continua
+atualizando enquanto está aberta. A atividade recente guarda os últimos 200 eventos.
+
 No painel, o botão **+** em "Progresso do dia" adiciona tempo manual numa task (dia, horas e uma nota
 opcional). O tempo manual soma no total da task e no progresso do dia, e fica gravado no histórico. Se o
 dia passaria de 8h somando o tempo contado e as inserções manuais, a inserção é recusada com o aviso

@@ -46,7 +46,7 @@ import java.util.function.Predicate;
  */
 public final class TrackingEngine {
 
-    static final int MAX_EVENTS = 50;
+    static final int MAX_EVENTS = 200;
     /** De quanto em quanto tempo os intervalos ainda abertos são gravados, para não perder tempo numa queda. */
     static final Duration CHECKPOINT_INTERVAL = Duration.ofSeconds(30);
     /** Limite de um dia: tempo contado mais o inserido à mão não pode passar disto. */

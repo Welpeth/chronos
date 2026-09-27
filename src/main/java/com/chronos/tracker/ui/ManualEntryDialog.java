@@ -237,7 +237,7 @@ public final class ManualEntryDialog {
         return label;
     }
 
-    private static void makeDraggable(Node handle, Stage stage) {
+    static void makeDraggable(Node handle, Stage stage) {
         double[] offset = new double[2];
         handle.setOnMousePressed(e -> {
             offset[0] = e.getScreenX() - stage.getX();

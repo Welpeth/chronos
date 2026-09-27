@@ -34,7 +34,9 @@ import java.util.function.Consumer;
 public final class DashboardPage {
 
     static final Duration DAILY_GOAL = TrackingEngine.DAILY_LIMIT;
-    private static final int VISIBLE_EVENTS = 6;
+    /** Quantos itens cada lista mostra no painel; o resto fica no "Mostrar mais". */
+    static final int VISIBLE_EVENTS = 4;
+    static final int VISIBLE_TASKS = 5;
 
     private final Consumer<TaskView> onToggle;
     private final Runnable onAddManual;
@@ -74,6 +76,12 @@ public final class DashboardPage {
     // Coluna da direita
     private final VBox taskList = new VBox(0);
     private final VBox eventList = new VBox(0);
+    private final Button moreTasks = moreButton();
+    private final Button moreEvents = moreButton();
+    private List<TaskView> allTasks = List.of();
+    private List<ActivityEvent> allEvents = List.of();
+    private PagedListDialog<TaskView> tasksDialog;
+    private PagedListDialog<ActivityEvent> eventsDialog;
 
     public DashboardPage(Consumer<TaskView> onToggle, Runnable onAddManual) {
         this.onToggle = onToggle;
@@ -83,6 +91,8 @@ public final class DashboardPage {
         HBox.setHgrow(left, Priority.ALWAYS);
         left.setMinWidth(0);
 
+        moreTasks.setOnAction(e -> openTasks());
+        moreEvents.setOnAction(e -> openEvents());
         VBox right = new VBox(18, buildTasksCard(), buildEventsCard());
         right.setPrefWidth(420);
         right.setMinWidth(380);
@@ -366,31 +376,47 @@ public final class DashboardPage {
 
     private VBox buildTasksCard() {
         VBox card = card("list-card");
-        card.getChildren().addAll(cardTitle("Tarefas do projeto"), taskList);
+        card.getChildren().addAll(cardTitle("Tarefas do projeto"), taskList, moreTasks);
         return card;
     }
 
     private void renderTasks(List<TaskView> tasks) {
+        allTasks = tasks;
         taskList.getChildren().clear();
+        showMore(moreTasks, tasks.size(), VISIBLE_TASKS);
+        if (tasksDialog != null && tasksDialog.isShowing()) {
+            tasksDialog.update(tasks);
+        }
         if (tasks.isEmpty()) {
             Label empty = new Label("Nenhuma task sua no Jira ainda.");
             empty.getStyleClass().add("muted");
             taskList.getChildren().add(empty);
             return;
         }
-        for (TaskView task : tasks) {
-            taskList.getChildren().add(TaskRows.row(task, onToggle));
+        tasks.stream().limit(VISIBLE_TASKS).forEach(task -> taskList.getChildren().add(TaskRows.row(task, onToggle)));
+    }
+
+    private void openTasks() {
+        if (tasksDialog == null) {
+            tasksDialog = new PagedListDialog<>(root.getScene().getWindow(), Icons.LIST, "Tarefas do projeto",
+                    "Nenhuma task sua no Jira ainda.", task -> TaskRows.row(task, onToggle));
         }
+        tasksDialog.show(allTasks);
     }
 
     private VBox buildEventsCard() {
         VBox card = card("list-card");
-        card.getChildren().addAll(cardTitle("Atividade recente"), eventList);
+        card.getChildren().addAll(cardTitle("Atividade recente"), eventList, moreEvents);
         return card;
     }
 
     private void renderEvents(List<ActivityEvent> events) {
+        allEvents = events;
         eventList.getChildren().clear();
+        showMore(moreEvents, events.size(), VISIBLE_EVENTS);
+        if (eventsDialog != null && eventsDialog.isShowing()) {
+            eventsDialog.update(events);
+        }
         if (events.isEmpty()) {
             Label empty = new Label("Nada por aqui ainda.");
             empty.getStyleClass().add("muted");
@@ -398,6 +424,29 @@ public final class DashboardPage {
             return;
         }
         events.stream().limit(VISIBLE_EVENTS).forEach(event -> eventList.getChildren().add(eventRow(event)));
+    }
+
+    private void openEvents() {
+        if (eventsDialog == null) {
+            eventsDialog = new PagedListDialog<>(root.getScene().getWindow(), Icons.CLOCK, "Atividade recente",
+                    "Nada por aqui ainda.", DashboardPage::eventRow);
+        }
+        eventsDialog.show(allEvents);
+    }
+
+    private static Button moreButton() {
+        Button button = new Button("Mostrar mais");
+        button.getStyleClass().add("show-more");
+        button.setMaxWidth(Double.MAX_VALUE);
+        return button;
+    }
+
+    /** O botão só aparece quando há mais itens do que cabem no painel. */
+    private static void showMore(Button button, int total, int visible) {
+        boolean hidden = total > visible;
+        button.setText("Mostrar mais (" + (total - visible) + ")");
+        button.setVisible(hidden);
+        button.setManaged(hidden);
     }
 
     private static HBox eventRow(ActivityEvent event) {
