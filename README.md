@@ -27,6 +27,8 @@ falta. Quando a task sai da coluna em andamento ela pausa e aparece como "Falta 
 lança o tempo que falta (em minutos inteiros) no controle de tempo da task no Jira (`/rest/api/3/issue/{key}/worklog`)
 e ela passa para "Apontado". O que foi apontado fica gravado no banco; se a task voltar a contar, só o tempo novo
 aparece para apontar.
+Se o quadro não tiver o campo "Controle de tempo" (Time tracking) nas tarefas, a página mostra um aviso amarelo
+no topo: sem esse campo o Jira não aceita apontamento.
 
 Em **Configurações > Avisos de task** dá para escolher tipos de task (por exemplo "Bug Cliente",
 `CHRONOS_ALERT_ISSUE_TYPES`). A cada 30 segundos o Chronos procura tasks desses tipos criadas nos projetos nos

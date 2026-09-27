@@ -12,6 +12,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -89,6 +90,19 @@ public final class WorklogBook {
         String worklogId = jira.get().addWorklog(issueKey, pending, started);
         store.saveWorklog(issueKey, pending, clock.instant(), worklogId);
         return pending;
+    }
+
+    /**
+     * Se o quadro aceita apontamento, olhando o campo "Controle de tempo" de uma das tasks. Vazio quando não
+     * há task para olhar ou o Jira não deixa saber. Bloqueia: nunca chamar na thread da UI.
+     */
+    public Optional<Boolean> timeTrackingAvailable(Collection<TaskView> live) throws JiraException {
+        JiraService service = jira.get();
+        Optional<TaskView> sample = live.stream().filter(task -> !task.statusName().isEmpty()).findFirst();
+        if (!service.isConfigured() || sample.isEmpty()) {
+            return Optional.empty();
+        }
+        return service.hasTimeTracking(sample.get().key());
     }
 
     static Duration wholeMinutes(Duration duration) {

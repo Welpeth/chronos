@@ -16,6 +16,7 @@ import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executors;
@@ -69,6 +70,17 @@ public final class AppController {
                         Duration spent = book.log(issueKey);
                         engine.recordWorklog(issueKey, spent);
                         return spent;
+                    } catch (Exception e) {
+                        throw new CompletionException(e);
+                    }
+                });
+            }
+
+            @Override
+            public CompletableFuture<Optional<Boolean>> timeTrackingAvailable(List<TaskView> live) {
+                return CompletableFuture.supplyAsync(() -> {
+                    try {
+                        return book.timeTrackingAvailable(live);
                     } catch (Exception e) {
                         throw new CompletionException(e);
                     }

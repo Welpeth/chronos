@@ -662,3 +662,18 @@
 .worklog-button {
     -fx-padding: 6 16;
 }
+
+.time-tracking-warning {
+    -fx-background-color: #fff4d1;
+    -fx-border-color: #f5c542;
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
+    -fx-padding: 12 16;
+}
+
+.time-tracking-warning-text {
+    -fx-text-fill: #7a5600;
+    -fx-font-weight: bold;
+}
+
+.icon-warning { -fx-fill: #c68a00; }

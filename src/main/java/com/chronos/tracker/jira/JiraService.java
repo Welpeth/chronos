@@ -48,6 +48,14 @@ public interface JiraService {
         throw new JiraException("O Jira não está configurado");
     }
 
+    /**
+     * Se a issue tem o campo "Controle de tempo", ou vazio se não deu para saber (por exemplo, sem permissão
+     * de edição).
+     */
+    default Optional<Boolean> hasTimeTracking(String issueKey) throws JiraException {
+        return Optional.empty();
+    }
+
     /** Chave e nome dos projetos configurados, por exemplo "SCRUM · Minha equipe de software". */
     default Optional<String> fetchProjectLabel() throws JiraException {
         return Optional.empty();

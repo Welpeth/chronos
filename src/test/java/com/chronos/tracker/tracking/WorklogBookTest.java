@@ -114,12 +114,33 @@ class WorklogBookTest {
         assertEquals(Status.PENDING, book.items(List.of()).get(0).status());
     }
 
+    @Test
+    void timeTrackingIsCheckedOnAJiraTask() throws Exception {
+        jira.timeTracking = Optional.of(false);
+        TaskView manual = new TaskView("LOCAL-1", "", "", StatusCategory.IN_PROGRESS, Duration.ZERO, false, true,
+                Optional.empty());
+
+        assertEquals(Optional.empty(), book.timeTrackingAvailable(List.of()));
+        assertEquals(Optional.empty(), book.timeTrackingAvailable(List.of(manual)));
+        assertEquals(Optional.of(false),
+                book.timeTrackingAvailable(List.of(manual, live("SCRUM-3", Duration.ZERO, false))));
+        assertEquals(List.of("SCRUM-3"), jira.checked);
+    }
+
     private record Logged(String key, Duration spent, Instant started) {
     }
 
     private static final class FakeJira implements JiraService {
         final List<Logged> logged = new ArrayList<>();
         JiraException failure;
+        Optional<Boolean> timeTracking = Optional.empty();
+        final List<String> checked = new ArrayList<>();
+
+        @Override
+        public Optional<Boolean> hasTimeTracking(String issueKey) {
+            checked.add(issueKey);
+            return timeTracking;
+        }
 
         @Override
         public boolean isConfigured() {
