@@ -1,0 +1,88 @@
+name: EXE do Windows
+
+# Todo push na main gera uma release com o instalador (.exe) e a versão portátil (.zip).
+# Nos PRs, o mesmo build roda para conferir, e os arquivos ficam nos artefatos da execução.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  # Módulos do Java que vão junto no app (jdeps + TLS, formatos em português e charsets).
+  JAVA_MODULES: java.base,java.desktop,java.net.http,java.sql,jdk.jfr,jdk.unsupported,jdk.crypto.ec,jdk.localedata,jdk.charsets
+  # Fixo para o instalador novo atualizar o anterior em vez de instalar outro ao lado.
+  UPGRADE_UUID: 53992602-c790-4195-bb9a-49cebbd77283
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Testes e JAR
+        run: mvn -B package
+
+      - name: Dependências
+        run: mvn -B dependency:copy-dependencies -DincludeScope=runtime -DoutputDirectory=target/libs
+
+      - name: Versão
+        id: version
+        shell: bash
+        run: echo "number=0.1.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+
+      - name: WiX no PATH
+        shell: bash
+        run: |
+          # O jpackage do Java 21 usa o WiX 3 para gerar o instalador; a imagem windows-2022 já traz.
+          if [ -n "$WIX" ]; then echo "${WIX}bin" >> "$GITHUB_PATH"; fi
+
+      - name: Empacotar
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.number }}
+        run: |
+          cp target/chronos-tracker-*.jar target/libs/chronos.jar
+          jpackage --type app-image --name Chronos --dest target/dist \
+            --input target/libs --main-jar chronos.jar --main-class com.chronos.tracker.Launcher \
+            --app-version "$VERSION" --vendor Chronos --icon packaging/chronos.ico \
+            --add-modules "$JAVA_MODULES" --java-options "-Dfile.encoding=UTF-8"
+          jpackage --type exe --name Chronos --dest target/dist --app-image target/dist/Chronos \
+            --app-version "$VERSION" --vendor Chronos \
+            --description "Chronos: controle de tempo das tasks do Jira" \
+            --win-per-user-install --win-menu --win-menu-group Chronos --win-shortcut \
+            --win-upgrade-uuid "$UPGRADE_UUID"
+          cd target/dist
+          7z a "Chronos-$VERSION-portatil.zip" Chronos > /dev/null
+          ls -la
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chronos-${{ steps.version.outputs.number }}
+          path: |
+            target/dist/*.exe
+            target/dist/*.zip
+
+      - name: Publicar release
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.number }}
+        run: |
+          gh release create "v$VERSION" \
+            "target/dist/Chronos-$VERSION.exe" \
+            "target/dist/Chronos-$VERSION-portatil.zip" \
+            --target "$GITHUB_SHA" \
+            --title "Chronos $VERSION" \
+            --notes "Instalador: Chronos-$VERSION.exe (instala só para o seu usuário, sem pedir administrador). Portátil: descompacte o .zip e abra Chronos\\Chronos.exe. As configurações e o histórico ficam em %APPDATA%\\Chronos."

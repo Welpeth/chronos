@@ -66,7 +66,7 @@ public final class SettingsPage {
 
         Label title = new Label("Configurações");
         title.getStyleClass().add("page-title");
-        Label subtitle = new Label("Gravadas no arquivo .env ao lado do app");
+        Label subtitle = new Label("Gravadas em " + com.chronos.tracker.config.AppPaths.envFile().toAbsolutePath());
         subtitle.getStyleClass().add("muted");
         HBox heading = new HBox(12, title, subtitle);
         heading.setAlignment(Pos.BASELINE_LEFT);
