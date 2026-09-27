@@ -148,4 +148,23 @@ class SqliteHistoryStoreTest {
             assertEquals(java.util.Set.of("SCRUM-7", "SCRUM-8"), store.alertedKeys());
         }
     }
+
+    @Test
+    void taskTimesSumTrackedAndManualTimeAndSubtractNothingUntilLogged() throws Exception {
+        try (SqliteHistoryStore store = new SqliteHistoryStore(dir.resolve("chronos.db"), ZoneOffset.UTC)) {
+            store.saveInterval(entry("SCRUM-1", NINE, Duration.ofMinutes(50)), "Carlinhos");
+            store.saveManual(new ManualEntry(0, "SCRUM-1", "", LocalDate.of(2026, 9, 26), Duration.ofMinutes(10), "",
+                    NINE.plusSeconds(3600)));
+            store.saveInterval(entry("SCRUM-2", NINE.plusSeconds(7200), Duration.ofMinutes(5)), "Outra");
+            store.saveWorklog("SCRUM-1", Duration.ofMinutes(45), NINE.plusSeconds(8000), "10042");
+
+            List<HistoryStore.TaskTime> times = store.taskTimes();
+
+            assertEquals(List.of(
+                    new HistoryStore.TaskTime("SCRUM-2", "Outra", Duration.ofMinutes(5), Duration.ZERO,
+                            NINE.plusSeconds(7200 + 300)),
+                    new HistoryStore.TaskTime("SCRUM-1", "Carlinhos", Duration.ofHours(1), Duration.ofMinutes(45),
+                            NINE.plusSeconds(3600))), times);
+        }
+    }
 }

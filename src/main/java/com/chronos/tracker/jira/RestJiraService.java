@@ -2,6 +2,9 @@ package com.chronos.tracker.jira;
 
 import com.chronos.tracker.config.AppConfig;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -98,6 +101,11 @@ public final class RestJiraService implements JiraService {
     @Override
     public String completeIssue(String issueKey) throws JiraException {
         return client.transitionToDone(issueKey);
+    }
+
+    @Override
+    public String addWorklog(String issueKey, Duration spent, Instant started) throws JiraException {
+        return client.addWorklog(issueKey, spent, started.atZone(ZoneId.systemDefault()));
     }
 
     @Override

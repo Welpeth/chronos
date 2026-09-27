@@ -280,6 +280,13 @@ public final class TrackingEngine {
         pollJira();
     }
 
+    /** Registra em "Atividade recente" que o tempo da task foi lançado no Jira. */
+    public void recordWorklog(String issueKey, Duration spent) {
+        long minutes = spent.toMinutes();
+        String amount = minutes < 60 ? minutes + "m" : (minutes / 60) + "h " + (minutes % 60) + "m";
+        addEvent(ActivityEvent.Kind.TASK, "Tempo apontado no Jira", issueKey + " · " + amount);
+    }
+
     /** Registra em "Atividade recente" que chegou uma task de um tipo avisado. */
     public void recordAlert(JiraIssue issue) {
         String type = issue.issueType().isEmpty() ? "Nova task" : issue.issueType();
@@ -329,6 +336,11 @@ public final class TrackingEngine {
         } else if (inactivityPause) {
             inactiveToday = inactiveToday.plus(delta);
         }
+    }
+
+    /** Serviço do Jira em uso (muda quando as configurações são salvas). */
+    public JiraService jiraService() {
+        return jiraService;
     }
 
     /**

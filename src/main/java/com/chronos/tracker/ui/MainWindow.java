@@ -24,12 +24,13 @@ import java.util.function.Consumer;
 /** Janela principal: barra superior, menu lateral e a página atual. */
 public final class MainWindow {
 
-    private enum Page { DASHBOARD, TASKS, HISTORY, SETTINGS }
+    private enum Page { DASHBOARD, TASKS, HISTORY, WORKLOG, SETTINGS }
 
     private final BorderPane root = new BorderPane();
     private final DashboardPage dashboard;
     private final TasksPage tasks;
     private final HistoryPage history;
+    private final WorklogPage worklog;
     private final SettingsPage settings;
     private final Map<Page, HBox> navItems = new EnumMap<>(Page.class);
     private Page page = Page.DASHBOARD;
@@ -43,10 +44,11 @@ public final class MainWindow {
     private final Label userEmail = new Label();
 
     public MainWindow(Consumer<TaskView> onToggle, Runnable onAddManual, HistoryStore store,
-                      SettingsPage.Handler settingsHandler) {
+                      WorklogPage.Handler worklogHandler, SettingsPage.Handler settingsHandler) {
         this.dashboard = new DashboardPage(onToggle, onAddManual);
         this.tasks = new TasksPage(onToggle);
         this.history = new HistoryPage(store);
+        this.worklog = new WorklogPage(worklogHandler);
         this.settings = new SettingsPage(settingsHandler);
         root.getStyleClass().add("app");
         root.setTop(buildTopBar());
@@ -87,6 +89,10 @@ public final class MainWindow {
             case DASHBOARD -> dashboard.getView();
             case TASKS -> tasks.getView();
             case HISTORY -> history.getView();
+            case WORKLOG -> {
+                worklog.reload();
+                yield worklog.getView();
+            }
             case SETTINGS -> {
                 settings.load();
                 yield settings.getView();
@@ -104,6 +110,7 @@ public final class MainWindow {
             case DASHBOARD -> dashboard.render(last);
             case TASKS -> tasks.render(last);
             case HISTORY -> history.render(last);
+            case WORKLOG -> worklog.render(last);
             case SETTINGS -> {
                 // Nada muda sozinho nas configurações.
             }
@@ -144,6 +151,7 @@ public final class MainWindow {
                 navItem(Page.DASHBOARD, Icons.HOME, "Painel"),
                 navItem(Page.TASKS, Icons.LIST, "Tarefas"),
                 navItem(Page.HISTORY, Icons.CLOCK, "Histórico"),
+                navItem(Page.WORKLOG, Icons.CLIPBOARD_CHECK, "Apontamentos"),
                 navItem(Page.SETTINGS, Icons.GEAR, "Configurações"));
         navItems.get(Page.DASHBOARD).getStyleClass().add("nav-selected");
 

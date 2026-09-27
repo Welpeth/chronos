@@ -1,5 +1,7 @@
 package com.chronos.tracker.jira;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -35,6 +37,14 @@ public interface JiraService {
 
     /** Move a issue para "Concluído" no Jira e devolve o nome do status em que ela ficou. */
     default String completeIssue(String issueKey) throws JiraException {
+        throw new JiraException("O Jira não está configurado");
+    }
+
+    /**
+     * Registra {@code spent} no controle de tempo da issue, começando em {@code started}, e devolve o id do
+     * registro no Jira.
+     */
+    default String addWorklog(String issueKey, Duration spent, Instant started) throws JiraException {
         throw new JiraException("O Jira não está configurado");
     }
 
