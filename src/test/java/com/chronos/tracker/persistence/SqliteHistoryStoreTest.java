@@ -167,4 +167,42 @@ class SqliteHistoryStoreTest {
                             NINE.plusSeconds(3600))), times);
         }
     }
+
+    @Test
+    void eachJiraSeesOnlyItsOwnHistory() throws Exception {
+        Path file = dir.resolve("chronos.db");
+        try (SqliteHistoryStore old = new SqliteHistoryStore(file, ZoneOffset.UTC, "https://antigo.atlassian.net")) {
+            old.saveInterval(entry("SCRUM-2", NINE, Duration.ofMinutes(40)), "Tarefa 2");
+            old.saveManual(new ManualEntry(0, "SCRUM-2", "", LocalDate.of(2026, 9, 26), Duration.ofMinutes(5), "", NINE));
+            old.saveWorklog("SCRUM-2", Duration.ofMinutes(40), NINE, "1");
+            old.markAlerted(List.of("SCRUM-9"), NINE);
+        }
+        try (SqliteHistoryStore store = new SqliteHistoryStore(file, ZoneOffset.UTC, "https://novo.atlassian.net")) {
+            store.saveInterval(entry("SCRUM-2", NINE.plusSeconds(3600), Duration.ofMinutes(10)), "Outra task");
+
+            assertEquals(Map.of("SCRUM-2", Duration.ofMinutes(10)), store.totalsByTask());
+            assertEquals(1, store.entriesOn(LocalDate.of(2026, 9, 26)).size());
+            assertEquals(List.of(), store.manualOn(LocalDate.of(2026, 9, 26)));
+            assertEquals(Duration.ZERO, store.taskTimes().get(0).logged());
+            assertEquals("Outra task", store.taskTimes().get(0).summary());
+            assertEquals(java.util.Set.of(), store.alertedKeys());
+            assertEquals(1, store.search("SCRUM", 10).size());
+
+            store.useSite("https://antigo.atlassian.net");
+            assertEquals(Map.of("SCRUM-2", Duration.ofMinutes(45)), store.totalsByTask());
+            assertEquals(java.util.Set.of("SCRUM-9"), store.alertedKeys());
+        }
+    }
+
+    @Test
+    void historyFromBeforeTheSplitStaysOutOfEveryJira() throws Exception {
+        Path file = dir.resolve("v4.db");
+        try (SqliteHistoryStore legacy = new SqliteHistoryStore(file, ZoneOffset.UTC)) {
+            legacy.saveInterval(entry("SCRUM-1", NINE, Duration.ofMinutes(69)), "Tarefa 1");
+        }
+        try (SqliteHistoryStore store = new SqliteHistoryStore(file, ZoneOffset.UTC, "https://novo.atlassian.net")) {
+            assertEquals(Map.of(), store.totalsByTask());
+            assertEquals(List.of(), store.taskTimes());
+        }
+    }
 }

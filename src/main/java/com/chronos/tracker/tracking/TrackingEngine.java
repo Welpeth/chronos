@@ -338,6 +338,26 @@ public final class TrackingEngine {
         }
     }
 
+    /**
+     * Troca para outro Jira (outro endereço): fecha o que está contando, passa o histórico para o do novo Jira
+     * e recomeça com os totais dele. As tasks do Jira anterior somem até a próxima consulta.
+     */
+    public synchronized void switchJira(JiraService service, String site) {
+        tracker.pauseAll().forEach(this::persist);
+        overrides.clear();
+        lastStatus.clear();
+        summaries.clear();
+        storedToday = new ArrayList<>();
+        manualToday = new ArrayList<>();
+        issues = List.of();
+        tracker.reset();
+        store.useSite(site);
+        setJiraService(service);
+        jiraStatus = service.isConfigured() ? JiraSyncStatus.SYNCING : JiraSyncStatus.NOT_CONFIGURED;
+        restoreFromStore();
+        addEvent(ActivityEvent.Kind.SYNC, "Jira trocado", "Histórico e totais agora são do novo Jira");
+    }
+
     /** Serviço do Jira em uso (muda quando as configurações são salvas). */
     public JiraService jiraService() {
         return jiraService;

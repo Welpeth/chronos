@@ -32,13 +32,24 @@ import java.util.Set;
  */
 public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
 
-    private static final int SCHEMA_VERSION = 4;
+    private static final int SCHEMA_VERSION = 5;
 
     private final Connection connection;
     private final ZoneId zone;
+    /** Jira cujo histórico este store lê e grava (o endereço configurado); vazio sem Jira. */
+    private String site;
 
     public SqliteHistoryStore(Path file, ZoneId zone) throws HistoryException {
+        this(file, zone, "");
+    }
+
+    /**
+     * @param site endereço do Jira: o mesmo banco guarda o histórico de vários Jiras sem misturar as tasks
+     *             (a SCRUM-1 de um não é a SCRUM-1 do outro)
+     */
+    public SqliteHistoryStore(Path file, ZoneId zone, String site) throws HistoryException {
         this.zone = zone;
+        this.site = site == null ? "" : site;
         try {
             Path parent = file.toAbsolutePath().getParent();
             if (parent != null) {
@@ -109,15 +120,38 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
                         )""");
                 statement.executeUpdate("CREATE INDEX IF NOT EXISTS worklog_issue ON worklog (issue_key)");
             }
+            if (version < 5) {
+                // Até aqui não se sabia de qual Jira era cada registro: ficam com o site "" (sem Jira).
+                for (String table : List.of("time_entry", "manual_entry", "worklog")) {
+                    statement.executeUpdate("ALTER TABLE " + table + " ADD COLUMN jira_site TEXT NOT NULL DEFAULT ''");
+                }
+                statement.executeUpdate("""
+                        CREATE TABLE alerted_issue_v5 (
+                            jira_site  TEXT    NOT NULL DEFAULT '',
+                            issue_key  TEXT    NOT NULL,
+                            alerted_at INTEGER NOT NULL,
+                            PRIMARY KEY (jira_site, issue_key)
+                        )""");
+                statement.executeUpdate("INSERT INTO alerted_issue_v5 (issue_key, alerted_at) "
+                        + "SELECT issue_key, alerted_at FROM alerted_issue");
+                statement.executeUpdate("DROP TABLE alerted_issue");
+                statement.executeUpdate("ALTER TABLE alerted_issue_v5 RENAME TO alerted_issue");
+                statement.executeUpdate("CREATE INDEX IF NOT EXISTS time_entry_site ON time_entry (jira_site, issue_key)");
+            }
             statement.executeUpdate("PRAGMA user_version = " + SCHEMA_VERSION);
         }
     }
 
     @Override
+    public synchronized void useSite(String site) {
+        this.site = site == null ? "" : site;
+    }
+
+    @Override
     public synchronized void saveInterval(TimeEntry entry, String summary) throws HistoryException {
         String sql = """
-                INSERT INTO time_entry (issue_key, summary, started_at, ended_at, seconds, work_date)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO time_entry (issue_key, summary, started_at, ended_at, seconds, work_date, jira_site)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT (issue_key, started_at) DO UPDATE SET
                     ended_at = excluded.ended_at,
                     seconds = excluded.seconds,
@@ -129,6 +163,7 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
             statement.setLong(4, entry.endedAt().toEpochMilli());
             statement.setLong(5, entry.activeTime().toSeconds());
             statement.setString(6, dayOf(entry.startedAt()));
+            statement.setString(7, site);
             statement.executeUpdate();
         } catch (SQLException e) {
             throw new HistoryException("Falha ao gravar o intervalo de " + entry.issueKey(), e);
@@ -154,13 +189,16 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
     @Override
     public synchronized Map<String, Duration> totalsByTask() throws HistoryException {
         Map<String, Duration> totals = new HashMap<>();
-        try (Statement statement = connection.createStatement();
-             ResultSet rs = statement.executeQuery("""
-                     SELECT issue_key, SUM(millis) FROM (
-                         SELECT issue_key, ended_at - started_at AS millis FROM time_entry
-                         UNION ALL
-                         SELECT issue_key, seconds * 1000 FROM manual_entry)
-                     GROUP BY issue_key""")) {
+        String sql = """
+                SELECT issue_key, SUM(millis) FROM (
+                    SELECT issue_key, ended_at - started_at AS millis FROM time_entry WHERE jira_site = ?
+                    UNION ALL
+                    SELECT issue_key, seconds * 1000 FROM manual_entry WHERE jira_site = ?)
+                GROUP BY issue_key""";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, site);
+            statement.setString(2, site);
+            ResultSet rs = statement.executeQuery();
             while (rs.next()) {
                 totals.put(rs.getString(1), Duration.ofMillis(rs.getLong(2)));
             }
@@ -175,22 +213,26 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
         String sql = """
                 SELECT w.issue_key,
                        COALESCE((SELECT t.summary FROM time_entry t
-                                 WHERE t.issue_key = w.issue_key AND t.summary <> ''
+                                 WHERE t.jira_site = ?1 AND t.issue_key = w.issue_key AND t.summary <> ''
                                  ORDER BY t.started_at DESC LIMIT 1),
                                 (SELECT m.summary FROM manual_entry m
-                                 WHERE m.issue_key = w.issue_key AND m.summary <> ''
+                                 WHERE m.jira_site = ?1 AND m.issue_key = w.issue_key AND m.summary <> ''
                                  ORDER BY m.created_at DESC LIMIT 1), '') AS summary,
                        w.millis,
                        w.last_at,
-                       COALESCE((SELECT SUM(l.seconds) FROM worklog l WHERE l.issue_key = w.issue_key), 0) AS logged
+                       COALESCE((SELECT SUM(l.seconds) FROM worklog l
+                                 WHERE l.jira_site = ?1 AND l.issue_key = w.issue_key), 0) AS logged
                 FROM (SELECT issue_key, SUM(millis) AS millis, MAX(last_at) AS last_at FROM (
                           SELECT issue_key, ended_at - started_at AS millis, ended_at AS last_at FROM time_entry
+                          WHERE jira_site = ?1
                           UNION ALL
-                          SELECT issue_key, seconds * 1000, created_at FROM manual_entry)
+                          SELECT issue_key, seconds * 1000, created_at FROM manual_entry WHERE jira_site = ?1)
                       GROUP BY issue_key) w
                 ORDER BY w.last_at DESC""";
         List<TaskTime> times = new ArrayList<>();
-        try (Statement statement = connection.createStatement(); ResultSet rs = statement.executeQuery(sql)) {
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, site);
+            ResultSet rs = statement.executeQuery();
             while (rs.next()) {
                 times.add(new TaskTime(
                         rs.getString(1),
@@ -208,12 +250,13 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
     @Override
     public synchronized void saveWorklog(String issueKey, Duration spent, Instant at, String worklogId)
             throws HistoryException {
-        String sql = "INSERT INTO worklog (issue_key, seconds, logged_at, worklog_id) VALUES (?, ?, ?, ?)";
+        String sql = "INSERT INTO worklog (issue_key, seconds, logged_at, worklog_id, jira_site) VALUES (?, ?, ?, ?, ?)";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, issueKey);
             statement.setLong(2, spent.toSeconds());
             statement.setLong(3, at.toEpochMilli());
             statement.setString(4, worklogId == null ? "" : worklogId);
+            statement.setString(5, site);
             statement.executeUpdate();
         } catch (SQLException e) {
             throw new HistoryException("Falha ao gravar o apontamento de " + issueKey, e);
@@ -222,9 +265,11 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
 
     @Override
     public synchronized List<StoredEntry> entriesOn(LocalDate day) throws HistoryException {
-        String sql = "SELECT issue_key, summary, started_at, ended_at FROM time_entry WHERE work_date = ? ORDER BY started_at";
+        String sql = "SELECT issue_key, summary, started_at, ended_at FROM time_entry WHERE jira_site = ? AND work_date = ? "
+                + "ORDER BY started_at";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setString(1, day.toString());
+            statement.setString(1, site);
+            statement.setString(2, day.toString());
             return readEntries(statement);
         } catch (SQLException e) {
             throw new HistoryException("Falha ao ler o histórico de " + day, e);
@@ -250,15 +295,18 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
                 SELECT e.issue_key, COALESCE(NULLIF(e.summary, ''), latest.summary, '') AS summary, e.started_at, e.ended_at
                 FROM time_entry e
                 LEFT JOIN (SELECT issue_key, summary FROM time_entry t
-                           WHERE summary <> '' AND started_at = (SELECT MAX(started_at) FROM time_entry
-                                                                 WHERE issue_key = t.issue_key AND summary <> '')) latest
+                           WHERE jira_site = ?1 AND summary <> ''
+                             AND started_at = (SELECT MAX(started_at) FROM time_entry
+                                               WHERE jira_site = ?1 AND issue_key = t.issue_key AND summary <> '')) latest
                        ON latest.issue_key = e.issue_key
-                WHERE e.issue_key LIKE ? ESCAPE '\\' OR COALESCE(NULLIF(e.summary, ''), latest.summary, '') LIKE ? ESCAPE '\\'
+                WHERE e.jira_site = ?1
+                  AND (e.issue_key LIKE ?2 ESCAPE '\\'
+                       OR COALESCE(NULLIF(e.summary, ''), latest.summary, '') LIKE ?2 ESCAPE '\\')
                 ORDER BY e.started_at DESC
-                LIMIT ?""";
+                LIMIT ?3""";
         String pattern = likePattern(text);
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setString(1, pattern);
+            statement.setString(1, site);
             statement.setString(2, pattern);
             statement.setInt(3, limit);
             return readEntries(statement);
@@ -270,8 +318,8 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
     @Override
     public synchronized ManualEntry saveManual(ManualEntry entry) throws HistoryException {
         String sql = """
-                INSERT INTO manual_entry (issue_key, summary, work_date, seconds, note, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)""";
+                INSERT INTO manual_entry (issue_key, summary, work_date, seconds, note, created_at, jira_site)
+                VALUES (?, ?, ?, ?, ?, ?, ?)""";
         try (PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             statement.setString(1, entry.issueKey());
             statement.setString(2, entry.summary() == null ? "" : entry.summary());
@@ -279,6 +327,7 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
             statement.setLong(4, entry.duration().toSeconds());
             statement.setString(5, entry.note() == null ? "" : entry.note());
             statement.setLong(6, entry.createdAt().toEpochMilli());
+            statement.setString(7, site);
             statement.executeUpdate();
             try (ResultSet keys = statement.getGeneratedKeys()) {
                 long id = keys.next() ? keys.getLong(1) : 0;
@@ -292,9 +341,10 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
 
     @Override
     public synchronized List<ManualEntry> manualOn(LocalDate day) throws HistoryException {
-        String sql = "SELECT * FROM manual_entry WHERE work_date = ? ORDER BY created_at, id";
+        String sql = "SELECT * FROM manual_entry WHERE jira_site = ? AND work_date = ? ORDER BY created_at, id";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setString(1, day.toString());
+            statement.setString(1, site);
+            statement.setString(2, day.toString());
             return readManual(statement);
         } catch (SQLException e) {
             throw new HistoryException("Falha ao ler o tempo manual de " + day, e);
@@ -305,15 +355,15 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
     public synchronized List<ManualEntry> searchManual(String text, int limit) throws HistoryException {
         String sql = """
                 SELECT * FROM manual_entry
-                WHERE issue_key LIKE ? ESCAPE '\\' OR summary LIKE ? ESCAPE '\\' OR note LIKE ? ESCAPE '\\'
+                WHERE jira_site = ?1
+                  AND (issue_key LIKE ?2 ESCAPE '\\' OR summary LIKE ?2 ESCAPE '\\' OR note LIKE ?2 ESCAPE '\\')
                 ORDER BY work_date DESC, created_at DESC
-                LIMIT ?""";
+                LIMIT ?3""";
         String pattern = likePattern(text);
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setString(1, pattern);
+            statement.setString(1, site);
             statement.setString(2, pattern);
-            statement.setString(3, pattern);
-            statement.setInt(4, limit);
+            statement.setInt(3, limit);
             return readManual(statement);
         } catch (SQLException e) {
             throw new HistoryException("Falha ao buscar no tempo manual", e);
@@ -345,8 +395,10 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
     @Override
     public synchronized Set<String> alertedKeys() throws HistoryException {
         Set<String> keys = new HashSet<>();
-        try (Statement statement = connection.createStatement();
-             ResultSet rs = statement.executeQuery("SELECT issue_key FROM alerted_issue")) {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT issue_key FROM alerted_issue WHERE jira_site = ?")) {
+            statement.setString(1, site);
+            ResultSet rs = statement.executeQuery();
             while (rs.next()) {
                 keys.add(rs.getString(1));
             }
@@ -358,11 +410,12 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
 
     @Override
     public synchronized void markAlerted(Collection<String> issueKeys, Instant at) throws HistoryException {
-        String sql = "INSERT OR IGNORE INTO alerted_issue (issue_key, alerted_at) VALUES (?, ?)";
+        String sql = "INSERT OR IGNORE INTO alerted_issue (jira_site, issue_key, alerted_at) VALUES (?, ?, ?)";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             for (String key : issueKeys) {
-                statement.setString(1, key);
-                statement.setLong(2, at.toEpochMilli());
+                statement.setString(1, site);
+                statement.setString(2, key);
+                statement.setLong(3, at.toEpochMilli());
                 statement.addBatch();
             }
             statement.executeBatch();
@@ -374,9 +427,11 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
     @Override
     public synchronized Set<LocalDate> daysWithEntries() throws HistoryException {
         Set<LocalDate> days = new HashSet<>();
-        try (Statement statement = connection.createStatement();
-             ResultSet rs = statement.executeQuery(
-                     "SELECT work_date FROM time_entry UNION SELECT work_date FROM manual_entry")) {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT work_date FROM time_entry WHERE jira_site = ?1 "
+                        + "UNION SELECT work_date FROM manual_entry WHERE jira_site = ?1")) {
+            statement.setString(1, site);
+            ResultSet rs = statement.executeQuery();
             while (rs.next()) {
                 days.add(LocalDate.parse(rs.getString(1)));
             }

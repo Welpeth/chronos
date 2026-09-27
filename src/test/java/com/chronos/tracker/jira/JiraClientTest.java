@@ -164,25 +164,37 @@ class JiraClientTest {
         assertTrue(posted.get().contains("Apontado pelo Chronos"), posted.get());
     }
 
+    private void serve(String path, int code, String body) {
+        server.createContext(path, exchange -> {
+            byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(code, bytes.length == 0 ? -1 : bytes.length);
+            try (OutputStream out = exchange.getResponseBody()) {
+                out.write(bytes);
+            }
+        });
+    }
+
     @Test
-    void editmetaTellsWhetherTheIssueHasTimeTracking() throws Exception {
-        server.createContext("/rest/api/3/issue/PROJ-1/editmeta", exchange -> {
-            byte[] bytes = "{\"fields\":{\"summary\":{},\"timetracking\":{}}}".getBytes(StandardCharsets.UTF_8);
-            exchange.sendResponseHeaders(200, bytes.length);
-            try (OutputStream out = exchange.getResponseBody()) {
-                out.write(bytes);
-            }
-        });
-        server.createContext("/rest/api/3/issue/PROJ-2/editmeta", exchange -> {
-            byte[] bytes = "{\"fields\":{\"summary\":{}}}".getBytes(StandardCharsets.UTF_8);
-            exchange.sendResponseHeaders(200, bytes.length);
-            try (OutputStream out = exchange.getResponseBody()) {
-                out.write(bytes);
-            }
-        });
+    void timeTrackingCountsWhenTheIssueHasTheFieldEvenOutsideTheEditScreen() throws Exception {
+        serve("/rest/api/3/configuration/timetracking", 200, "{\"key\":\"JIRA\"}");
+        // Projeto gerenciado pela equipe: o campo vem na issue, mas não na tela de edição.
+        serve("/rest/api/3/issue/PROJ-1", 200, "{\"key\":\"PROJ-1\",\"fields\":{\"timetracking\":{}}}");
+        serve("/rest/api/3/issue/PROJ-1/editmeta", 200, "{\"fields\":{\"summary\":{}}}");
+        serve("/rest/api/3/issue/PROJ-2", 200, "{\"key\":\"PROJ-2\",\"fields\":{}}");
+        serve("/rest/api/3/issue/PROJ-2/editmeta", 200, "{\"fields\":{\"summary\":{}}}");
+        serve("/rest/api/3/issue/PROJ-3", 200, "{\"key\":\"PROJ-3\",\"fields\":{}}");
+        serve("/rest/api/3/issue/PROJ-3/editmeta", 200, "{\"fields\":{\"timetracking\":{}}}");
         JiraClient client = new JiraClient(baseUrl, "e", "t");
 
         assertTrue(client.hasTimeTrackingField("PROJ-1"));
         assertEquals(false, client.hasTimeTrackingField("PROJ-2"));
+        assertTrue(client.hasTimeTrackingField("PROJ-3"));
+    }
+
+    @Test
+    void timeTrackingTurnedOffInJiraMeansNoField() throws Exception {
+        serve("/rest/api/3/configuration/timetracking", 204, "");
+
+        assertEquals(false, new JiraClient(baseUrl, "e", "t").hasTimeTrackingField("PROJ-1"));
     }
 }
