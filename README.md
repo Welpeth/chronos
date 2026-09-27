@@ -31,8 +31,9 @@ falta. Quando a task sai da coluna em andamento ela pausa e aparece como "Falta 
 lança o tempo que falta (em minutos inteiros) no controle de tempo da task no Jira (`/rest/api/3/issue/{key}/worklog`)
 e ela passa para "Apontado". O que foi apontado fica gravado no banco; se a task voltar a contar, só o tempo novo
 aparece para apontar.
-Se o quadro não tiver o campo "Controle de tempo" (Time tracking) nas tarefas, a página mostra um aviso amarelo
-no topo: sem esse campo o Jira não aceita apontamento.
+Se o controle de tempo estiver desligado no Jira, ou as tarefas não tiverem o campo "Controle de tempo" (Time
+tracking), a página mostra um aviso amarelo no topo: sem esse campo o Jira não aceita apontamento. Em projetos
+gerenciados pela equipe o campo conta mesmo que não apareça na tela de edição.
 
 Em **Configurações > Avisos de task** dá para escolher tipos de task (por exemplo "Bug Cliente",
 `CHRONOS_ALERT_ISSUE_TYPES`). A cada 30 segundos o Chronos procura tasks desses tipos criadas nos projetos nos
@@ -45,6 +46,10 @@ Sem `.env` o app abre com os valores padrão e o Jira aparece como "não configu
 O histórico é gravado em `chronos.db` (ou no caminho de `CHRONOS_DB_PATH`). Cada intervalo guarda a task,
 o início, o fim e o dia em que foi feito; períodos ociosos também ficam gravados. Ao abrir o app, os totais
 das tasks e o progresso do dia voltam do banco.
+
+O histórico é separado por Jira (o endereço de `JIRA_BASE_URL`): ao trocar o Jira em Configurações, o painel,
+o histórico e os apontamentos passam a mostrar só o que foi contado nesse Jira, e voltar para o anterior traz
+o dele de volta. O que foi gravado antes dessa separação continua no banco, mas não aparece em nenhum Jira.
 
 Na página **Histórico** dá para escolher qualquer dia (os dias com tempo gravado aparecem destacados no
 calendário) e buscar uma task pela chave ou pelo título em todas as datas, vendo em que dias ela foi feita.

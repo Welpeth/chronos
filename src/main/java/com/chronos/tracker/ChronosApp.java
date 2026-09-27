@@ -51,7 +51,7 @@ public final class ChronosApp extends Application {
         Clock clock = Clock.systemDefaultZone();
         HistoryStore history;
         try {
-            store = new SqliteHistoryStore(config.databasePath(), clock.getZone());
+            store = new SqliteHistoryStore(config.databasePath(), clock.getZone(), config.jiraSite());
             history = store;
         } catch (HistoryStore.HistoryException e) {
             new Alert(Alert.AlertType.WARNING, e.getMessage()

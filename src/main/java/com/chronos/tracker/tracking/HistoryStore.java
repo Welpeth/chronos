@@ -64,6 +64,10 @@ public interface HistoryStore {
     /** Grava que {@code spent} da task foi apontado no Jira (registro {@code worklogId}). */
     void saveWorklog(String issueKey, Duration spent, Instant at, String worklogId) throws HistoryException;
 
+    /** Passa a ler e gravar o histórico de outro Jira (o mesmo banco guarda vários sem misturar). */
+    default void useSite(String site) {
+    }
+
     /** Tempo de uma task no histórico. */
     record TaskTime(String issueKey, String summary, Duration total, Duration logged, Instant lastWorkedAt) {
     }

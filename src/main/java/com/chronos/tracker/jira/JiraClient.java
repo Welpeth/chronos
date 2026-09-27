@@ -120,12 +120,23 @@ public final class JiraClient {
     }
 
     /**
-     * Se a issue tem o campo "Controle de tempo" (timetracking) na tela dela. Sem esse campo o quadro não
-     * aceita apontamento de horas.
+     * Se a issue aceita apontamento de horas: o controle de tempo está ligado no Jira e o campo "Controle de
+     * tempo" (timetracking) existe na issue. Em projetos gerenciados pela equipe o campo pode não aparecer na
+     * tela de edição, então vale ele vir nos campos da issue ou na tela de edição.
      */
     public boolean hasTimeTrackingField(String issueKey) throws JiraException {
-        String path = "/rest/api/3/issue/" + URLEncoder.encode(issueKey, StandardCharsets.UTF_8) + "/editmeta";
-        return readTree(send(request(path).GET().build())).path("fields").has("timetracking");
+        // 204 sem corpo: o controle de tempo está desligado no Jira inteiro.
+        String config = send(request("/rest/api/3/configuration/timetracking").GET().build());
+        if (config.isBlank()) {
+            return false;
+        }
+        String key = URLEncoder.encode(issueKey, StandardCharsets.UTF_8);
+        JsonNode issue = readTree(send(request("/rest/api/3/issue/" + key + "?fields=timetracking").GET().build()));
+        if (issue.path("fields").has("timetracking")) {
+            return true;
+        }
+        return readTree(send(request("/rest/api/3/issue/" + key + "/editmeta").GET().build()))
+                .path("fields").has("timetracking");
     }
 
     private HttpRequest.Builder request(String path) {

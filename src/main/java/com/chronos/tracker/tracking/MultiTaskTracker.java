@@ -35,6 +35,13 @@ public final class MultiTaskTracker {
         totals.forEach((key, total) -> completedTotals.merge(key, total, Duration::plus));
     }
 
+    /** Esquece todo o tempo contado (por exemplo, ao trocar de Jira). Chamar só com nada contando. */
+    public synchronized void reset() {
+        completedTotals.clear();
+        runningSince.clear();
+        completedEntries.clear();
+    }
+
     /** Começa a contar tempo em {@code issueKey}. Não faz nada se já estiver contando. */
     public synchronized void start(String issueKey) {
         Objects.requireNonNull(issueKey, "issueKey");

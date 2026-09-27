@@ -67,6 +67,14 @@ public record AppConfig(
     }
 
     /** Indica se há dados suficientes para falar com o Jira. */
+    /**
+     * Identifica o Jira no histórico: o endereço em minúsculas, sem barra no fim. Vazio sem endereço.
+     */
+    public String jiraSite() {
+        return jiraBaseUrl.map(url -> url.strip().toLowerCase(java.util.Locale.ROOT).replaceAll("/+$", ""))
+                .orElse("");
+    }
+
     public boolean isJiraConfigured() {
         return jiraBaseUrl.isPresent() && jiraEmail.isPresent() && jiraApiToken.isPresent()
                 && (jiraJql.isPresent() || !jiraProjectKeys.isEmpty());
