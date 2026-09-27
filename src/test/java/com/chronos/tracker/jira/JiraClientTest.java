@@ -163,4 +163,26 @@ class JiraClientTest {
         assertTrue(posted.get().contains("\"started\":\"2026-09-27T10:00:00.000-0300\""), posted.get());
         assertTrue(posted.get().contains("Apontado pelo Chronos"), posted.get());
     }
+
+    @Test
+    void editmetaTellsWhetherTheIssueHasTimeTracking() throws Exception {
+        server.createContext("/rest/api/3/issue/PROJ-1/editmeta", exchange -> {
+            byte[] bytes = "{\"fields\":{\"summary\":{},\"timetracking\":{}}}".getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, bytes.length);
+            try (OutputStream out = exchange.getResponseBody()) {
+                out.write(bytes);
+            }
+        });
+        server.createContext("/rest/api/3/issue/PROJ-2/editmeta", exchange -> {
+            byte[] bytes = "{\"fields\":{\"summary\":{}}}".getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, bytes.length);
+            try (OutputStream out = exchange.getResponseBody()) {
+                out.write(bytes);
+            }
+        });
+        JiraClient client = new JiraClient(baseUrl, "e", "t");
+
+        assertTrue(client.hasTimeTrackingField("PROJ-1"));
+        assertEquals(false, client.hasTimeTrackingField("PROJ-2"));
+    }
 }

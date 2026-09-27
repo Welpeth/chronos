@@ -119,6 +119,15 @@ public final class JiraClient {
         return readTree(response).path("id").asText("");
     }
 
+    /**
+     * Se a issue tem o campo "Controle de tempo" (timetracking) na tela dela. Sem esse campo o quadro não
+     * aceita apontamento de horas.
+     */
+    public boolean hasTimeTrackingField(String issueKey) throws JiraException {
+        String path = "/rest/api/3/issue/" + URLEncoder.encode(issueKey, StandardCharsets.UTF_8) + "/editmeta";
+        return readTree(send(request(path).GET().build())).path("fields").has("timetracking");
+    }
+
     private HttpRequest.Builder request(String path) {
         return HttpRequest.newBuilder(URI.create(baseUrl + path))
                 .timeout(REQUEST_TIMEOUT)

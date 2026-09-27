@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -38,10 +39,15 @@ public final class WorklogPage {
 
         /** Lança no Jira o que falta apontar, fora da thread da UI. */
         CompletableFuture<Duration> log(String issueKey);
+
+        /** Se o quadro tem o campo "Controle de tempo" (vazio se não deu para saber), fora da thread da UI. */
+        CompletableFuture<Optional<Boolean>> timeTrackingAvailable(List<TaskView> live);
     }
 
     /** De quanto em quanto tempo a lista relê o banco enquanto está na tela. */
     private static final Duration RELOAD_EVERY = Duration.ofSeconds(5);
+    /** De quanto em quanto tempo confere de novo se o quadro tem o campo de controle de tempo. */
+    private static final Duration CHECK_FIELD_EVERY = Duration.ofMinutes(2);
 
     private final Handler handler;
     private final ScrollPane root;
@@ -49,6 +55,9 @@ public final class WorklogPage {
     private final Label countLabel = new Label();
     private final Label pendingTotal = new Label();
     private final Label pageError = new Label();
+    private final HBox fieldWarning;
+    private Instant fieldCheckedAt = Instant.EPOCH;
+    private boolean checkingField;
     private final Set<String> logging = new HashSet<>();
     private final Map<String, String> errors = new HashMap<>();
     private Snapshot last;
@@ -74,6 +83,17 @@ public final class WorklogPage {
         VBox summary = new VBox(4, pendingCaption, pendingTotal);
         summary.getStyleClass().addAll("card", "worklog-summary");
 
+        Label warningText = new Label("O seu quadro precisa ter o campo \"Controle de tempo\" dentro das tarefas "
+                + "para o Chronos apontar as horas. No Jira, adicione o campo Controle de tempo (Time tracking) aos "
+                + "tipos de task do projeto.");
+        warningText.setWrapText(true);
+        warningText.getStyleClass().add("time-tracking-warning-text");
+        HBox.setHgrow(warningText, Priority.ALWAYS);
+        fieldWarning = new HBox(12, Icons.of(Icons.INFO, 22, "icon-warning"), warningText);
+        fieldWarning.setAlignment(Pos.CENTER_LEFT);
+        fieldWarning.getStyleClass().add("time-tracking-warning");
+        showFieldWarning(false);
+
         pageError.getStyleClass().add("form-error");
         pageError.setWrapText(true);
         pageError.setMaxWidth(Double.MAX_VALUE);
@@ -82,7 +102,7 @@ public final class WorklogPage {
         VBox card = new VBox(8, list);
         card.getStyleClass().addAll("card", "list-card");
 
-        VBox page = new VBox(18, heading, hint, summary, pageError, card);
+        VBox page = new VBox(18, fieldWarning, heading, hint, summary, pageError, card);
         page.getStyleClass().add("page");
 
         root = new ScrollPane(page);
@@ -109,6 +129,7 @@ public final class WorklogPage {
             return;
         }
         loadedAt = now;
+        checkField(snapshot, now);
         List<Item> items;
         try {
             items = handler.items(snapshot.tasks());
@@ -217,6 +238,28 @@ public final class WorklogPage {
             }
             reload();
         }));
+    }
+
+    /** Pergunta ao Jira, fora da thread da UI, se o quadro tem o campo de controle de tempo. */
+    private void checkField(Snapshot snapshot, Instant now) {
+        if (checkingField || snapshot.tasks().isEmpty()
+                || Duration.between(fieldCheckedAt, now).compareTo(CHECK_FIELD_EVERY) < 0) {
+            return;
+        }
+        checkingField = true;
+        fieldCheckedAt = now;
+        handler.timeTrackingAvailable(snapshot.tasks()).whenComplete((available, error) -> Platform.runLater(() -> {
+            checkingField = false;
+            // Sem resposta (Jira fora, sem permissão) não afirma nada: mantém o que já estava.
+            if (error == null && available.isPresent()) {
+                showFieldWarning(!available.get());
+            }
+        }));
+    }
+
+    private void showFieldWarning(boolean show) {
+        fieldWarning.setVisible(show);
+        fieldWarning.setManaged(show);
     }
 
     private void showPageError(String message) {

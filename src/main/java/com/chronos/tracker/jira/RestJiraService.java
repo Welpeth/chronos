@@ -104,6 +104,16 @@ public final class RestJiraService implements JiraService {
     }
 
     @Override
+    public Optional<Boolean> hasTimeTracking(String issueKey) throws JiraException {
+        try {
+            return Optional.of(client.hasTimeTrackingField(issueKey));
+        } catch (JiraAuthException e) {
+            // Sem permissão para editar a issue o Jira não mostra os campos: não dá para saber.
+            return Optional.empty();
+        }
+    }
+
+    @Override
     public String addWorklog(String issueKey, Duration spent, Instant started) throws JiraException {
         return client.addWorklog(issueKey, spent, started.atZone(ZoneId.systemDefault()));
     }
