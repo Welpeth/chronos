@@ -95,6 +95,16 @@ final class Maintenance {
         return true;
     }
 
+    /** Reabre o Chronos; falso se não dá para reabrir sozinho (fora do executável instalado). */
+    boolean restart() throws IOException {
+        if (Restarter.executable().isEmpty()) {
+            return false;
+        }
+        Restarter.relaunch();
+        exitApp.run();
+        return true;
+    }
+
     void exit() {
         exitApp.run();
     }

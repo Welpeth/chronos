@@ -34,7 +34,8 @@ public record AppConfig(
         boolean onlyWorkingColumns,
         List<String> playLabels,
         List<String> doneLabels,
-        boolean darkMode) {
+        boolean darkMode,
+        I18n.Language language) {
 
     public static final Duration DEFAULT_POLLING_INTERVAL = Duration.ofSeconds(5);
     public static final Duration DEFAULT_POSSIBLY_IDLE_AFTER = Duration.ofMinutes(2);
@@ -83,7 +84,8 @@ public record AppConfig(
                 flag(nonBlank, "CHRONOS_ONLY_WORKING_COLUMNS", false),
                 labels(nonBlank, "CHRONOS_PLAY_LABELS"),
                 labels(nonBlank, "CHRONOS_DONE_LABELS"),
-                flag(nonBlank, "CHRONOS_DARK_MODE", false));
+                flag(nonBlank, "CHRONOS_DARK_MODE", false),
+                I18n.Language.fromCode(nonBlank.apply("CHRONOS_LANGUAGE").orElse("pt")));
     }
 
     /**
@@ -168,6 +170,7 @@ public record AppConfig(
                 + ", onlyWorkingColumns=" + onlyWorkingColumns
                 + ", playLabels=" + playLabels
                 + ", doneLabels=" + doneLabels
-                + ", darkMode=" + darkMode + "]";
+                + ", darkMode=" + darkMode
+                + ", language=" + language.code + "]";
     }
 }

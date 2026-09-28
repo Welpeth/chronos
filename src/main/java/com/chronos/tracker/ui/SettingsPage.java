@@ -1,5 +1,6 @@
 package com.chronos.tracker.ui;
 
+import com.chronos.tracker.config.I18n;
 import com.chronos.tracker.config.TokenExpiry;
 import com.chronos.tracker.update.Updater;
 import javafx.application.Platform;
@@ -9,6 +10,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
@@ -39,6 +41,8 @@ public final class SettingsPage {
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     /** O que a página precisa do resto do app. */
+    static final String LANGUAGE_KEY = "CHRONOS_LANGUAGE";
+
     public interface Handler {
         /** Valores atuais do {@code .env}. */
         Map<String, String> currentValues();
@@ -72,6 +76,7 @@ public final class SettingsPage {
     private final DatePicker tokenExpires = new DatePicker();
     private final Label tokenExpiresStatus = new Label();
     private final Label updateStatus = new Label();
+    private final ComboBox<I18n.Language> language = new ComboBox<>();
     private final Label restoreStatus = new Label();
 
     public SettingsPage(Handler handler) {
@@ -185,8 +190,25 @@ public final class SettingsPage {
         updateStatus.setWrapText(true);
         HBox updateRow = new HBox(12, version, update, updateStatus);
         updateRow.setAlignment(Pos.CENTER_LEFT);
+        language.getItems().setAll(I18n.Language.values());
+        language.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(I18n.Language value) {
+                return value == null ? "" : value.label;
+            }
+
+            @Override
+            public I18n.Language fromString(String text) {
+                return I18n.Language.fromCode(text);
+            }
+        });
+        language.getStyleClass().add("settings-input");
+        Label languageLabel = new Label("Idioma");
+        languageLabel.getStyleClass().add("settings-label");
+        HBox languageRow = new HBox(12, languageLabel, language);
+        languageRow.setAlignment(Pos.CENTER_LEFT);
         VBox systemCard = card("Sistema", new VBox(8, startWithWindows, startHint),
-                flag("CHRONOS_DARK_MODE", "Modo escuro", false), updateRow);
+                flag("CHRONOS_DARK_MODE", "Modo escuro", false), languageRow, updateRow);
 
         tabs.getTabs().addAll(
                 BrowserTabs.tab("Jira", jiraCard),
@@ -220,6 +242,7 @@ public final class SettingsPage {
     public void load() {
         Map<String, String> values = handler.currentValues();
         fields.forEach((key, field) -> field.setText(value(values, key)));
+        language.setValue(I18n.Language.fromCode(values.getOrDefault(LANGUAGE_KEY, "")));
         flags.forEach((key, box) -> {
             String value = values.getOrDefault(key, "");
             box.setSelected(value.isBlank() ? !flagsOffByDefault.contains(key) : !isOff(value));
@@ -248,6 +271,7 @@ public final class SettingsPage {
     private Map<String, String> typedValues() {
         Map<String, String> values = new LinkedHashMap<>();
         fields.forEach((key, field) -> values.put(key, field.getText() == null ? "" : field.getText().strip()));
+        values.put(LANGUAGE_KEY, language.getValue() == null ? I18n.Language.PT.code : language.getValue().code);
         flags.forEach((key, box) -> values.put(key, Boolean.toString(box.isSelected())));
         tokenExpires.setValue(tokenExpires.getConverter().fromString(tokenExpires.getEditor().getText()));
         values.put(TokenExpiry.KEY, tokenExpires.getValue() == null ? "" : tokenExpires.getValue().toString());
@@ -259,6 +283,10 @@ public final class SettingsPage {
         try {
             feedback.setText(handler.save(typedValues(), startWithWindows.isSelected()));
             feedback.getStyleClass().add("feedback-ok");
+            I18n.Language chosen = language.getValue();
+            if (chosen != null && chosen != I18n.language()) {
+                askToRestartForLanguage(chosen);
+            }
         } catch (Exception e) {
             feedback.setText(e.getMessage());
             feedback.getStyleClass().add("feedback-error");
@@ -373,6 +401,23 @@ public final class SettingsPage {
                 }
             }));
         }));
+    }
+
+    /** O idioma vale para a janela inteira: troca ao reabrir o Chronos. */
+    private void askToRestartForLanguage(I18n.Language chosen) {
+        if (!confirm(I18n.t("Idioma", chosen.label), chosen.label,
+                I18n.t("O novo idioma aparece quando o Chronos reabre. Reiniciar agora?"))) {
+            return;
+        }
+        try {
+            if (!handler.maintenance().restart()) {
+                new Alert(Alert.AlertType.INFORMATION, I18n.t("Abra o Chronos de novo para ver o novo idioma."))
+                        .showAndWait();
+                handler.maintenance().exit();
+            }
+        } catch (IOException e) {
+            feedback.setText(e.getMessage());
+        }
     }
 
     private void restoreHistory() {

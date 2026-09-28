@@ -5,6 +5,7 @@ import com.chronos.tracker.activity.ActivityMonitors;
 import com.chronos.tracker.config.AppConfig;
 import com.chronos.tracker.config.AppPaths;
 import com.chronos.tracker.config.EnvFile;
+import com.chronos.tracker.config.I18n;
 import com.chronos.tracker.config.TokenExpiry;
 import com.chronos.tracker.jira.JiraIssue;
 import com.chronos.tracker.jira.RestJiraService;
@@ -56,6 +57,7 @@ public final class ChronosApp extends Application {
             return;
         }
 
+        I18n.use(config.language());
         Clock clock = Clock.systemDefaultZone();
         Path database = AppPaths.resolve(config.databasePath());
         Optional<Path> restored = Optional.empty();
