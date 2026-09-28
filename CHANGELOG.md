@@ -5,6 +5,10 @@ As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma vers
 
 ## [Não lançado]
 
+### Alterado
+- Configurações separadas em abas no topo (Jira, Colunas, Tempo, Avisos, Histórico, Sistema), no estilo das
+  abas do navegador, sem fechar. O botão Salvar grava todas as abas.
+
 ### Corrigido
 - Tempo em dobro no apontamento (2 min contados em 1 min de trabalho): abrir o Chronos de novo com ele na
   bandeja criava um segundo app contando as mesmas tasks no mesmo histórico. Agora só um Chronos roda; abrir
