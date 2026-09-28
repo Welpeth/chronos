@@ -1,5 +1,7 @@
 package com.chronos.tracker.update;
 
+import com.chronos.tracker.config.I18n;
+
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -22,7 +24,7 @@ public final class Restarter {
 
     /** Inicia um novo Chronos, que espera este fechar. Quem chama deve fechar o app logo em seguida. */
     public static void relaunch() throws IOException {
-        Path exe = executable().orElseThrow(() -> new IOException("Reabra o Chronos para terminar."));
+        Path exe = executable().orElseThrow(() -> new IOException(I18n.t("Reabra o Chronos para terminar.")));
         List<String> command = new ArrayList<>(List.of(exe.toString(), RESTART_ARG));
         new ProcessBuilder(command).start();
     }

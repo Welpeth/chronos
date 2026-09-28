@@ -53,7 +53,8 @@ public final class ChronosApp extends Application {
         try {
             config = AppConfig.load(ENV_FILE);
         } catch (Exception e) {
-            new Alert(Alert.AlertType.ERROR, "Não foi possível ler o arquivo .env:\n" + e.getMessage()).showAndWait();
+            new Alert(Alert.AlertType.ERROR, I18n.t("Não foi possível ler o arquivo .env:\n{0}", e.getMessage()))
+                    .showAndWait();
             return;
         }
 
@@ -64,16 +65,17 @@ public final class ChronosApp extends Application {
         try {
             restored = new Backups(AppPaths.dataDir()).applyPendingRestore(database, LocalDateTime.now(clock));
         } catch (IOException e) {
-            new Alert(Alert.AlertType.WARNING, "A restauração do histórico falhou:\n" + e.getMessage()
-                    + "\n\nO Chronos abre com o histórico que já estava em uso.").showAndWait();
+            new Alert(Alert.AlertType.WARNING, I18n.t(
+                    "A restauração do histórico falhou:\n{0}\n\nO Chronos abre com o histórico que já estava em uso.",
+                    e.getMessage())).showAndWait();
         }
         HistoryStore history;
         try {
             store = new SqliteHistoryStore(database, clock.getZone(), config.jiraSite());
             history = store;
         } catch (HistoryStore.HistoryException e) {
-            new Alert(Alert.AlertType.WARNING, e.getMessage()
-                    + "\n\nO app vai funcionar, mas o tempo não será gravado.").showAndWait();
+            new Alert(Alert.AlertType.WARNING,
+                    I18n.t("{0}\n\nO app vai funcionar, mas o tempo não será gravado.", e.getMessage())).showAndWait();
             history = HistoryStore.NONE;
         }
 
@@ -109,8 +111,8 @@ public final class ChronosApp extends Application {
                 stage.hide();
                 if (!trayHintShown) {
                     trayHintShown = true;
-                    tray.notify("O Chronos continua rodando",
-                            "Clique no ícone da bandeja para abrir, ou com o botão direito para pausar ou sair.");
+                    tray.notify(I18n.t("O Chronos continua rodando"),
+                            I18n.t("Clique no ícone da bandeja para abrir, ou com o botão direito para pausar ou sair."));
                 }
             });
             controller.setSnapshotListener(tray::update);
@@ -141,9 +143,10 @@ public final class ChronosApp extends Application {
         controller.start();
         warnAboutTokenExpiry();
         restored.ifPresent(backup -> {
-            Alert done = new Alert(Alert.AlertType.INFORMATION, "O histórico agora é a cópia " + backup.getFileName()
-                    + ". O que estava em uso antes ficou guardado na pasta backup.");
-            done.setHeaderText("Base histórica restaurada");
+            Alert done = new Alert(Alert.AlertType.INFORMATION, I18n.t(
+                    "O histórico agora é a cópia {0}. O que estava em uso antes ficou guardado na pasta backup.",
+                    backup.getFileName()));
+            done.setHeaderText(I18n.t("Base histórica restaurada"));
             done.initOwner(stage);
             done.show();
         });
@@ -160,15 +163,16 @@ public final class ChronosApp extends Application {
         TokenExpiry.from(env).ifPresent(expires -> {
             LocalDate today = LocalDate.now();
             if (TokenExpiry.level(expires, today) != TokenExpiry.Level.OK && tray.wasInstalled()) {
-                tray.alert("API token do Jira", TokenExpiry.describe(expires, today)
-                        + ". Gere um novo em id.atlassian.com e troque em Configurações.");
+                tray.alert(I18n.t("API token do Jira"), I18n.t(
+                        "{0}. Gere um novo em id.atlassian.com e troque em Configurações.",
+                        TokenExpiry.describe(expires, today)));
             }
         });
     }
 
     private void showAlerts(Stage stage, List<JiraIssue> issues) {
         for (JiraIssue issue : issues) {
-            String type = issue.issueType().isEmpty() ? "Nova task" : issue.issueType();
+            String type = issue.issueType().isEmpty() ? I18n.t("Nova task") : issue.issueType();
             String message = issue.summary().isEmpty() ? issue.key() : issue.key() + " · " + issue.summary();
             if (tray.wasInstalled()) {
                 tray.alert(type, message);

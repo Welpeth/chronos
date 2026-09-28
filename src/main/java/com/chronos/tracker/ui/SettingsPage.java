@@ -69,7 +69,7 @@ public final class SettingsPage {
     private final Map<String, CheckBox> flags = new LinkedHashMap<>();
     /** Marcadas quando o .env não diz nada; as ausentes daqui começam ligadas. */
     private final java.util.Set<String> flagsOffByDefault = new java.util.HashSet<>();
-    private final CheckBox startWithWindows = new CheckBox("Abrir o Chronos quando eu entrar no Windows");
+    private final CheckBox startWithWindows = new CheckBox(I18n.t("Abrir o Chronos quando eu entrar no Windows"));
     private final Label startHint = new Label();
     private final Label feedback = new Label();
     private final Label connection = new Label();
@@ -82,108 +82,99 @@ public final class SettingsPage {
     public SettingsPage(Handler handler) {
         this.handler = handler;
 
-        Label title = new Label("Configurações");
+        Label title = new Label(I18n.t("Configurações"));
         title.getStyleClass().add("page-title");
-        Label subtitle = new Label("Gravadas em " + com.chronos.tracker.config.AppPaths.envFile().toAbsolutePath());
+        Label subtitle = new Label(I18n.t("Gravadas em {0}",
+                com.chronos.tracker.config.AppPaths.envFile().toAbsolutePath()));
         subtitle.getStyleClass().add("muted");
         HBox heading = new HBox(12, title, subtitle);
         heading.setAlignment(Pos.BASELINE_LEFT);
 
         GridPane jira = form();
-        row(jira, 0, "JIRA_BASE_URL", "Endereço do Jira", "https://empresa.atlassian.net", new TextField());
-        row(jira, 1, "JIRA_EMAIL", "E-mail", "seu-email@empresa.com", new TextField());
-        row(jira, 2, "JIRA_API_TOKEN", "API token", "Gerado em id.atlassian.com", new PasswordField());
+        row(jira, 0, "JIRA_BASE_URL", I18n.t("Endereço do Jira"), I18n.t("https://empresa.atlassian.net"), new TextField());
+        row(jira, 1, "JIRA_EMAIL", I18n.t("E-mail"), I18n.t("seu-email@empresa.com"), new TextField());
+        row(jira, 2, "JIRA_API_TOKEN", I18n.t("API token"), I18n.t("Gerado em id.atlassian.com"), new PasswordField());
         jira.add(tokenExpiryRow(), 1, 3);
-        row(jira, 4, "JIRA_PROJECT_KEY", "Projetos", "Chaves separadas por vírgula, ex.: SCRUM", new TextField());
-        row(jira, 5, "JIRA_JQL", "JQL (opcional)", "Substitui a busca padrão pelos projetos", new TextField());
-        Button test = new Button("Testar conexão");
+        row(jira, 4, "JIRA_PROJECT_KEY", I18n.t("Projetos"), I18n.t("Chaves separadas por vírgula, ex.: SCRUM"), new TextField());
+        row(jira, 5, "JIRA_JQL", I18n.t("JQL (opcional)"), I18n.t("Substitui a busca padrão pelos projetos"), new TextField());
+        Button test = new Button(I18n.t("Testar conexão"));
         test.getStyleClass().add("secondary-button");
         test.setOnAction(e -> testConnection(test));
         connection.getStyleClass().add("muted");
         connection.setWrapText(true);
         HBox testRow = new HBox(12, test, connection);
         testRow.setAlignment(Pos.CENTER_LEFT);
-        VBox jiraCard = card("Conexão com o Jira", jira, testRow);
+        VBox jiraCard = card(I18n.t("Conexão com o Jira"), jira, testRow);
 
         GridPane columns = form();
-        row(columns, 0, "JIRA_IN_PROGRESS_STATUSES", "Colunas que contam tempo",
-                "Ex.: Test (escreva como aparece no quadro do Jira)", new TextField());
+        row(columns, 0, "JIRA_IN_PROGRESS_STATUSES", I18n.t("Colunas que contam tempo"),
+                I18n.t("Ex.: Test (escreva como aparece no quadro do Jira)"), new TextField());
         columns.add(flag("JIRA_USE_DEFAULT_STATUSES",
-                "Contar também as colunas padrão (Em andamento, Em progresso, In Progress)"), 1, 1);
+                I18n.t("Contar também as colunas padrão (Em andamento, Em progresso, In Progress)")), 1, 1);
         columns.add(flag("CHRONOS_AUTO_START",
-                "Começar a contar sozinho quando a task entrar numa dessas colunas"), 1, 2);
-        Label columnsHint = new Label("Sem começar sozinho, o tempo só conta depois do play. Nos dois casos, a task "
-                + "pausa quando sai dessas colunas.");
+                I18n.t("Começar a contar sozinho quando a task entrar numa dessas colunas")), 1, 2);
+        Label columnsHint = new Label(I18n.t("Sem começar sozinho, o tempo só conta depois do play. Nos dois casos, a task pausa quando sai dessas colunas."));
         columnsHint.getStyleClass().add("muted");
         columnsHint.setWrapText(true);
         columns.add(columnsHint, 1, 3);
         columns.add(flag("JIRA_WATCH_WHOLE_COLUMNS",
-                "Mostrar todas as tasks dessas colunas, de qualquer responsável", false), 1, 4);
-        Label wholeHint = new Label("Ex.: quem testa vê tudo que está na coluna Test. As tasks de outras pessoas "
-                + "aparecem na lista, mas só contam tempo com o play.");
+                I18n.t("Mostrar todas as tasks dessas colunas, de qualquer responsável"), false), 1, 4);
+        Label wholeHint = new Label(I18n.t("Ex.: quem testa vê tudo que está na coluna Test. As tasks de outras pessoas aparecem na lista, mas só contam tempo com o play."));
         wholeHint.getStyleClass().add("muted");
         wholeHint.setWrapText(true);
         columns.add(wholeHint, 1, 5);
         columns.add(flag("CHRONOS_ONLY_WORKING_COLUMNS",
-                "Só aceitar tempo nas tasks que estão nessas colunas", false), 1, 6);
-        Label onlyHint = new Label("Ligada, as tasks do Jira fora dessas colunas ficam sem play e sem tempo manual. "
-                + "Desligada, qualquer task aceita tempo.");
+                I18n.t("Só aceitar tempo nas tasks que estão nessas colunas"), false), 1, 6);
+        Label onlyHint = new Label(I18n.t("Ligada, as tasks do Jira fora dessas colunas ficam sem play e sem tempo manual. Desligada, qualquer task aceita tempo."));
         onlyHint.getStyleClass().add("muted");
         onlyHint.setWrapText(true);
         columns.add(onlyHint, 1, 7);
-        VBox columnsCard = card("Colunas do quadro", columns);
+        VBox columnsCard = card(I18n.t("Colunas do quadro"), columns);
 
         GridPane categories = form();
-        row(categories, 0, "CHRONOS_PLAY_LABELS", "Tags ao dar play",
-                "Ex.: em-teste (separe várias por vírgula)", new TextField());
-        row(categories, 1, "CHRONOS_DONE_LABELS", "Tags ao terminar",
-                "Ex.: testado (separe várias por vírgula)", new TextField());
-        Label categoriesHint = new Label("Quando o tempo de uma task começa, o Chronos põe as tags do play nela, "
-                + "no campo Labels do Jira. Quando a task sai das colunas monitoradas ou é finalizada, ele tira as "
-                + "do play e põe as de terminar. Espaços viram hífen. O campo Labels precisa estar nas tasks do "
-                + "projeto.");
+        row(categories, 0, "CHRONOS_PLAY_LABELS", I18n.t("Tags ao dar play"),
+                I18n.t("Ex.: em-teste (separe várias por vírgula)"), new TextField());
+        row(categories, 1, "CHRONOS_DONE_LABELS", I18n.t("Tags ao terminar"),
+                I18n.t("Ex.: testado (separe várias por vírgula)"), new TextField());
+        Label categoriesHint = new Label(I18n.t("Quando o tempo de uma task começa, o Chronos põe as tags do play nela, no campo Labels do Jira. Quando a task sai das colunas monitoradas ou é finalizada, ele tira as do play e põe as de terminar. Espaços viram hífen. O campo Labels precisa estar nas tasks do projeto."));
         categoriesHint.getStyleClass().add("muted");
         categoriesHint.setWrapText(true);
-        VBox categoriesCard = card("Categorias da validação", categories, categoriesHint);
+        VBox categoriesCard = card(I18n.t("Categorias da validação"), categories, categoriesHint);
 
         GridPane timing = form();
-        row(timing, 0, "POLLING_INTERVAL_SECONDS", "Consultar o Jira a cada (segundos)", "5", new TextField());
-        row(timing, 1, "POSSIBLY_IDLE_SECONDS", "Possivelmente ausente após (segundos)", "120", new TextField());
-        row(timing, 2, "IDLE_THRESHOLD_SECONDS", "Pausar por inatividade após (segundos)", "300", new TextField());
-        VBox timingCard = card("Tempo e inatividade", timing);
+        row(timing, 0, "POLLING_INTERVAL_SECONDS", I18n.t("Consultar o Jira a cada (segundos)"), "5", new TextField());
+        row(timing, 1, "POSSIBLY_IDLE_SECONDS", I18n.t("Possivelmente ausente após (segundos)"), "120", new TextField());
+        row(timing, 2, "IDLE_THRESHOLD_SECONDS", I18n.t("Pausar por inatividade após (segundos)"), "300", new TextField());
+        VBox timingCard = card(I18n.t("Tempo e inatividade"), timing);
 
         GridPane alerts = form();
-        row(alerts, 0, "CHRONOS_ALERT_ISSUE_TYPES", "Tipos de task que geram aviso",
-                "Ex.: Bug Cliente (separe vários por vírgula)", new TextField());
-        Label alertsHint = new Label("Quando uma task desses tipos é criada nos projetos acima, de qualquer pessoa, "
-                + "o Chronos mostra uma notificação do Windows e deixa uma bolinha vermelha no ícone até você abrir "
-                + "a janela. Precisa dos projetos preenchidos (não vale só com JQL).");
+        row(alerts, 0, "CHRONOS_ALERT_ISSUE_TYPES", I18n.t("Tipos de task que geram aviso"),
+                I18n.t("Ex.: Bug Cliente (separe vários por vírgula)"), new TextField());
+        Label alertsHint = new Label(I18n.t("Quando uma task desses tipos é criada nos projetos acima, de qualquer pessoa, o Chronos mostra uma notificação do Windows e deixa uma bolinha vermelha no ícone até você abrir a janela. Precisa dos projetos preenchidos (não vale só com JQL)."));
         alertsHint.getStyleClass().add("muted");
         alertsHint.setWrapText(true);
-        VBox alertsCard = card("Avisos de task", alerts, alertsHint);
+        VBox alertsCard = card(I18n.t("Avisos de task"), alerts, alertsHint);
 
         GridPane storage = form();
-        row(storage, 0, "CHRONOS_DB_PATH", "Arquivo do histórico", "chronos.db (vale ao reabrir o app)",
+        row(storage, 0, "CHRONOS_DB_PATH", I18n.t("Arquivo do histórico"), I18n.t("chronos.db (vale ao reabrir o app)"),
                 new TextField());
-        Button restore = new Button("Restaurar base histórica");
+        Button restore = new Button(I18n.t("Restaurar base histórica"));
         restore.getStyleClass().add("secondary-button");
         restore.setOnAction(e -> restoreHistory());
         restoreStatus.getStyleClass().add("muted");
         restoreStatus.setWrapText(true);
-        Label restoreHint = new Label("Antes de cada atualização, o histórico é copiado para a pasta backup com o "
-                + "nome da versão (ex.: chronos-0.2.0.db). Restaurar troca o histórico atual pela cópia escolhida e "
-                + "reinicia o Chronos; o atual também fica guardado em backup.");
+        Label restoreHint = new Label(I18n.t("Antes de cada atualização, o histórico é copiado para a pasta backup com o nome da versão (ex.: chronos-0.2.0.db). Restaurar troca o histórico atual pela cópia escolhida e reinicia o Chronos; o atual também fica guardado em backup."));
         restoreHint.getStyleClass().add("muted");
         restoreHint.setWrapText(true);
         HBox restoreRow = new HBox(12, restore, restoreStatus);
         restoreRow.setAlignment(Pos.CENTER_LEFT);
-        VBox storageCard = card("Histórico", storage, restoreHint, restoreRow);
+        VBox storageCard = card(I18n.t("Histórico"), storage, restoreHint, restoreRow);
 
         startHint.getStyleClass().add("muted");
         startHint.setWrapText(true);
-        Label version = new Label("Versão " + handler.maintenance().version());
+        Label version = new Label(I18n.t("Versão {0}", handler.maintenance().version()));
         version.getStyleClass().add("settings-label");
-        Button update = new Button("Procurar atualização");
+        Button update = new Button(I18n.t("Procurar atualização"));
         update.getStyleClass().add("secondary-button");
         update.setOnAction(e -> checkForUpdate(update));
         updateStatus.getStyleClass().add("muted");
@@ -203,26 +194,26 @@ public final class SettingsPage {
             }
         });
         language.getStyleClass().add("settings-input");
-        Label languageLabel = new Label("Idioma");
+        Label languageLabel = new Label(I18n.t("Idioma"));
         languageLabel.getStyleClass().add("settings-label");
         HBox languageRow = new HBox(12, languageLabel, language);
         languageRow.setAlignment(Pos.CENTER_LEFT);
-        VBox systemCard = card("Sistema", new VBox(8, startWithWindows, startHint),
-                flag("CHRONOS_DARK_MODE", "Modo escuro", false), languageRow, updateRow);
+        VBox systemCard = card(I18n.t("Sistema"), new VBox(8, startWithWindows, startHint),
+                flag("CHRONOS_DARK_MODE", I18n.t("Modo escuro"), false), languageRow, updateRow);
 
         tabs.getTabs().addAll(
                 BrowserTabs.tab("Jira", jiraCard),
-                BrowserTabs.tab("Colunas", columnsCard),
-                BrowserTabs.tab("Categorias", categoriesCard),
-                BrowserTabs.tab("Tempo", timingCard),
-                BrowserTabs.tab("Avisos", alertsCard),
-                BrowserTabs.tab("Histórico", storageCard),
-                BrowserTabs.tab("Sistema", systemCard));
+                BrowserTabs.tab(I18n.t("Colunas"), columnsCard),
+                BrowserTabs.tab(I18n.t("Categorias"), categoriesCard),
+                BrowserTabs.tab(I18n.t("Tempo"), timingCard),
+                BrowserTabs.tab(I18n.t("Avisos"), alertsCard),
+                BrowserTabs.tab(I18n.t("Histórico"), storageCard),
+                BrowserTabs.tab(I18n.t("Sistema"), systemCard));
 
-        Button save = new Button("Salvar");
+        Button save = new Button(I18n.t("Salvar"));
         save.getStyleClass().add("primary-button");
         save.setOnAction(e -> save());
-        Button revert = new Button("Desfazer alterações");
+        Button revert = new Button(I18n.t("Desfazer alterações"));
         revert.getStyleClass().add("secondary-button");
         revert.setOnAction(e -> load());
         feedback.setWrapText(true);
@@ -253,8 +244,8 @@ public final class SettingsPage {
         startWithWindows.setSelected(handler.startWithWindowsEnabled());
         startWithWindows.setDisable(!available);
         startHint.setText(available
-                ? "O Chronos abre minimizado quando você entra no Windows."
-                : "Disponível no Windows, abrindo o Chronos pelo executável instalado.");
+                ? I18n.t("O Chronos abre minimizado quando você entra no Windows.")
+                : I18n.t("Disponível no Windows, abrindo o Chronos pelo executável instalado."));
         feedback.setText("");
         feedback.getStyleClass().removeAll("feedback-ok", "feedback-error");
         connection.setText("");
@@ -295,10 +286,10 @@ public final class SettingsPage {
 
     private void testConnection(Button button) {
         button.setDisable(true);
-        connection.setText("Testando...");
+        connection.setText(I18n.t("Testando..."));
         handler.testConnection(typedValues()).whenComplete((message, error) -> Platform.runLater(() -> {
             button.setDisable(false);
-            connection.setText(error == null ? message : "Falhou: " + rootMessage(error));
+            connection.setText(error == null ? message : I18n.t("Falhou: {0}", rootMessage(error)));
         }));
     }
 
@@ -312,9 +303,9 @@ public final class SettingsPage {
 
     /** Embaixo do API token: "Data de validade:", o calendário e quanto falta para vencer. */
     private HBox tokenExpiryRow() {
-        Label caption = new Label("Data de validade:");
+        Label caption = new Label(I18n.t("Data de validade:"));
         caption.getStyleClass().add("muted");
-        tokenExpires.setPromptText("dd/mm/aaaa");
+        tokenExpires.setPromptText(I18n.t("dd/mm/aaaa"));
         tokenExpires.setPrefWidth(160);
         tokenExpires.getStyleClass().add("settings-input");
         tokenExpires.setConverter(new StringConverter<>() {
@@ -346,7 +337,7 @@ public final class SettingsPage {
         LocalDate expires = tokenExpires.getValue();
         tokenExpiresStatus.getStyleClass().removeAll("muted", "token-expiry-soon", "token-expiry-expired");
         if (expires == null) {
-            tokenExpiresStatus.setText("Veja em id.atlassian.com, na lista de API tokens");
+            tokenExpiresStatus.setText(I18n.t("Veja em id.atlassian.com, na lista de API tokens"));
             tokenExpiresStatus.getStyleClass().add("muted");
             return;
         }
@@ -366,38 +357,37 @@ public final class SettingsPage {
     private void checkForUpdate(Button button) {
         Maintenance maintenance = handler.maintenance();
         button.setDisable(true);
-        updateStatus.setText("Procurando...");
+        updateStatus.setText(I18n.t("Procurando..."));
         maintenance.checkForUpdate().whenComplete((release, error) -> Platform.runLater(() -> {
             button.setDisable(false);
             if (error != null) {
-                updateStatus.setText("Não deu para procurar: " + rootMessage(error));
+                updateStatus.setText(I18n.t("Não deu para procurar: {0}", rootMessage(error)));
                 return;
             }
             if (release.isEmpty()) {
-                updateStatus.setText("Você já está na versão mais nova.");
+                updateStatus.setText(I18n.t("Você já está na versão mais nova."));
                 return;
             }
             Updater.Release found = release.get();
-            updateStatus.setText("Versão " + found.version() + " disponível.");
-            if (!confirm("Atualizar o Chronos",
-                    "A versão " + found.version() + " está disponível (você tem a " + maintenance.version() + ").",
-                    "O histórico atual é copiado para a pasta backup, o instalador é baixado e o Chronos fecha "
-                            + "para instalar. Atualizar agora?")) {
+            updateStatus.setText(I18n.t("Versão {0} disponível.", found.version()));
+            if (!confirm(I18n.t("Atualizar o Chronos"),
+                    I18n.t("A versão {0} está disponível (você tem a {1}).", found.version(), maintenance.version()),
+                    I18n.t("O histórico atual é copiado para a pasta backup, o instalador é baixado e o Chronos fecha para instalar. Atualizar agora?"))) {
                 return;
             }
             button.setDisable(true);
-            updateStatus.setText("Copiando o histórico e baixando a versão " + found.version() + "...");
+            updateStatus.setText(I18n.t("Copiando o histórico e baixando a versão {0}...", found.version()));
             maintenance.prepareUpdate(found).whenComplete((prepared, failure) -> Platform.runLater(() -> {
                 button.setDisable(false);
                 if (failure != null) {
-                    updateStatus.setText("A atualização falhou: " + rootMessage(failure));
+                    updateStatus.setText(I18n.t("A atualização falhou: {0}", rootMessage(failure)));
                     return;
                 }
                 try {
                     maintenance.installAndExit(prepared);
                 } catch (IOException e) {
-                    updateStatus.setText("Não deu para abrir o instalador: " + e.getMessage()
-                            + ". Ele está em " + prepared.installer());
+                    updateStatus.setText(I18n.t("Não deu para abrir o instalador: {0}. Ele está em {1}", e.getMessage(),
+                            prepared.installer()));
                 }
             }));
         }));
@@ -423,30 +413,29 @@ public final class SettingsPage {
     private void restoreHistory() {
         Maintenance maintenance = handler.maintenance();
         FileChooser chooser = new FileChooser();
-        chooser.setTitle("Restaurar base histórica");
-        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Histórico do Chronos (*.db)", "*.db"));
+        chooser.setTitle(I18n.t("Restaurar base histórica"));
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(I18n.t("Histórico do Chronos (*.db)"), "*.db"));
         try {
             chooser.setInitialDirectory(maintenance.backupDir().toAbsolutePath().toFile());
         } catch (IOException e) {
-            restoreStatus.setText("Não deu para abrir a pasta backup: " + e.getMessage());
+            restoreStatus.setText(I18n.t("Não deu para abrir a pasta backup: {0}", e.getMessage()));
         }
         java.io.File chosen = chooser.showOpenDialog(root.getScene() == null ? null : root.getScene().getWindow());
         if (chosen == null) {
             return;
         }
-        if (!confirm("Restaurar base histórica", "Restaurar " + chosen.getName() + "?",
-                "O histórico atual é guardado na pasta backup, a cópia escolhida passa a ser o histórico e o "
-                        + "Chronos reinicia.")) {
+        if (!confirm(I18n.t("Restaurar base histórica"), I18n.t("Restaurar {0}?", chosen.getName()),
+                I18n.t("O histórico atual é guardado na pasta backup, a cópia escolhida passa a ser o histórico e o Chronos reinicia."))) {
             return;
         }
         try {
             if (!maintenance.restoreAndRestart(chosen.toPath())) {
-                new Alert(Alert.AlertType.INFORMATION, "Abra o Chronos de novo para terminar a restauração.")
+                new Alert(Alert.AlertType.INFORMATION, I18n.t("Abra o Chronos de novo para terminar a restauração."))
                         .showAndWait();
                 maintenance.exit();
             }
         } catch (IOException e) {
-            restoreStatus.setText("Não deu para restaurar: " + e.getMessage());
+            restoreStatus.setText(I18n.t("Não deu para restaurar: {0}", e.getMessage()));
         }
     }
 

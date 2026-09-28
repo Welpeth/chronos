@@ -134,7 +134,7 @@ public record AppConfig(
         return lookup.apply(key).map(value -> switch (value.toLowerCase(java.util.Locale.ROOT)) {
             case "true", "sim", "1" -> true;
             case "false", "nao", "não", "0" -> false;
-            default -> throw new IllegalArgumentException(key + " deve ser true ou false: " + value);
+            default -> throw new IllegalArgumentException(I18n.t("{0} deve ser true ou false: {1}", key, value));
         }).orElse(fallback);
     }
 
@@ -143,11 +143,11 @@ public record AppConfig(
             try {
                 long seconds = Long.parseLong(value);
                 if (seconds <= 0) {
-                    throw new IllegalArgumentException(key + " deve ser maior que zero: " + value);
+                    throw new IllegalArgumentException(I18n.t("{0} deve ser maior que zero: {1}", key, value));
                 }
                 return Duration.ofSeconds(seconds);
             } catch (NumberFormatException e) {
-                throw new IllegalArgumentException(key + " deve ser um número de segundos: " + value, e);
+                throw new IllegalArgumentException(I18n.t("{0} deve ser um número de segundos: {1}", key, value), e);
             }
         }).orElse(fallback);
     }
