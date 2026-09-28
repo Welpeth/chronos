@@ -21,6 +21,7 @@ As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma vers
   pergunta, copia o histórico para `backup/chronos-<versão>.db`, baixa o instalador e fecha para instalar.
 - Restaurar base histórica (Configurações > Histórico): escolhe uma cópia da pasta `backup`, que vira o
   histórico atual, e o Chronos reinicia. O histórico que estava em uso também fica guardado em `backup`.
+- Idioma da interface (Configurações > Sistema): português, inglês ou espanhol. Troca ao reiniciar.
 
 ### Alterado
 - Configurações separadas em abas no topo (Jira, Colunas, Tempo, Avisos, Histórico, Sistema), no estilo das

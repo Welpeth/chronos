@@ -395,7 +395,7 @@ public final class SettingsPage {
 
     /** O idioma vale para a janela inteira: troca ao reabrir o Chronos. */
     private void askToRestartForLanguage(I18n.Language chosen) {
-        if (!confirm(I18n.t("Idioma", chosen.label), chosen.label,
+        if (!confirm(I18n.t("Idioma"), chosen.label,
                 I18n.t("O novo idioma aparece quando o Chronos reabre. Reiniciar agora?"))) {
             return;
         }
