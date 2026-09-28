@@ -3,6 +3,7 @@ package com.chronos.tracker;
 import com.chronos.tracker.activity.ActivityClassifier;
 import com.chronos.tracker.activity.AlwaysActiveMonitor;
 import com.chronos.tracker.config.AppConfig;
+import com.chronos.tracker.config.AppPaths;
 import com.chronos.tracker.config.EnvFile;
 import com.chronos.tracker.config.TokenExpiry;
 import com.chronos.tracker.jira.JiraIssue;
@@ -30,7 +31,7 @@ import java.util.Map;
 
 public final class ChronosApp extends Application {
 
-    private static final Path ENV_FILE = Path.of(".env");
+    private static final Path ENV_FILE = AppPaths.envFile();
 
     private AppController controller;
     private SqliteHistoryStore store;
@@ -51,7 +52,7 @@ public final class ChronosApp extends Application {
         Clock clock = Clock.systemDefaultZone();
         HistoryStore history;
         try {
-            store = new SqliteHistoryStore(config.databasePath(), clock.getZone(), config.jiraSite());
+            store = new SqliteHistoryStore(AppPaths.resolve(config.databasePath()), clock.getZone(), config.jiraSite());
             history = store;
         } catch (HistoryStore.HistoryException e) {
             new Alert(Alert.AlertType.WARNING, e.getMessage()

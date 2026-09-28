@@ -3,6 +3,19 @@
 Aplicativo desktop (Windows) em Java 21 + JavaFX que acompanha sua atividade e registra
 automaticamente o tempo gasto em cada issue do Jira.
 
+## Instalando no Windows
+
+Cada merge na `main` gera uma release no GitHub (aba **Releases**) com dois arquivos:
+
+- `Chronos-<versão>.exe`: instalador. Instala só para o seu usuário, sem pedir administrador, e cria atalho no
+  menu Iniciar e na área de trabalho. Uma versão nova instalada por cima atualiza a anterior.
+- `Chronos-<versão>-portatil.zip`: sem instalar. Descompacte e abra `Chronos\Chronos.exe`.
+
+O Java vai junto, não precisa instalar nada. No app instalado, o `.env` e o histórico (`chronos.db`) ficam em
+`%APPDATA%\Chronos`; na primeira vez, preencha o Jira em **Configurações**. O caminho aparece no topo dessa página.
+
+O desenvolvimento acontece na branch `develop`; a `main` recebe o que vai virar release.
+
 ## Rodando
 
 Requisitos: JDK 21 e Maven 3.9+.
@@ -95,7 +108,7 @@ retomam juntas quando você volta. Se o Jira cair, o app continua com as última
 | 4 | Time tracking | Feito: um cronômetro por task, várias em paralelo, play/pausa manual |
 | 5 | Persistência em SQLite | Feito: intervalos e ociosidade gravados em `chronos.db` e restaurados ao abrir |
 | 6 | Robustez (offline, logs, credenciais) | Parcial: queda do Jira mantém a última task |
-| 7 | Empacotamento `.exe` com jpackage | Pendente |
+| 7 | Empacotamento `.exe` com jpackage | Feito: instalador e versão portátil gerados pelo GitHub Actions a cada merge na `main` |
 
 ## Estrutura
 
