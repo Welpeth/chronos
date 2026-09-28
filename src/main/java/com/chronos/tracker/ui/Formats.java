@@ -54,11 +54,11 @@ public final class Formats {
     public static String ago(Duration duration) {
         long minutes = duration.toMinutes();
         if (minutes < 1) {
-            return "agora";
+            return I18n.t("agora");
         }
         if (minutes < 60) {
-            return "há " + minutes + " min";
+            return I18n.t("há {0} min", minutes);
         }
-        return "há " + (minutes / 60) + " h";
+        return I18n.t("há {0} h", minutes / 60);
     }
 }

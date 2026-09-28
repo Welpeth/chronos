@@ -1,5 +1,6 @@
 package com.chronos.tracker.ui;
 
+import com.chronos.tracker.config.I18n;
 import com.chronos.tracker.tracking.TaskView;
 import com.chronos.tracker.tracking.TrackingEngine.Snapshot;
 
@@ -162,24 +163,24 @@ public final class TrayIconController {
 
     private PopupMenu buildMenu(List<TaskView> running) {
         PopupMenu menu = new PopupMenu();
-        menu.add(item("Abrir o Chronos", actions::open));
+        menu.add(item(I18n.t("Abrir o Chronos"), actions::open));
         menu.addSeparator();
         if (running.isEmpty()) {
-            MenuItem none = new MenuItem("Nenhuma task contando");
+            MenuItem none = new MenuItem(I18n.t("Nenhuma task contando"));
             none.setEnabled(false);
             menu.add(none);
         } else {
             for (TaskView task : running) {
                 Menu submenu = new Menu(menuLabel(task));
-                submenu.add(item("Pausar", () -> actions.pause(task.key())));
-                submenu.add(item("Finalizar (mover para Concluído)", () -> actions.finish(task.key())));
+                submenu.add(item(I18n.t("Pausar"), () -> actions.pause(task.key())));
+                submenu.add(item(I18n.t("Finalizar (mover para Concluído)"), () -> actions.finish(task.key())));
                 menu.add(submenu);
             }
             menu.addSeparator();
-            menu.add(item("Pausar todas", actions::pauseAll));
+            menu.add(item(I18n.t("Pausar todas"), actions::pauseAll));
         }
         menu.addSeparator();
-        menu.add(item("Sair", actions::exit));
+        menu.add(item(I18n.t("Sair"), actions::exit));
         return menu;
     }
 
@@ -200,9 +201,9 @@ public final class TrayIconController {
 
     static String tooltip(int running) {
         return switch (running) {
-            case 0 -> "Chronos · nenhuma task contando";
-            case 1 -> "Chronos · 1 task contando";
-            default -> "Chronos · " + running + " tasks contando";
+            case 0 -> I18n.t("Chronos · nenhuma task contando");
+            case 1 -> I18n.t("Chronos · 1 task contando");
+            default -> I18n.t("Chronos · {0} tasks contando", running);
         };
     }
 }

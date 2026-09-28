@@ -1,5 +1,7 @@
 package com.chronos.tracker.ui;
 
+import com.chronos.tracker.config.I18n;
+
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
@@ -34,8 +36,8 @@ public final class PagedListDialog<T> {
     private final String emptyText;
     private final VBox rows = new VBox(0);
     private final Label pageLabel = new Label();
-    private final Button previous = new Button("Anterior");
-    private final Button next = new Button("Próxima");
+    private final Button previous = new Button(I18n.t("Anterior"));
+    private final Button next = new Button(I18n.t("Próxima"));
     private final ScrollPane scroll = new ScrollPane(rows);
     private List<T> items = List.of();
     private int page;
@@ -151,10 +153,10 @@ public final class PagedListDialog<T> {
     /** Ex.: "Página 2 de 3 · 26 a 50 de 60". */
     static String pageText(int page, int size) {
         if (size == 0) {
-            return "Página 1 de 1";
+            return I18n.t("Página 1 de 1");
         }
         int from = page * PAGE_SIZE + 1;
         int to = Math.min(from + PAGE_SIZE - 1, size);
-        return "Página " + (page + 1) + " de " + pageCount(size) + " · " + from + " a " + to + " de " + size;
+        return I18n.t("Página {0} de {1} · {2} a {3} de {4}", page + 1, pageCount(size), from, to, size);
     }
 }
