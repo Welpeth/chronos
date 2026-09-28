@@ -25,6 +25,11 @@ public final class TaskRows {
         Label summary = new Label(task.summary().isEmpty() ? "Task fora do Jira" : task.summary());
         summary.getStyleClass().add("task-summary");
         VBox text = new VBox(2, key, summary);
+        if (!task.mine()) {
+            Label owner = new Label(task.assignee().isEmpty() ? "Sem responsável" : "De " + task.assignee());
+            owner.getStyleClass().add("task-owner");
+            text.getChildren().add(owner);
+        }
         text.setMinWidth(0);
         HBox.setHgrow(text, Priority.ALWAYS);
 

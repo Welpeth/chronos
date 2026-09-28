@@ -12,6 +12,8 @@ import java.util.Optional;
  * @param running      se o tempo desta task está contando agora
  * @param manual       se o play/pause atual foi escolha do usuário, e não do status no Jira
  * @param runningSince início do intervalo atual, se a task está contando
+ * @param assignee     responsável no Jira (vazio se não tem ou não veio do Jira)
+ * @param mine         se é do usuário; falso para as de outros responsáveis que aparecem pela coluna
  */
 public record TaskView(
         String key,
@@ -21,5 +23,12 @@ public record TaskView(
         Duration totalTime,
         boolean running,
         boolean manual,
-        Optional<Instant> runningSince) {
+        Optional<Instant> runningSince,
+        String assignee,
+        boolean mine) {
+
+    public TaskView(String key, String summary, String statusName, StatusCategory category, Duration totalTime,
+                    boolean running, boolean manual, Optional<Instant> runningSince) {
+        this(key, summary, statusName, category, totalTime, running, manual, runningSince, "", true);
+    }
 }
