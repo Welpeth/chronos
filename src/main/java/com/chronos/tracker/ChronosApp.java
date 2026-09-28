@@ -9,6 +9,7 @@ import com.chronos.tracker.config.TokenExpiry;
 import com.chronos.tracker.jira.JiraIssue;
 import com.chronos.tracker.jira.RestJiraService;
 import com.chronos.tracker.persistence.SqliteHistoryStore;
+import com.chronos.tracker.system.SingleInstance;
 import com.chronos.tracker.system.WindowsStartup;
 import com.chronos.tracker.tracking.HistoryStore;
 import com.chronos.tracker.tracking.MultiTaskTracker;
@@ -32,6 +33,8 @@ import java.util.Map;
 public final class ChronosApp extends Application {
 
     private static final Path ENV_FILE = AppPaths.envFile();
+    /** Garante um Chronos só; o {@link Launcher} preenche antes de abrir o app. */
+    static SingleInstance singleInstance;
 
     private AppController controller;
     private SqliteHistoryStore store;
@@ -103,6 +106,12 @@ public final class ChronosApp extends Application {
                 setBadge(stage, false);
             }
         });
+
+        if (singleInstance != null) {
+            // Abriram o Chronos de novo com ele na bandeja: mostra esta janela.
+            TrayIconController.Actions actions = trayActions(stage);
+            singleInstance.onShowRequested(actions::open);
+        }
 
         boolean background = getParameters().getRaw().contains(WindowsStartup.BACKGROUND_ARG);
         if (!background || !inTray) {
@@ -200,6 +209,9 @@ public final class ChronosApp extends Application {
         }
         if (store != null) {
             store.close();
+        }
+        if (singleInstance != null) {
+            singleInstance.close();
         }
         if (tray != null && tray.wasInstalled()) {
             // A thread do AWT (bandeja) seguraria o processo aberto.

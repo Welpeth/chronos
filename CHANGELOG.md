@@ -3,6 +3,13 @@
 As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma versão nova gera a release
 `v<versão>` no GitHub, com o instalador e a versão portátil, e usa a seção dessa versão abaixo como notas.
 
+## [Não lançado]
+
+### Corrigido
+- Tempo em dobro no apontamento (2 min contados em 1 min de trabalho): abrir o Chronos de novo com ele na
+  bandeja criava um segundo app contando as mesmas tasks no mesmo histórico. Agora só um Chronos roda; abrir
+  outra vez mostra a janela do que já está aberto.
+
 ## [0.2.0] - 2026-09-28
 
 ### Adicionado

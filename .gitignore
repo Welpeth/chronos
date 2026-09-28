@@ -7,3 +7,7 @@ target/
 
 # Logs de crash da JVM
 hs_err_pid*.log
+
+# Controle de instância única quando roda pelo Maven
+chronos.lock
+chronos.port
