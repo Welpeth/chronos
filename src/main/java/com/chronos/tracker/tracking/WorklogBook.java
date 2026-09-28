@@ -1,5 +1,6 @@
 package com.chronos.tracker.tracking;
 
+import com.chronos.tracker.config.I18n;
 import com.chronos.tracker.jira.JiraException;
 import com.chronos.tracker.jira.JiraService;
 
@@ -80,10 +81,10 @@ public final class WorklogBook {
         HistoryStore.TaskTime time = store.taskTimes().stream()
                 .filter(t -> t.issueKey().equals(issueKey))
                 .findFirst()
-                .orElseThrow(() -> new JiraException("Nenhum tempo gravado em " + issueKey));
+                .orElseThrow(() -> new JiraException(I18n.t("Nenhum tempo gravado em {0}", issueKey)));
         Duration pending = wholeMinutes(time.total().minus(time.logged()));
         if (pending.isZero()) {
-            throw new JiraException(issueKey + " já está apontada");
+            throw new JiraException(I18n.t("{0} já está apontada", issueKey));
         }
         // O registro termina quando a task foi trabalhada pela última vez.
         Instant started = time.lastWorkedAt().minus(pending);
