@@ -1,5 +1,7 @@
 package com.chronos.tracker.tracking;
 
+import com.chronos.tracker.config.I18n;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -79,7 +81,7 @@ public interface HistoryStore {
     /** Falha ao ler ou gravar o histórico. */
     /** Grava uma cópia consistente do histórico em {@code target} (que ainda não pode existir). */
     default void backupTo(java.nio.file.Path target) throws HistoryException {
-        throw new HistoryException("O histórico não está sendo gravado", null);
+        throw new HistoryException(I18n.t("O histórico não está sendo gravado"), null);
     }
 
     class HistoryException extends Exception {

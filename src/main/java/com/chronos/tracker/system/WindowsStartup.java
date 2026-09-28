@@ -1,5 +1,7 @@
 package com.chronos.tracker.system;
 
+import com.chronos.tracker.config.I18n;
+
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
@@ -57,12 +59,12 @@ public final class WindowsStartup {
 
     public static void setEnabled(boolean enabled) throws IOException {
         if (!isWindows()) {
-            throw new IOException("Disponível só no Windows.");
+            throw new IOException(I18n.t("Disponível só no Windows."));
         }
         int exit;
         if (enabled) {
             Path exe = executable().orElseThrow(() ->
-                    new IOException("Abra o Chronos pelo executável instalado para usar esta opção."));
+                    new IOException(I18n.t("Abra o Chronos pelo executável instalado para usar esta opção.")));
             exit = run(List.of("reg", "add", RUN_KEY, "/v", VALUE_NAME, "/t", "REG_SZ",
                     "/d", command(exe), "/f"));
         } else {
@@ -72,7 +74,7 @@ public final class WindowsStartup {
             exit = run(List.of("reg", "delete", RUN_KEY, "/v", VALUE_NAME, "/f"));
         }
         if (exit != 0) {
-            throw new IOException("O Windows recusou a alteração (código " + exit + ").");
+            throw new IOException(I18n.t("O Windows recusou a alteração (código {0}).", exit));
         }
     }
 
@@ -87,12 +89,12 @@ public final class WindowsStartup {
             process.getInputStream().readAllBytes();
             if (!process.waitFor(10, TimeUnit.SECONDS)) {
                 process.destroyForcibly();
-                throw new IOException("O comando do registro não respondeu.");
+                throw new IOException(I18n.t("O comando do registro não respondeu."));
             }
             return process.exitValue();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new IOException("Interrompido", e);
+            throw new IOException(I18n.t("Interrompido"), e);
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.chronos.tracker.jira;
 
+import com.chronos.tracker.config.I18n;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -84,7 +85,7 @@ public final class JiraClient {
                 .filter(t -> "done".equals(t.path("to").path("statusCategory").path("key").asText()))
                 .findFirst()
                 .orElseThrow(() -> new JiraException(
-                        "O fluxo de " + issueKey + " não tem como ir direto para um status concluído"));
+                        I18n.t("O fluxo de {0} não tem como ir direto para um status concluído", issueKey)));
 
         ObjectNode body = mapper.createObjectNode();
         body.putObject("transition").put("id", done.path("id").asText());
@@ -167,21 +168,21 @@ public final class JiraClient {
         try {
             response = http.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
         } catch (IOException e) {
-            throw new JiraException("Não foi possível conectar ao Jira: " + e.getMessage(), e);
+            throw new JiraException(I18n.t("Não foi possível conectar ao Jira: {0}", e.getMessage()), e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new JiraException("Consulta ao Jira interrompida", e);
+            throw new JiraException(I18n.t("Consulta ao Jira interrompida"), e);
         }
 
         int status = response.statusCode();
         if (status == 401 || status == 403) {
-            throw new JiraAuthException("O Jira recusou as credenciais (HTTP " + status + ")");
+            throw new JiraAuthException(I18n.t("O Jira recusou as credenciais (HTTP {0})", status));
         }
         if (status == 400) {
-            throw new JiraQueryException("O Jira recusou a consulta: " + errorMessages(response.body()));
+            throw new JiraQueryException(I18n.t("O Jira recusou a consulta: {0}", errorMessages(response.body())));
         }
         if (status < 200 || status >= 300) {
-            throw new JiraException("O Jira respondeu HTTP " + status + ": " + abbreviate(response.body()));
+            throw new JiraException(I18n.t("O Jira respondeu HTTP {0}: {1}", status, abbreviate(response.body())));
         }
         return response.body();
     }
@@ -222,7 +223,7 @@ public final class JiraClient {
         try {
             return mapper.readTree(json);
         } catch (IOException e) {
-            throw new JiraException("Resposta inválida do Jira", e);
+            throw new JiraException(I18n.t("Resposta inválida do Jira"), e);
         }
     }
 
