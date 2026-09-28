@@ -154,7 +154,8 @@ public final class SettingsPage {
 
         startHint.getStyleClass().add("muted");
         startHint.setWrapText(true);
-        VBox systemCard = card("Sistema", new VBox(8, startWithWindows, startHint));
+        VBox systemCard = card("Sistema", new VBox(8, startWithWindows, startHint),
+                flag("CHRONOS_DARK_MODE", "Modo escuro", false));
 
         tabs.getTabs().addAll(
                 BrowserTabs.tab("Jira", jiraCard),

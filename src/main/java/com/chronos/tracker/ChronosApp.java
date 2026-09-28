@@ -16,6 +16,7 @@ import com.chronos.tracker.tracking.MultiTaskTracker;
 import com.chronos.tracker.tracking.TrackingEngine;
 import com.chronos.tracker.ui.AppController;
 import com.chronos.tracker.ui.AppIcons;
+import com.chronos.tracker.ui.Themes;
 import com.chronos.tracker.ui.TrayIconController;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -78,7 +79,7 @@ public final class ChronosApp extends Application {
         controller = new AppController(engine, config, history, ENV_FILE);
 
         Scene scene = new Scene(controller.getView(), 1320, 860);
-        scene.getStylesheets().add(getClass().getResource("ui/app.css").toExternalForm());
+        Themes.apply(scene, config.darkMode());
         stage.setTitle("Chronos");
         AppIcons.applyTo(stage);
         stage.setMinWidth(1100);

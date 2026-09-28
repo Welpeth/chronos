@@ -149,9 +149,12 @@ public final class AppController {
         });
     }
 
-    /** Configurações salvas: novo intervalo do Jira e, se mudou algo, novos avisos. */
+    /** Configurações salvas: novo intervalo do Jira, o tema e, se mudou algo, novos avisos. */
     private void applyConfig(AppConfig previous, AppConfig next) {
         setPollingInterval(next.pollingInterval());
+        if (window.getView().getScene() != null) {
+            Themes.apply(window.getView().getScene(), next.darkMode());
+        }
         // Tipos novos: registra o que já existe sem avisar, para não chover notificação das tasks antigas.
         alerts = alertMonitor(next, !previous.alertIssueTypes().equals(next.alertIssueTypes()));
     }

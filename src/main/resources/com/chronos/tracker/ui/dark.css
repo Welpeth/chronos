@@ -1,0 +1,61 @@
+/* Tema escuro: carregado depois do app.css, troca só as cores. */
+.root {
+    -c-bg: #121826;
+    -c-surface: #1b2333;
+    -c-surface-2: #222b3d;
+    -c-surface-hover: #2a3448;
+    -c-text: #e6ecf7;
+    -c-text-2: #a9b6cc;
+    -c-text-3: #7f8ca5;
+    -c-accent: #5b8cff;
+    -c-accent-hover: #4677f0;
+    -c-accent-strong: #2f5fd0;
+    -c-accent-text: #a4bfff;
+    -c-line: #2a3446;
+    -c-line-strong: #34405a;
+    -c-soft: #1f2d4a;
+    -c-soft-2: #25365a;
+    -c-soft-line: #34507f;
+    -c-warn-bg: #3a3014;
+    -c-warn-text: #f1cf6b;
+    -c-warn-line: #7a6120;
+    -c-error-bg: #3d1d20;
+    -c-error-text: #ff8a8f;
+    -c-ok-bg: #173826;
+    -c-ok-text: #6fdc9c;
+    -c-input-line: #3a465e;
+    -c-input-line-hover: #4d5b77;
+    -c-tab: #202a3b;
+    -c-tab-hover: #283348;
+    -c-dot-gray: #4a556b;
+
+    /* Controles padrão do JavaFX (campos, caixas de seleção, rolagem, calendário, dicas). */
+    -fx-base: #2a3448;
+    -fx-background: #1b2333;
+    -fx-control-inner-background: #1b2333;
+    -fx-control-inner-background-alt: #1f2839;
+    -fx-accent: #5b8cff;
+    -fx-focus-color: #5b8cff;
+    -fx-faint-focus-color: #5b8cff22;
+    -fx-text-base-color: #e6ecf7;
+    -fx-text-background-color: #e6ecf7;
+    -fx-prompt-text-fill: #7f8ca5;
+}
+
+.card,
+.browser-tabs > .tab-content-area {
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.35), 12, 0, 0, 2);
+}
+
+.browser-tabs .card {
+    -fx-effect: null;
+}
+
+.text-input {
+    -fx-prompt-text-fill: #6f7c95;
+}
+
+/* O "hronos" do logo é azul-escuro: um halo claro deixa legível no fundo escuro. */
+.logo-image {
+    -fx-effect: dropshadow(gaussian, rgba(230, 236, 247, 0.75), 5, 0.55, 0, 0);
+}

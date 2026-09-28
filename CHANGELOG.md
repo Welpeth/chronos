@@ -16,6 +16,7 @@ As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma vers
 - Tags da validação (aba Categorias): ao começar o tempo de uma task, o Chronos põe nela as tags do play (ex.:
   em-teste) no campo Labels do Jira; quando ela sai das colunas monitoradas ou é finalizada, tira essas e põe
   as de terminar (ex.: testado). Falhas aparecem em Atividade recente.
+- Modo escuro (Configurações > Sistema), aplicado na hora ao salvar.
 
 ### Alterado
 - Configurações separadas em abas no topo (Jira, Colunas, Tempo, Avisos, Histórico, Sistema), no estilo das
