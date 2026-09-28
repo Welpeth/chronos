@@ -1,6 +1,7 @@
 package com.chronos.tracker.ui;
 
 import com.chronos.tracker.config.AppConfig;
+import com.chronos.tracker.config.AppPaths;
 import com.chronos.tracker.jira.JiraIssue;
 import com.chronos.tracker.jira.RestJiraService;
 import com.chronos.tracker.tracking.HistoryStore;
@@ -50,7 +51,8 @@ public final class AppController {
         this.store = store;
         this.pollingInterval = config.pollingInterval();
         this.alerts = alertMonitor(config, false);
-        SettingsController settings = new SettingsController(envFile, config, engine, this::applyConfig);
+        Maintenance maintenance = new Maintenance(store, AppPaths.dataDir(), Platform::exit);
+        SettingsController settings = new SettingsController(envFile, config, engine, this::applyConfig, maintenance);
         WorklogBook book = new WorklogBook(store, engine::jiraService, Clock.systemDefaultZone());
         this.window = new MainWindow(this::toggle, this::addManual, store, worklogHandler(book), settings);
         window.render(engine.tick());

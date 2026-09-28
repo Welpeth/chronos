@@ -44,6 +44,11 @@ public final class SingleInstance implements AutoCloseable {
      * e devolve vazio: quem chamou deve encerrar.
      */
     public static Optional<SingleInstance> acquire(Path dir) throws IOException {
+        return acquire(dir, true);
+    }
+
+    /** Como {@link #acquire(Path)}; com {@code showOther} falso, não pede ao outro para mostrar a janela. */
+    public static Optional<SingleInstance> acquire(Path dir, boolean showOther) throws IOException {
         Files.createDirectories(dir);
         FileChannel channel = FileChannel.open(dir.resolve(LOCK_FILE),
                 StandardOpenOption.CREATE, StandardOpenOption.WRITE);
@@ -55,7 +60,9 @@ public final class SingleInstance implements AutoCloseable {
         }
         if (lock == null) {
             channel.close();
-            askToShow(dir);
+            if (showOther) {
+                askToShow(dir);
+            }
             return Optional.empty();
         }
         ServerSocket server = new ServerSocket(0, 8, InetAddress.getLoopbackAddress());

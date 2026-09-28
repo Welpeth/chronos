@@ -17,6 +17,10 @@ As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma vers
   em-teste) no campo Labels do Jira; quando ela sai das colunas monitoradas ou é finalizada, tira essas e põe
   as de terminar (ex.: testado). Falhas aparecem em Atividade recente.
 - Modo escuro (Configurações > Sistema), aplicado na hora ao salvar.
+- Atualizar pelo app (Configurações > Sistema > Procurar atualização): procura a última release no GitHub,
+  pergunta, copia o histórico para `backup/chronos-<versão>.db`, baixa o instalador e fecha para instalar.
+- Restaurar base histórica (Configurações > Histórico): escolhe uma cópia da pasta `backup`, que vira o
+  histórico atual, e o Chronos reinicia. O histórico que estava em uso também fica guardado em `backup`.
 
 ### Alterado
 - Configurações separadas em abas no topo (Jira, Colunas, Tempo, Avisos, Histórico, Sistema), no estilo das

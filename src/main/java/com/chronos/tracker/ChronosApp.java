@@ -18,6 +18,7 @@ import com.chronos.tracker.ui.AppController;
 import com.chronos.tracker.ui.AppIcons;
 import com.chronos.tracker.ui.Themes;
 import com.chronos.tracker.ui.TrayIconController;
+import com.chronos.tracker.update.Backups;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Scene;
@@ -28,8 +29,10 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public final class ChronosApp extends Application {
 
@@ -54,9 +57,17 @@ public final class ChronosApp extends Application {
         }
 
         Clock clock = Clock.systemDefaultZone();
+        Path database = AppPaths.resolve(config.databasePath());
+        Optional<Path> restored = Optional.empty();
+        try {
+            restored = new Backups(AppPaths.dataDir()).applyPendingRestore(database, LocalDateTime.now(clock));
+        } catch (IOException e) {
+            new Alert(Alert.AlertType.WARNING, "A restauração do histórico falhou:\n" + e.getMessage()
+                    + "\n\nO Chronos abre com o histórico que já estava em uso.").showAndWait();
+        }
         HistoryStore history;
         try {
-            store = new SqliteHistoryStore(AppPaths.resolve(config.databasePath()), clock.getZone(), config.jiraSite());
+            store = new SqliteHistoryStore(database, clock.getZone(), config.jiraSite());
             history = store;
         } catch (HistoryStore.HistoryException e) {
             new Alert(Alert.AlertType.WARNING, e.getMessage()
@@ -127,6 +138,13 @@ public final class ChronosApp extends Application {
 
         controller.start();
         warnAboutTokenExpiry();
+        restored.ifPresent(backup -> {
+            Alert done = new Alert(Alert.AlertType.INFORMATION, "O histórico agora é a cópia " + backup.getFileName()
+                    + ". O que estava em uso antes ficou guardado na pasta backup.");
+            done.setHeaderText("Base histórica restaurada");
+            done.initOwner(stage);
+            done.show();
+        });
     }
 
     /** Ao abrir: avisa se o API token do Jira vence em até duas semanas ou já venceu. */

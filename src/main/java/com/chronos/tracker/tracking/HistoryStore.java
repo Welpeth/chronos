@@ -77,6 +77,11 @@ public interface HistoryStore {
     }
 
     /** Falha ao ler ou gravar o histórico. */
+    /** Grava uma cópia consistente do histórico em {@code target} (que ainda não pode existir). */
+    default void backupTo(java.nio.file.Path target) throws HistoryException {
+        throw new HistoryException("O histórico não está sendo gravado", null);
+    }
+
     class HistoryException extends Exception {
         public HistoryException(String message, Throwable cause) {
             super(message, cause);
