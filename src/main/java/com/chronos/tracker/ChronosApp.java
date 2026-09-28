@@ -1,7 +1,7 @@
 package com.chronos.tracker;
 
 import com.chronos.tracker.activity.ActivityClassifier;
-import com.chronos.tracker.activity.AlwaysActiveMonitor;
+import com.chronos.tracker.activity.ActivityMonitors;
 import com.chronos.tracker.config.AppConfig;
 import com.chronos.tracker.config.AppPaths;
 import com.chronos.tracker.config.EnvFile;
@@ -62,7 +62,7 @@ public final class ChronosApp extends Application {
 
         TrackingEngine engine = new TrackingEngine(
                 new MultiTaskTracker(clock),
-                new AlwaysActiveMonitor(),
+                ActivityMonitors.forThisSystem(),
                 new ActivityClassifier(config.possiblyIdleAfter(), config.inactiveAfter()),
                 RestJiraService.from(config),
                 clock,
