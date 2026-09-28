@@ -5,7 +5,7 @@ automaticamente o tempo gasto em cada issue do Jira.
 
 ## Instalando no Windows
 
-Cada merge na `main` gera uma release no GitHub (aba **Releases**) com dois arquivos:
+Cada merge na `main` com uma versão nova gera uma release no GitHub (aba **Releases**) com dois arquivos:
 
 - `Chronos-<versão>.exe`: instalador. Instala só para o seu usuário, sem pedir administrador, e cria atalho no
   menu Iniciar e na área de trabalho. Uma versão nova instalada por cima atualiza a anterior.
@@ -14,7 +14,9 @@ Cada merge na `main` gera uma release no GitHub (aba **Releases**) com dois arqu
 O Java vai junto, não precisa instalar nada. No app instalado, o `.env` e o histórico (`chronos.db`) ficam em
 `%APPDATA%\Chronos`; na primeira vez, preencha o Jira em **Configurações**. O caminho aparece no topo dessa página.
 
-O desenvolvimento acontece na branch `develop`; a `main` recebe o que vai virar release.
+O desenvolvimento acontece na branch `develop`; a `main` recebe o que vai virar release. Para lançar uma
+versão, suba o `<version>` do `pom.xml`, descreva as mudanças no `CHANGELOG.md` e leve a `develop` para a
+`main`: a release sai com o nome `v<versão>` e as notas dessa seção do changelog.
 
 ## Rodando
 
