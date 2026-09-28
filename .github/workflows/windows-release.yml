@@ -13,8 +13,8 @@ permissions:
   contents: write
 
 env:
-  # Módulos do Java que vão junto no app (jdeps + TLS, formatos em português e charsets).
-  JAVA_MODULES: java.base,java.desktop,java.net.http,java.sql,jdk.jfr,jdk.unsupported,jdk.crypto.ec,jdk.localedata,jdk.charsets
+  # Módulos do Java que vão junto no app (jdeps, inclusive do JNA, + TLS, formatos em português e charsets).
+  JAVA_MODULES: java.base,java.desktop,java.logging,java.net.http,java.sql,jdk.jfr,jdk.unsupported,jdk.crypto.ec,jdk.localedata,jdk.charsets
   # Fixo para o instalador novo atualizar o anterior em vez de instalar outro ao lado.
   UPGRADE_UUID: 53992602-c790-4195-bb9a-49cebbd77283
 
