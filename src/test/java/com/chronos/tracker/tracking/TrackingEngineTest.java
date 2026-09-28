@@ -441,6 +441,31 @@ class TrackingEngineTest {
     }
 
     @Test
+    void lockedColumnsRefuseTimeOnTasksOutsideThem() throws Exception {
+        engine.setOnlyWorkingColumns(true);
+        jira.issues = List.of(DOING_1, TODO_3);
+        engine.pollJira();
+        engine.tick();
+
+        engine.play("PROJ-3");
+        TrackingEngine.Snapshot snapshot = advance(Duration.ofMinutes(5));
+        assertFalse(task(snapshot, "PROJ-3").running());
+        assertFalse(task(snapshot, "PROJ-3").timeAllowed());
+        assertFalse(task(snapshot, "PROJ-3").inWorkingColumn());
+        assertTrue(task(snapshot, "PROJ-1").timeAllowed());
+        assertTrue(task(snapshot, "PROJ-1").inWorkingColumn());
+        assertThrows(InvalidManualEntryException.class, () ->
+                engine.addManual("PROJ-3", LocalDate.of(2026, 9, 26), Duration.ofMinutes(30), ""));
+        // Task digitada à mão não vem do Jira: continua livre.
+        engine.play("LOCAL-9");
+        assertTrue(task(advance(Duration.ofMinutes(1)), "LOCAL-9").running());
+
+        engine.setOnlyWorkingColumns(false);
+        engine.play("PROJ-3");
+        assertTrue(task(advance(Duration.ofMinutes(1)), "PROJ-3").running());
+    }
+
+    @Test
     void leavingTheColumnPausesATaskStartedByHand() {
         jira.issues = List.of(DOING_1);
         engine.pollJira();

@@ -48,7 +48,8 @@ public final class ManualEntryDialog {
     private ManualEntryDialog() {
     }
 
-    public static void show(Window owner, List<TaskView> tasks, String preselectedKey, Submitter submitter) {
+    public static void show(Window owner, List<TaskView> allTasks, String preselectedKey, Submitter submitter) {
+        List<TaskView> tasks = allTasks.stream().filter(TaskView::timeAllowed).toList();
         Stage stage = new Stage(StageStyle.TRANSPARENT);
         stage.initOwner(owner);
         stage.initModality(Modality.WINDOW_MODAL);

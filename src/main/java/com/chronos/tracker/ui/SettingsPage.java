@@ -109,6 +109,13 @@ public final class SettingsPage {
         wholeHint.getStyleClass().add("muted");
         wholeHint.setWrapText(true);
         columns.add(wholeHint, 1, 5);
+        columns.add(flag("CHRONOS_ONLY_WORKING_COLUMNS",
+                "Só aceitar tempo nas tasks que estão nessas colunas", false), 1, 6);
+        Label onlyHint = new Label("Ligada, as tasks do Jira fora dessas colunas ficam sem play e sem tempo manual. "
+                + "Desligada, qualquer task aceita tempo.");
+        onlyHint.getStyleClass().add("muted");
+        onlyHint.setWrapText(true);
+        columns.add(onlyHint, 1, 7);
         VBox columnsCard = card("Colunas do quadro", columns);
 
         GridPane timing = form();

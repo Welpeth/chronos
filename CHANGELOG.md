@@ -9,6 +9,10 @@ As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma vers
 - Opção "Mostrar todas as tasks dessas colunas, de qualquer responsável" (aba Colunas): a lista traz também as
   tasks das colunas que contam tempo que estão com outra pessoa ou sem responsável, por exemplo tudo em "Test"
   para quem testa. Elas mostram o responsável e só contam tempo pelo play.
+- Tela Tarefas em abas: "Geral", com todas, e "Colunas monitoradas", só com as que estão nas colunas que contam
+  tempo.
+- Opção "Só aceitar tempo nas tasks que estão nessas colunas" (aba Colunas, desligada por padrão): as tasks do
+  Jira fora das colunas ficam sem play e sem tempo manual.
 
 ### Alterado
 - Configurações separadas em abas no topo (Jira, Colunas, Tempo, Avisos, Histórico, Sistema), no estilo das

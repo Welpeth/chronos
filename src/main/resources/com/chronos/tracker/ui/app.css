@@ -798,6 +798,15 @@
     -fx-effect: dropshadow(gaussian, rgba(15, 42, 90, 0.06), 12, 0, 0, 2);
 }
 
+.browser-tab-body {
+    -fx-padding: 16 18;
+}
+
+.task-row-locked .task-key,
+.task-row-locked .task-summary {
+    -fx-opacity: 0.55;
+}
+
 .browser-tab-scroll,
 .browser-tab-scroll > .viewport {
     -fx-background-color: transparent;

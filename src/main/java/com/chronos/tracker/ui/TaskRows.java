@@ -43,6 +43,10 @@ public final class TaskRows {
         if (task.running()) {
             row.getStyleClass().add("task-row-running");
         }
+        if (!task.timeAllowed()) {
+            row.getStyleClass().add("task-row-locked");
+            Tooltip.install(row, new Tooltip("Fora das colunas monitoradas: não aceita tempo"));
+        }
         return row;
     }
 
@@ -70,6 +74,11 @@ public final class TaskRows {
             button.getStyleClass().add("row-toggle-running");
         }
         button.setTooltip(new Tooltip(task.running() ? "Pausar o tempo desta task" : "Contar tempo nesta task"));
+        if (!task.running() && !task.timeAllowed()) {
+            button.setDisable(true);
+            // Botão desativado não mostra tooltip: explica pela linha.
+            button.setTooltip(null);
+        }
         button.setOnAction(event -> onToggle.accept(task));
         return button;
     }
