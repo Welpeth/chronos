@@ -3,9 +3,8 @@ package com.chronos.tracker.activity;
 import java.time.Duration;
 
 /**
- * Monitor provisório que sempre reporta o usuário como ativo.
- *
- * <p>Usado até a Fase 2, quando a detecção real de atividade no Windows substitui esta classe.
+ * Monitor que sempre reporta o usuário como ativo. Usado fora do Windows (por exemplo, rodando pelo Maven no
+ * Linux) e quando a detecção do Windows não está disponível.
  */
 public final class AlwaysActiveMonitor implements ActivityMonitor {
 

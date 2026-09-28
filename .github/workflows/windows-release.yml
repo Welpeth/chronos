@@ -1,7 +1,8 @@
 name: EXE do Windows
 
-# Todo push na main gera uma release com o instalador (.exe) e a versão portátil (.zip).
-# Nos PRs, o mesmo build roda para conferir, e os arquivos ficam nos artefatos da execução.
+# Todo push na main com uma versão nova no pom.xml gera a release v<versão> com o instalador (.exe),
+# a versão portátil (.zip) e as notas do CHANGELOG.md. Nos PRs, o mesmo build roda para conferir, e os
+# arquivos ficam nos artefatos da execução.
 on:
   push:
     branches: [main]
@@ -13,8 +14,8 @@ permissions:
   contents: write
 
 env:
-  # Módulos do Java que vão junto no app (jdeps + TLS, formatos em português e charsets).
-  JAVA_MODULES: java.base,java.desktop,java.net.http,java.sql,jdk.jfr,jdk.unsupported,jdk.crypto.ec,jdk.localedata,jdk.charsets
+  # Módulos do Java que vão junto no app (jdeps, inclusive do JNA, + TLS, formatos em português e charsets).
+  JAVA_MODULES: java.base,java.desktop,java.logging,java.net.http,java.sql,jdk.jfr,jdk.unsupported,jdk.crypto.ec,jdk.localedata,jdk.charsets
   # Fixo para o instalador novo atualizar o anterior em vez de instalar outro ao lado.
   UPGRADE_UUID: 53992602-c790-4195-bb9a-49cebbd77283
 
@@ -39,7 +40,9 @@ jobs:
       - name: Versão
         id: version
         shell: bash
-        run: echo "number=0.1.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+        run: |
+          version=$(mvn -q -B help:evaluate -Dexpression=project.version -DforceStdout)
+          echo "number=${version%-SNAPSHOT}" >> "$GITHUB_OUTPUT"
 
       - name: WiX no PATH
         shell: bash
@@ -80,9 +83,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.number }}
         run: |
+          if gh release view "v$VERSION" > /dev/null 2>&1; then
+            echo "::notice::A release v$VERSION já existe; suba a versão no pom.xml e no CHANGELOG.md para gerar outra."
+            exit 0
+          fi
+          # Notas: a seção "## [versão]" do CHANGELOG.md, até a próxima seção.
+          awk -v v="$VERSION" '/^## \[/{on = index($0, "[" v "]") > 0; next} /^\[.*\]: /{on = 0} on' CHANGELOG.md > notes.md
+          printf '\nInstalador: Chronos-%s.exe (instala só para o seu usuário, sem pedir administrador). Portátil: descompacte o .zip e abra Chronos\\Chronos.exe. As configurações e o histórico ficam em %%APPDATA%%\\Chronos.\n' "$VERSION" >> notes.md
           gh release create "v$VERSION" \
             "target/dist/Chronos-$VERSION.exe" \
             "target/dist/Chronos-$VERSION-portatil.zip" \
             --target "$GITHUB_SHA" \
             --title "Chronos $VERSION" \
-            --notes "Instalador: Chronos-$VERSION.exe (instala só para o seu usuário, sem pedir administrador). Portátil: descompacte o .zip e abra Chronos\\Chronos.exe. As configurações e o histórico ficam em %APPDATA%\\Chronos."
+            --notes-file notes.md

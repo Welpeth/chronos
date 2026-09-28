@@ -5,7 +5,7 @@ automaticamente o tempo gasto em cada issue do Jira.
 
 ## Instalando no Windows
 
-Cada merge na `main` gera uma release no GitHub (aba **Releases**) com dois arquivos:
+Cada merge na `main` com uma versão nova gera uma release no GitHub (aba **Releases**) com dois arquivos:
 
 - `Chronos-<versão>.exe`: instalador. Instala só para o seu usuário, sem pedir administrador, e cria atalho no
   menu Iniciar e na área de trabalho. Uma versão nova instalada por cima atualiza a anterior.
@@ -14,7 +14,9 @@ Cada merge na `main` gera uma release no GitHub (aba **Releases**) com dois arqu
 O Java vai junto, não precisa instalar nada. No app instalado, o `.env` e o histórico (`chronos.db`) ficam em
 `%APPDATA%\Chronos`; na primeira vez, preencha o Jira em **Configurações**. O caminho aparece no topo dessa página.
 
-O desenvolvimento acontece na branch `develop`; a `main` recebe o que vai virar release.
+O desenvolvimento acontece na branch `develop`; a `main` recebe o que vai virar release. Para lançar uma
+versão, suba o `<version>` do `pom.xml`, descreva as mudanças no `CHANGELOG.md` e leve a `develop` para a
+`main`: a release sai com o nome `v<versão>` e as notas dessa seção do changelog.
 
 ## Rodando
 
@@ -98,12 +100,17 @@ O botão de cada task liga ou pausa o tempo dela. Essa escolha vale até a task 
 (ou sair da busca); aí o app volta a seguir o Jira. Sem atividade por `IDLE_THRESHOLD_SECONDS`, todas as tasks pausam e
 retomam juntas quando você volta. Se o Jira cair, o app continua com as últimas tasks conhecidas.
 
+No Windows, a atividade é o teclado e o mouse do PC inteiro, em qualquer programa. Com a tela bloqueada não
+há input, então o tempo também pausa. Depois de `POSSIBLY_IDLE_SECONDS` (padrão 2 min) sem mexer, o painel
+mostra "Possivelmente ausente" e o tempo continua contando (você pode estar lendo). Depois de
+`IDLE_THRESHOLD_SECONDS` (padrão 5 min), as tasks pausam e o período entra como tempo ocioso no histórico.
+
 ## Estado atual
 
 | Fase | O que é | Situação |
 |------|---------|----------|
 | 1 | Painel (task atual, status, progresso do dia, tarefas, atividade recente) | Feito |
-| 2 | Detecção de atividade no Windows | Pendente: hoje o usuário é sempre considerado ativo |
+| 2 | Detecção de atividade no Windows | Feito: teclado e mouse do PC inteiro (`GetLastInputInfo`); fora do Windows o usuário é sempre ativo |
 | 3 | Cliente do Jira | Feito: lista as suas issues e conta tempo nas que estão em andamento |
 | 4 | Time tracking | Feito: um cronômetro por task, várias em paralelo, play/pausa manual |
 | 5 | Persistência em SQLite | Feito: intervalos e ociosidade gravados em `chronos.db` e restaurados ao abrir |
