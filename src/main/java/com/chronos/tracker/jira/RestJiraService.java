@@ -155,6 +155,11 @@ public final class RestJiraService implements JiraService {
     }
 
     @Override
+    public void updateLabels(String issueKey, List<String> add, List<String> remove) throws JiraException {
+        client.updateLabels(issueKey, add, remove);
+    }
+
+    @Override
     public Optional<String> fetchProjectLabel() throws JiraException {
         if (projectKeys.isEmpty()) {
             return Optional.empty();

@@ -77,6 +77,9 @@ public final class TrackingEngine {
     /** Se o tempo começa sozinho quando a task entra numa coluna que conta; senão, só pelo play. */
     private volatile boolean autoStart = true;
     private volatile boolean onlyWorkingColumns;
+    private final ValidationLabels labels = new ValidationLabels();
+    /** Se cada issue estava numa coluna monitorada na última busca, para saber quando ela sai. */
+    private final Map<String, Boolean> lastInColumn = new HashMap<>();
     private long seenIssuesVersion;
     private boolean inactivityPause;
     private Instant inactiveSince;
@@ -162,6 +165,7 @@ public final class TrackingEngine {
             jiraStatus = JiraSyncStatus.NOT_CONFIGURED;
             return;
         }
+        sendLabels(service);
         JiraSyncStatus previous = jiraStatus;
         try {
             List<JiraIssue> fetched = service.fetchMyIssues();
@@ -207,6 +211,7 @@ public final class TrackingEngine {
         overrides.put(key, true);
         if (!inactivityPause && !tracker.isRunning(key)) {
             tracker.start(key);
+            labelStarted(key);
             addEvent(ActivityEvent.Kind.TASK, "Tempo iniciado", "Task: " + key);
         }
     }
@@ -285,6 +290,7 @@ public final class TrackingEngine {
     public void finish(String issueKey) throws JiraException {
         String key = normalize(issueKey);
         pause(key);
+        labels.finished(key);
         String status = jiraService.completeIssue(key);
         addEvent(ActivityEvent.Kind.TASK, "Task finalizada", key + " movida para " + status);
         pollJira();
@@ -418,6 +424,32 @@ public final class TrackingEngine {
         onlyWorkingColumns = enabled;
     }
 
+    /** Tags da validação: {@code playLabels} ao começar o tempo, {@code doneLabels} no lugar delas ao terminar. */
+    public void setValidationLabels(List<String> playLabels, List<String> doneLabels) {
+        labels.configure(playLabels, doneLabels);
+    }
+
+    /** Só issues do Jira recebem tags: tasks digitadas à mão não existem lá. */
+    private void labelStarted(String key) {
+        if (issues.stream().anyMatch(issue -> issue.key().equals(key))) {
+            labels.started(key);
+        }
+    }
+
+    /** Envia ao Jira as tags pendentes. Bloqueia; nunca chamar na thread da UI. */
+    private void sendLabels(JiraService service) {
+        for (ValidationLabels.Change change : labels.drain()) {
+            try {
+                service.updateLabels(change.issueKey(), change.add(), change.remove());
+                addEvent(ActivityEvent.Kind.TASK, "Tags atualizadas",
+                        change.issueKey() + " · " + ValidationLabels.describe(change));
+            } catch (JiraException e) {
+                addEvent(ActivityEvent.Kind.ERROR, "Não deu para mudar as tags de " + change.issueKey(),
+                        String.valueOf(e.getMessage()));
+            }
+        }
+    }
+
     private boolean isTimeLocked(String key) {
         return onlyWorkingColumns && issues.stream()
                 .filter(issue -> issue.key().equals(key))
@@ -438,8 +470,14 @@ public final class TrackingEngine {
         Set<String> present = new HashSet<>();
         for (JiraIssue issue : currentIssues) {
             present.add(issue.key());
+            boolean inColumn = working.test(issue);
+            Boolean wasInColumn = lastInColumn.put(issue.key(), inColumn);
             String before = lastStatus.put(issue.key(), issue.statusName());
             if (before != null && !before.equals(issue.statusName())) {
+                // Saiu da coluna no Jira (e não porque as colunas mudaram nas Configurações): validação acabou.
+                if (Boolean.TRUE.equals(wasInColumn) && !inColumn) {
+                    labels.finished(issue.key());
+                }
                 boolean keepPlaying = !autoStart && Boolean.TRUE.equals(overrides.get(issue.key()))
                         && working.test(issue);
                 if (!keepPlaying) {
@@ -452,6 +490,7 @@ public final class TrackingEngine {
                 return false;
             }
             overrides.remove(key);
+            lastInColumn.remove(key);
             return true;
         });
     }
@@ -509,6 +548,7 @@ public final class TrackingEngine {
         for (String key : effective) {
             if (!tracker.isRunning(key)) {
                 tracker.start(key);
+                labelStarted(key);
                 if (!quiet) {
                     addEvent(ActivityEvent.Kind.TASK, "Tempo iniciado", "Task: " + key);
                 }

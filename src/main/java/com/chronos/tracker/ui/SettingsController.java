@@ -144,6 +144,7 @@ final class SettingsController implements SettingsPage.Handler {
         engine.setWorkingStatuses(config.workingStatuses());
         engine.setAutoStart(config.autoStart());
         engine.setOnlyWorkingColumns(config.onlyWorkingColumns());
+        engine.setValidationLabels(config.playLabels(), config.doneLabels());
         engine.setClassifier(new ActivityClassifier(config.possiblyIdleAfter(), config.inactiveAfter()));
         AppConfig previous = current;
         current = config;

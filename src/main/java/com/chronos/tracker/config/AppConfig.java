@@ -31,7 +31,9 @@ public record AppConfig(
         boolean useDefaultStatuses,
         boolean autoStart,
         boolean watchWholeColumns,
-        boolean onlyWorkingColumns) {
+        boolean onlyWorkingColumns,
+        List<String> playLabels,
+        List<String> doneLabels) {
 
     public static final Duration DEFAULT_POLLING_INTERVAL = Duration.ofSeconds(5);
     public static final Duration DEFAULT_POSSIBLY_IDLE_AFTER = Duration.ofMinutes(2);
@@ -77,7 +79,9 @@ public record AppConfig(
                 useDefaultStatuses,
                 flag(nonBlank, "CHRONOS_AUTO_START", true),
                 flag(nonBlank, "JIRA_WATCH_WHOLE_COLUMNS", false),
-                flag(nonBlank, "CHRONOS_ONLY_WORKING_COLUMNS", false));
+                flag(nonBlank, "CHRONOS_ONLY_WORKING_COLUMNS", false),
+                labels(nonBlank, "CHRONOS_PLAY_LABELS"),
+                labels(nonBlank, "CHRONOS_DONE_LABELS"));
     }
 
     /**
@@ -111,6 +115,14 @@ public record AppConfig(
         return Arrays.stream(value.split(","))
                 .map(String::strip)
                 .filter(s -> !s.isEmpty())
+                .toList();
+    }
+
+    /** Labels do Jira não aceitam espaço: "em teste" vira "em-teste". */
+    private static List<String> labels(Function<String, Optional<String>> lookup, String key) {
+        return lookup.apply(key).map(AppConfig::splitList).orElse(List.of()).stream()
+                .map(label -> label.replaceAll("\\s+", "-"))
+                .distinct()
                 .toList();
     }
 
@@ -151,6 +163,8 @@ public record AppConfig(
                 + ", alertIssueTypes=" + alertIssueTypes
                 + ", autoStart=" + autoStart
                 + ", watchWholeColumns=" + watchWholeColumns
-                + ", onlyWorkingColumns=" + onlyWorkingColumns + "]";
+                + ", onlyWorkingColumns=" + onlyWorkingColumns
+                + ", playLabels=" + playLabels
+                + ", doneLabels=" + doneLabels + "]";
     }
 }

@@ -2,6 +2,7 @@ package com.chronos.tracker.jira;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.io.IOException;
@@ -117,6 +118,21 @@ public final class JiraClient {
                 .POST(HttpRequest.BodyPublishers.ofString(body.toString(), StandardCharsets.UTF_8))
                 .build());
         return readTree(response).path("id").asText("");
+    }
+
+    /**
+     * Põe e tira labels da issue numa chamada só. O campo "Labels" precisa estar na tela de edição da issue.
+     */
+    public void updateLabels(String issueKey, List<String> add, List<String> remove) throws JiraException {
+        ObjectNode body = mapper.createObjectNode();
+        ArrayNode operations = body.putObject("update").putArray("labels");
+        add.forEach(label -> operations.addObject().put("add", label));
+        remove.forEach(label -> operations.addObject().put("remove", label));
+        String path = "/rest/api/3/issue/" + URLEncoder.encode(issueKey, StandardCharsets.UTF_8);
+        send(request(path)
+                .header("Content-Type", "application/json")
+                .PUT(HttpRequest.BodyPublishers.ofString(body.toString(), StandardCharsets.UTF_8))
+                .build());
     }
 
     /**

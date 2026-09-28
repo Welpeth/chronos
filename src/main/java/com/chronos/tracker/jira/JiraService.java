@@ -56,6 +56,11 @@ public interface JiraService {
         return Optional.empty();
     }
 
+    /** Põe e tira labels da issue (as tags da validação). */
+    default void updateLabels(String issueKey, List<String> add, List<String> remove) throws JiraException {
+        throw new JiraException("O Jira não está configurado");
+    }
+
     /** Chave e nome dos projetos configurados, por exemplo "SCRUM · Minha equipe de software". */
     default Optional<String> fetchProjectLabel() throws JiraException {
         return Optional.empty();
