@@ -318,3 +318,38 @@ Falha ao ler os quadros das tasks	Error al leer los tableros de las tareas
 Falha ao gravar os quadros das tasks	Error al guardar los tableros de las tareas
 Quadros (opcional)	Tableros (opcional)
 Números ou endereços dos quadros, separados por vírgula, ex.: 215, 514	Números o direcciones de los tableros, separados por comas, p. ej.: 215, 514
+1 task falta comentar	1 tarea necesita un comentario
+:light_bulb_on: **O que foi feito**\n- \n\n:white_check_mark: **Como testar**\n- 	:light_bulb_on: **Qué se hizo**\n- \n\n:white_check_mark: **Cómo probar**\n- 
+Com a primeira opção, aparece a aba Comentários no menu: cada task sua numa coluna monitorada precisa de um comentário, e ele é salvo direto no Jira. Com o template padrão, o texto da aba Comentários > Template vai sozinho para cada task que entra numa coluna monitorada; depois dá para editar e completar.	Con la primera opción aparece la pestaña Comentarios en el menú: cada tarea tuya en una columna monitoreada necesita un comentario, que se guarda directo en Jira. Con la plantilla predeterminada, el texto de Comentarios > Plantilla va solo a cada tarea que entra en una columna monitoreada; después se puede editar y completar.
+Comentar	Comentar
+Comentário adicionado	Comentario agregado
+Comentário salvo no Jira	Comentario guardado en Jira
+Comentários	Comentarios
+Comentários ({0})	Comentarios ({0})
+Comentários das tasks	Comentarios de las tareas
+Editar	Editar
+Escreva em Markdown: # título, - lista, **negrito**, _itálico_, `código`. Emojis do Jira vão por extenso, como :light_bulb_on: ou :white_check_mark:. Com "Habilitar template padrão" ligado em Configurações, este texto vai sozinho para cada task sua que entra numa coluna monitorada.	Escribe en Markdown: # título, - lista, **negrita**, _cursiva_, `código`. Los emojis de Jira van escritos, como :light_bulb_on: o :white_check_mark:. Con "Habilitar plantilla predeterminada" activado en Configuración, este texto va solo a cada tarea tuya que entra en una columna monitoreada.
+Escreva o comentário antes de salvar.	Escribe el comentario antes de guardar.
+Falha ao gravar o comentário de {0}	Error al guardar el comentario de {0}
+Falha ao ler os comentários	Error al leer los comentarios
+Falta comentar	Falta comentar
+Gerenciar os comentários das tasks (task sem comentário vira pendência)	Gestionar los comentarios de las tareas (una tarea sin comentario queda pendiente)
+Habilitar template padrão	Habilitar plantilla predeterminada
+Histórico de comentários	Historial de comentarios
+Nenhum comentário feito pelo Chronos ainda.	Chronos aún no hizo comentarios.
+Nenhuma task sua nas colunas monitoradas.	Ninguna tarea tuya está en las columnas monitoreadas.
+Não deu para pôr o template em {0}	No se pudo agregar la plantilla a {0}
+Não foi possível ler os comentários: {0}	No se pudieron leer los comentarios: {0}
+Não foi possível salvar o template: {0}	No se pudo guardar la plantilla: {0}
+O Jira não aceitou o comentário: {0}	Jira no aceptó el comentario: {0}
+Pendências	Pendientes
+Salvando...	Guardando...
+Salvar no Jira	Guardar en Jira
+Salvar template	Guardar plantilla
+Tasks suas nas colunas monitoradas. Cada uma precisa de um comentário; "Salvar no Jira" publica o texto na task.	Tus tareas en las columnas monitoreadas. Cada una necesita un comentario; "Guardar en Jira" publica el texto en la tarea.
+Template	Plantilla
+Template adicionado	Plantilla agregada
+Template de comentário adicionado	Plantilla de comentario agregada
+Template salvo.	Plantilla guardada.
+nada pendente	nada pendiente
+{0} tasks faltam comentar	{0} tareas necesitan un comentario

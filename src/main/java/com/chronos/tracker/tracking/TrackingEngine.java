@@ -98,6 +98,8 @@ public final class TrackingEngine {
     /** Quadro de cada task (com {@code JIRA_BOARDS}), guardado no histórico para os dias anteriores. */
     private volatile Map<String, String> boards = Map.of();
     private Instant boardsCheckedAt = Instant.MIN;
+    /** Tasks do usuário que acabaram de entrar numa coluna monitorada, para o template de comentário. */
+    private final java.util.Queue<JiraIssue> enteredColumns = new java.util.concurrent.ConcurrentLinkedQueue<>();
     /** Tasks cujo quadro já foi procurado, mesmo as que não estão em nenhum dos quadros. */
     private final Set<String> boardsLookedUp = ConcurrentHashMap.newKeySet();
     private Instant lastCheckpoint;
@@ -479,6 +481,24 @@ public final class TrackingEngine {
         onlyWorkingColumns = enabled;
     }
 
+    /**
+     * Tasks do usuário que entraram numa coluna monitorada desde a última chamada (vinham de outra coluna do
+     * Jira). Não inclui as que já estavam na coluna quando o Chronos abriu.
+     */
+    public List<JiraIssue> drainEnteredColumns() {
+        List<JiraIssue> entered = new ArrayList<>();
+        JiraIssue issue;
+        while ((issue = enteredColumns.poll()) != null) {
+            entered.add(issue);
+        }
+        return entered;
+    }
+
+    /** Anota na Atividade recente (os comentários usam para contar o que fizeram no Jira). */
+    public void recordEvent(boolean error, String title, String detail) {
+        addEvent(error ? ActivityEvent.Kind.ERROR : ActivityEvent.Kind.TASK, title, detail);
+    }
+
     /** Tags da validação: {@code playLabels} ao começar o tempo, {@code doneLabels} no lugar delas ao terminar. */
     public void setValidationLabels(List<String> playLabels, List<String> doneLabels) {
         labels.configure(playLabels, doneLabels);
@@ -532,6 +552,9 @@ public final class TrackingEngine {
                 // Saiu da coluna no Jira (e não porque as colunas mudaram nas Configurações): validação acabou.
                 if (Boolean.TRUE.equals(wasInColumn) && !inColumn) {
                     labels.finished(issue.key());
+                }
+                if (Boolean.FALSE.equals(wasInColumn) && inColumn && issue.mine()) {
+                    enteredColumns.add(issue);
                 }
                 boolean keepPlaying = !autoStart && Boolean.TRUE.equals(overrides.get(issue.key()))
                         && working.test(issue);

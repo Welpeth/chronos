@@ -36,7 +36,9 @@ public record AppConfig(
         List<String> doneLabels,
         boolean darkMode,
         I18n.Language language,
-        List<String> jiraBoards) {
+        List<String> jiraBoards,
+        boolean commentsEnabled,
+        boolean commentTemplateEnabled) {
 
     public static final Duration DEFAULT_POLLING_INTERVAL = Duration.ofSeconds(5);
     public static final Duration DEFAULT_POSSIBLY_IDLE_AFTER = Duration.ofMinutes(2);
@@ -87,7 +89,9 @@ public record AppConfig(
                 labels(nonBlank, "CHRONOS_DONE_LABELS"),
                 flag(nonBlank, "CHRONOS_DARK_MODE", false),
                 I18n.Language.fromCode(nonBlank.apply("CHRONOS_LANGUAGE").orElse("pt")),
-                nonBlank.apply("JIRA_BOARDS").map(AppConfig::boardIds).orElse(List.of()));
+                nonBlank.apply("JIRA_BOARDS").map(AppConfig::boardIds).orElse(List.of()),
+                flag(nonBlank, "CHRONOS_COMMENTS", false),
+                flag(nonBlank, "CHRONOS_COMMENT_TEMPLATE", false));
     }
 
     /**
@@ -195,6 +199,8 @@ public record AppConfig(
                 + ", doneLabels=" + doneLabels
                 + ", darkMode=" + darkMode
                 + ", language=" + language.code
-                + ", jiraBoards=" + jiraBoards + "]";
+                + ", jiraBoards=" + jiraBoards
+                + ", commentsEnabled=" + commentsEnabled
+                + ", commentTemplateEnabled=" + commentTemplateEnabled + "]";
     }
 }

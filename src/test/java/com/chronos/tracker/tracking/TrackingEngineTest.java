@@ -490,6 +490,22 @@ class TrackingEngineTest {
     }
 
     @Test
+    void onlyTasksThatMoveIntoAColumnCountAsEntered() {
+        jira.issues = List.of(DOING_1, TODO_3);
+        engine.pollJira();
+        engine.tick();
+        // O que já estava na coluna ao abrir não conta como "entrou".
+        assertEquals(List.of(), engine.drainEnteredColumns());
+
+        jira.issues = List.of(DOING_1, new JiraIssue("PROJ-3", "Título de PROJ-3", "Em andamento",
+                StatusCategory.IN_PROGRESS));
+        engine.pollJira();
+        engine.tick();
+        assertEquals(List.of("PROJ-3"), engine.drainEnteredColumns().stream().map(JiraIssue::key).toList());
+        assertEquals(List.of(), engine.drainEnteredColumns());
+    }
+
+    @Test
     void failingTagsShowUpInTheRecentActivity() {
         engine.setValidationLabels(List.of("em-teste"), List.of());
         jira.labelFailure = new JiraException("Campo labels não está na tela");

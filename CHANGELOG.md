@@ -9,6 +9,11 @@ As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma vers
 - Separação por quadro (Configurações > Jira > Quadros, ou `JIRA_BOARDS` no `.env`): com os números ou endereços
   dos quadros, por exemplo 215 e 514 do mesmo projeto, o seletor do topo passa a listar os quadros pelo nome, e
   cada tela mostra só as tasks do quadro escolhido, inclusive nos dias anteriores do histórico.
+- Comentários das tasks (Configurações > Comentários, ou `CHRONOS_COMMENTS=true`): nova aba abaixo de
+  Apontamentos com as tasks suas nas colunas monitoradas que faltam comentar, um template em Markdown com emojis
+  do Jira por extenso (`:light_bulb_on:`) e o histórico dos comentários, que podem ser editados. Salvar publica
+  o comentário no Jira. Com "Habilitar template padrão" (`CHRONOS_COMMENT_TEMPLATE=true`), o template vai sozinho
+  para cada task sua que entra numa coluna monitorada e ela fica como "Template adicionado".
 
 ## [0.4.0] - 2026-09-29
 
