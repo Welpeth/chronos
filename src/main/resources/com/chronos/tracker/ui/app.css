@@ -859,3 +859,10 @@
     -fx-text-fill: #0f2a5a;
     -fx-fill: #0f2a5a;
 }
+
+/* Seletor de projeto na barra superior (só com mais de um projeto do Jira). */
+.combo-box.project-picker {
+    -fx-pref-height: 34;
+    -fx-min-width: 180;
+    -fx-font-size: 13px;
+}

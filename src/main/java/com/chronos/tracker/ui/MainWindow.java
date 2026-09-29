@@ -4,12 +4,14 @@ import com.chronos.tracker.config.I18n;
 import com.chronos.tracker.jira.JiraSyncStatus;
 import com.chronos.tracker.jira.JiraUser;
 import com.chronos.tracker.tracking.HistoryStore;
+import com.chronos.tracker.tracking.Projects;
 import com.chronos.tracker.tracking.TaskView;
 import com.chronos.tracker.tracking.TrackingEngine.Snapshot;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
@@ -18,9 +20,14 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.Circle;
 
+import javafx.util.StringConverter;
+
+import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.prefs.Preferences;
 
 /** Janela principal: barra superior, menu lateral e a página atual. */
 public final class MainWindow {
@@ -43,6 +50,10 @@ public final class MainWindow {
     private final Label avatar = new Label();
     private final Label userName = new Label();
     private final Label userEmail = new Label();
+    /** Projeto do Jira mostrado nas páginas; vazio mostra todos. Só aparece com mais de um projeto. */
+    private final ComboBox<String> projectPicker = new ComboBox<>();
+    private String project = loadProject();
+    private boolean updatingProjects;
 
     public MainWindow(Consumer<TaskView> onToggle, Runnable onAddManual, HistoryStore store,
                       WorklogPage.Handler worklogHandler, SettingsPage.Handler settingsHandler) {
@@ -51,6 +62,8 @@ public final class MainWindow {
         this.history = new HistoryPage(store);
         this.worklog = new WorklogPage(worklogHandler);
         this.settings = new SettingsPage(settingsHandler);
+        history.setProject(project);
+        worklog.setProject(project);
         root.getStyleClass().add("app");
         root.setTop(buildTopBar());
         root.setLeft(buildSidebar());
@@ -75,7 +88,57 @@ public final class MainWindow {
         avatar.setText(name.substring(0, 1).toUpperCase());
 
         last = snapshot;
+        updateProjects(snapshot.projects());
         renderPage();
+    }
+
+    /** Atualiza as opções do seletor de projetos quando aparece ou some um projeto. */
+    private void updateProjects(List<String> projects) {
+        List<String> options = new ArrayList<>();
+        options.add(Projects.ALL);
+        options.addAll(projects);
+        if (!project.isEmpty() && !options.contains(project)) {
+            // O projeto escolhido continua na lista mesmo sem task hoje, para o histórico dele.
+            options.add(project);
+        }
+        if (!projectPicker.getItems().equals(options)) {
+            // Trocar as opções mexe no valor; isso não é o usuário escolhendo.
+            updatingProjects = true;
+            projectPicker.getItems().setAll(options);
+            projectPicker.setValue(project);
+            updatingProjects = false;
+        }
+        boolean several = options.size() > 2;
+        projectPicker.setVisible(several);
+        projectPicker.setManaged(several);
+    }
+
+    private void selectProject(String selected) {
+        String next = selected == null ? Projects.ALL : selected;
+        if (updatingProjects || next.equals(project)) {
+            return;
+        }
+        project = next;
+        saveProject(next);
+        history.setProject(next);
+        worklog.setProject(next);
+        renderPage();
+    }
+
+    private static String loadProject() {
+        try {
+            return Preferences.userNodeForPackage(MainWindow.class).get("project", Projects.ALL);
+        } catch (RuntimeException e) {
+            return Projects.ALL;
+        }
+    }
+
+    private static void saveProject(String value) {
+        try {
+            Preferences.userNodeForPackage(MainWindow.class).put("project", value);
+        } catch (RuntimeException e) {
+            // Sem onde guardar: na próxima vez volta a mostrar todos.
+        }
     }
 
     private void show(Page target) {
@@ -107,11 +170,12 @@ public final class MainWindow {
         if (last == null) {
             return;
         }
+        Snapshot view = last.forProject(project);
         switch (page) {
-            case DASHBOARD -> dashboard.render(last);
-            case TASKS -> tasks.render(last);
-            case HISTORY -> history.render(last);
-            case WORKLOG -> worklog.render(last);
+            case DASHBOARD -> dashboard.render(view);
+            case TASKS -> tasks.render(view);
+            case HISTORY -> history.render(view);
+            case WORKLOG -> worklog.render(view);
             case SETTINGS -> {
                 // Nada muda sozinho nas configurações.
             }
@@ -139,7 +203,23 @@ public final class MainWindow {
         status.setAlignment(Pos.CENTER);
         HBox.setHgrow(status, Priority.ALWAYS);
 
-        Region balance = new Region();
+        projectPicker.getStyleClass().addAll("dialog-input", "project-picker");
+        projectPicker.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(String value) {
+                return value == null || value.isEmpty() ? I18n.t("Todos os projetos") : I18n.t("Projeto {0}", value);
+            }
+
+            @Override
+            public String fromString(String text) {
+                return text;
+            }
+        });
+        projectPicker.valueProperty().addListener((obs, was, now) -> selectProject(now));
+        projectPicker.setVisible(false);
+        projectPicker.setManaged(false);
+        HBox balance = new HBox(projectPicker);
+        balance.setAlignment(Pos.CENTER_RIGHT);
         balance.setPrefWidth(250);
 
         HBox bar = new HBox(logo, status, balance);

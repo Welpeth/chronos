@@ -5,6 +5,13 @@ As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma vers
 
 ## [Não lançado]
 
+## [0.4.0] - 2026-09-29
+
+### Adicionado
+- Seletor de projeto no topo da janela, quando as tasks vêm de mais de um projeto do mesmo Jira (por exemplo
+  dois quadros): o painel, as tarefas, o histórico e os apontamentos mostram só o projeto escolhido, com os
+  totais do dia só dele. O tempo continua contando em todos, e a escolha fica guardada. (#37)
+
 ## [0.3.0] - 2026-09-29
 
 ### Adicionado
@@ -71,6 +78,7 @@ Primeira versão instalável.
 - O histórico de um Jira antigo aparecia depois de trocar o Jira nas configurações. (#19)
 - O aviso de "controle de tempo" aparecia em projetos gerenciados pela equipe que tinham o campo. (#19)
 
+[0.4.0]: https://github.com/Welpeth/chronos/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Welpeth/chronos/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Welpeth/chronos/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/Welpeth/chronos/releases/tag/v0.1.2
