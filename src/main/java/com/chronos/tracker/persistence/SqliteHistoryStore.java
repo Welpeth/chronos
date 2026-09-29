@@ -459,6 +459,16 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
         return LocalDate.ofInstant(instant, zone).toString();
     }
 
+    /** Cópia pelo próprio SQLite ({@code VACUUM INTO}): fica consistente mesmo com o app gravando. */
+    @Override
+    public synchronized void backupTo(Path target) throws HistoryException {
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("VACUUM INTO '" + target.toAbsolutePath().toString().replace("'", "''") + "'");
+        } catch (SQLException e) {
+            throw new HistoryException("Não foi possível copiar o histórico para " + target, e);
+        }
+    }
+
     @Override
     public synchronized void close() {
         try {

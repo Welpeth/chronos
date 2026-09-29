@@ -27,15 +27,22 @@ final class SettingsController implements SettingsPage.Handler {
     private final Path envFile;
     private final TrackingEngine engine;
     private final BiConsumer<AppConfig, AppConfig> onApplied;
+    private final Maintenance maintenance;
     private AppConfig current;
 
     /** @param onApplied recebe a configuração anterior e a nova depois de salvar */
     SettingsController(Path envFile, AppConfig current, TrackingEngine engine,
-                       BiConsumer<AppConfig, AppConfig> onApplied) {
+                       BiConsumer<AppConfig, AppConfig> onApplied, Maintenance maintenance) {
         this.envFile = envFile;
         this.current = current;
         this.engine = engine;
         this.onApplied = onApplied;
+        this.maintenance = maintenance;
+    }
+
+    @Override
+    public Maintenance maintenance() {
+        return maintenance;
     }
 
     @Override

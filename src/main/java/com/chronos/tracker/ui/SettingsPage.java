@@ -1,10 +1,13 @@
 package com.chronos.tracker.ui;
 
 import com.chronos.tracker.config.TokenExpiry;
+import com.chronos.tracker.update.Updater;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
@@ -17,8 +20,10 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
 import javafx.util.StringConverter;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -47,6 +52,9 @@ public final class SettingsPage {
         boolean startWithWindowsAvailable();
 
         boolean startWithWindowsEnabled();
+
+        /** Atualização do Chronos e cópias do histórico. */
+        Maintenance maintenance();
     }
 
     private final Handler handler;
@@ -63,6 +71,8 @@ public final class SettingsPage {
     private final Label connection = new Label();
     private final DatePicker tokenExpires = new DatePicker();
     private final Label tokenExpiresStatus = new Label();
+    private final Label updateStatus = new Label();
+    private final Label restoreStatus = new Label();
 
     public SettingsPage(Handler handler) {
         this.handler = handler;
@@ -150,12 +160,33 @@ public final class SettingsPage {
         GridPane storage = form();
         row(storage, 0, "CHRONOS_DB_PATH", "Arquivo do histórico", "chronos.db (vale ao reabrir o app)",
                 new TextField());
-        VBox storageCard = card("Histórico", storage);
+        Button restore = new Button("Restaurar base histórica");
+        restore.getStyleClass().add("secondary-button");
+        restore.setOnAction(e -> restoreHistory());
+        restoreStatus.getStyleClass().add("muted");
+        restoreStatus.setWrapText(true);
+        Label restoreHint = new Label("Antes de cada atualização, o histórico é copiado para a pasta backup com o "
+                + "nome da versão (ex.: chronos-0.2.0.db). Restaurar troca o histórico atual pela cópia escolhida e "
+                + "reinicia o Chronos; o atual também fica guardado em backup.");
+        restoreHint.getStyleClass().add("muted");
+        restoreHint.setWrapText(true);
+        HBox restoreRow = new HBox(12, restore, restoreStatus);
+        restoreRow.setAlignment(Pos.CENTER_LEFT);
+        VBox storageCard = card("Histórico", storage, restoreHint, restoreRow);
 
         startHint.getStyleClass().add("muted");
         startHint.setWrapText(true);
+        Label version = new Label("Versão " + handler.maintenance().version());
+        version.getStyleClass().add("settings-label");
+        Button update = new Button("Procurar atualização");
+        update.getStyleClass().add("secondary-button");
+        update.setOnAction(e -> checkForUpdate(update));
+        updateStatus.getStyleClass().add("muted");
+        updateStatus.setWrapText(true);
+        HBox updateRow = new HBox(12, version, update, updateStatus);
+        updateRow.setAlignment(Pos.CENTER_LEFT);
         VBox systemCard = card("Sistema", new VBox(8, startWithWindows, startHint),
-                flag("CHRONOS_DARK_MODE", "Modo escuro", false));
+                flag("CHRONOS_DARK_MODE", "Modo escuro", false), updateRow);
 
         tabs.getTabs().addAll(
                 BrowserTabs.tab("Jira", jiraCard),
@@ -302,6 +333,86 @@ public final class SettingsPage {
 
     private CheckBox flag(String key, String label) {
         return flag(key, label, true);
+    }
+
+    private void checkForUpdate(Button button) {
+        Maintenance maintenance = handler.maintenance();
+        button.setDisable(true);
+        updateStatus.setText("Procurando...");
+        maintenance.checkForUpdate().whenComplete((release, error) -> Platform.runLater(() -> {
+            button.setDisable(false);
+            if (error != null) {
+                updateStatus.setText("Não deu para procurar: " + rootMessage(error));
+                return;
+            }
+            if (release.isEmpty()) {
+                updateStatus.setText("Você já está na versão mais nova.");
+                return;
+            }
+            Updater.Release found = release.get();
+            updateStatus.setText("Versão " + found.version() + " disponível.");
+            if (!confirm("Atualizar o Chronos",
+                    "A versão " + found.version() + " está disponível (você tem a " + maintenance.version() + ").",
+                    "O histórico atual é copiado para a pasta backup, o instalador é baixado e o Chronos fecha "
+                            + "para instalar. Atualizar agora?")) {
+                return;
+            }
+            button.setDisable(true);
+            updateStatus.setText("Copiando o histórico e baixando a versão " + found.version() + "...");
+            maintenance.prepareUpdate(found).whenComplete((prepared, failure) -> Platform.runLater(() -> {
+                button.setDisable(false);
+                if (failure != null) {
+                    updateStatus.setText("A atualização falhou: " + rootMessage(failure));
+                    return;
+                }
+                try {
+                    maintenance.installAndExit(prepared);
+                } catch (IOException e) {
+                    updateStatus.setText("Não deu para abrir o instalador: " + e.getMessage()
+                            + ". Ele está em " + prepared.installer());
+                }
+            }));
+        }));
+    }
+
+    private void restoreHistory() {
+        Maintenance maintenance = handler.maintenance();
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Restaurar base histórica");
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Histórico do Chronos (*.db)", "*.db"));
+        try {
+            chooser.setInitialDirectory(maintenance.backupDir().toAbsolutePath().toFile());
+        } catch (IOException e) {
+            restoreStatus.setText("Não deu para abrir a pasta backup: " + e.getMessage());
+        }
+        java.io.File chosen = chooser.showOpenDialog(root.getScene() == null ? null : root.getScene().getWindow());
+        if (chosen == null) {
+            return;
+        }
+        if (!confirm("Restaurar base histórica", "Restaurar " + chosen.getName() + "?",
+                "O histórico atual é guardado na pasta backup, a cópia escolhida passa a ser o histórico e o "
+                        + "Chronos reinicia.")) {
+            return;
+        }
+        try {
+            if (!maintenance.restoreAndRestart(chosen.toPath())) {
+                new Alert(Alert.AlertType.INFORMATION, "Abra o Chronos de novo para terminar a restauração.")
+                        .showAndWait();
+                maintenance.exit();
+            }
+        } catch (IOException e) {
+            restoreStatus.setText("Não deu para restaurar: " + e.getMessage());
+        }
+    }
+
+    private boolean confirm(String title, String header, String text) {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, text, ButtonType.YES, ButtonType.NO);
+        alert.setTitle(title);
+        alert.setHeaderText(header);
+        if (root.getScene() != null) {
+            alert.initOwner(root.getScene().getWindow());
+        }
+        return alert.showAndWait().filter(ButtonType.YES::equals).isPresent();
     }
 
     private CheckBox flag(String key, String label, boolean onByDefault) {
