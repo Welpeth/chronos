@@ -1,5 +1,6 @@
 package com.chronos.tracker.ui;
 
+import com.chronos.tracker.config.I18n;
 import com.chronos.tracker.jira.JiraSyncStatus;
 import com.chronos.tracker.jira.JiraUser;
 import com.chronos.tracker.tracking.HistoryStore;
@@ -64,11 +65,11 @@ public final class MainWindow {
         JiraSyncStatus jira = snapshot.jiraStatus();
         jiraDot.getStyleClass().setAll("dot",
                 jira == JiraSyncStatus.SYNCED ? "dot-green" : jira.isError() ? "dot-red" : "dot-gray");
-        jiraLabel.setText(jira == JiraSyncStatus.SYNCED ? "Jira conectado" : "Jira: " + jira.label());
-        lastUpdate.setText(snapshot.lastSync().map(at -> "Última atualização: " + Formats.clock(at)).orElse(""));
+        jiraLabel.setText(jira == JiraSyncStatus.SYNCED ? I18n.t("Jira conectado") : I18n.t("Jira: {0}", jira.label()));
+        lastUpdate.setText(snapshot.lastSync().map(at -> I18n.t("Última atualização: {0}", Formats.clock(at))).orElse(""));
 
         JiraUser user = snapshot.user().orElse(new JiraUser("", ""));
-        String name = user.displayName().isEmpty() ? "Você" : user.displayName();
+        String name = user.displayName().isEmpty() ? I18n.t("Você") : user.displayName();
         userName.setText(name);
         userEmail.setText(user.email());
         avatar.setText(name.substring(0, 1).toUpperCase());
@@ -123,6 +124,7 @@ public final class MainWindow {
         logoImage.setFitHeight(46);
         logoImage.setPreserveRatio(true);
         logoImage.setSmooth(true);
+        logoImage.getStyleClass().add("logo-image");
         HBox logo = new HBox(logoImage);
         logo.setAlignment(Pos.CENTER_LEFT);
         logo.setPrefWidth(250);
@@ -148,11 +150,11 @@ public final class MainWindow {
 
     private VBox buildSidebar() {
         VBox nav = new VBox(6,
-                navItem(Page.DASHBOARD, Icons.HOME, "Painel"),
-                navItem(Page.TASKS, Icons.LIST, "Tarefas"),
-                navItem(Page.HISTORY, Icons.CLOCK, "Histórico"),
-                navItem(Page.WORKLOG, Icons.CLIPBOARD_CHECK, "Apontamentos"),
-                navItem(Page.SETTINGS, Icons.GEAR, "Configurações"));
+                navItem(Page.DASHBOARD, Icons.HOME, I18n.t("Painel")),
+                navItem(Page.TASKS, Icons.LIST, I18n.t("Tarefas")),
+                navItem(Page.HISTORY, Icons.CLOCK, I18n.t("Histórico")),
+                navItem(Page.WORKLOG, Icons.CLIPBOARD_CHECK, I18n.t("Apontamentos")),
+                navItem(Page.SETTINGS, Icons.GEAR, I18n.t("Configurações")));
         navItems.get(Page.DASHBOARD).getStyleClass().add("nav-selected");
 
         avatar.getStyleClass().add("avatar");

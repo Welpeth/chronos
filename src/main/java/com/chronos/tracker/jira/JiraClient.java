@@ -1,7 +1,9 @@
 package com.chronos.tracker.jira;
 
+import com.chronos.tracker.config.I18n;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.io.IOException;
@@ -51,7 +53,7 @@ public final class JiraClient {
         ObjectNode body = mapper.createObjectNode();
         body.put("jql", jql);
         body.put("maxResults", maxResults);
-        body.putArray("fields").add("summary").add("status").add("issuetype");
+        body.putArray("fields").add("summary").add("status").add("issuetype").add("assignee");
 
         HttpRequest request = request("/rest/api/3/search/jql")
                 .header("Content-Type", "application/json")
@@ -83,7 +85,7 @@ public final class JiraClient {
                 .filter(t -> "done".equals(t.path("to").path("statusCategory").path("key").asText()))
                 .findFirst()
                 .orElseThrow(() -> new JiraException(
-                        "O fluxo de " + issueKey + " não tem como ir direto para um status concluído"));
+                        I18n.t("O fluxo de {0} não tem como ir direto para um status concluído", issueKey)));
 
         ObjectNode body = mapper.createObjectNode();
         body.putObject("transition").put("id", done.path("id").asText());
@@ -120,6 +122,21 @@ public final class JiraClient {
     }
 
     /**
+     * Põe e tira labels da issue numa chamada só. O campo "Labels" precisa estar na tela de edição da issue.
+     */
+    public void updateLabels(String issueKey, List<String> add, List<String> remove) throws JiraException {
+        ObjectNode body = mapper.createObjectNode();
+        ArrayNode operations = body.putObject("update").putArray("labels");
+        add.forEach(label -> operations.addObject().put("add", label));
+        remove.forEach(label -> operations.addObject().put("remove", label));
+        String path = "/rest/api/3/issue/" + URLEncoder.encode(issueKey, StandardCharsets.UTF_8);
+        send(request(path)
+                .header("Content-Type", "application/json")
+                .PUT(HttpRequest.BodyPublishers.ofString(body.toString(), StandardCharsets.UTF_8))
+                .build());
+    }
+
+    /**
      * Se a issue aceita apontamento de horas: o controle de tempo está ligado no Jira e o campo "Controle de
      * tempo" (timetracking) existe na issue. Em projetos gerenciados pela equipe o campo pode não aparecer na
      * tela de edição, então vale ele vir nos campos da issue ou na tela de edição.
@@ -151,21 +168,21 @@ public final class JiraClient {
         try {
             response = http.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
         } catch (IOException e) {
-            throw new JiraException("Não foi possível conectar ao Jira: " + e.getMessage(), e);
+            throw new JiraException(I18n.t("Não foi possível conectar ao Jira: {0}", e.getMessage()), e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new JiraException("Consulta ao Jira interrompida", e);
+            throw new JiraException(I18n.t("Consulta ao Jira interrompida"), e);
         }
 
         int status = response.statusCode();
         if (status == 401 || status == 403) {
-            throw new JiraAuthException("O Jira recusou as credenciais (HTTP " + status + ")");
+            throw new JiraAuthException(I18n.t("O Jira recusou as credenciais (HTTP {0})", status));
         }
         if (status == 400) {
-            throw new JiraQueryException("O Jira recusou a consulta: " + errorMessages(response.body()));
+            throw new JiraQueryException(I18n.t("O Jira recusou a consulta: {0}", errorMessages(response.body())));
         }
         if (status < 200 || status >= 300) {
-            throw new JiraException("O Jira respondeu HTTP " + status + ": " + abbreviate(response.body()));
+            throw new JiraException(I18n.t("O Jira respondeu HTTP {0}: {1}", status, abbreviate(response.body())));
         }
         return response.body();
     }
@@ -181,7 +198,9 @@ public final class JiraClient {
                             fields.path("summary").asText(""),
                             status.path("name").asText(""),
                             StatusCategory.fromJiraKey(status.path("statusCategory").path("key").asText("")),
-                            fields.path("issuetype").path("name").asText(""));
+                            fields.path("issuetype").path("name").asText(""),
+                            fields.path("assignee").path("displayName").asText(""),
+                            true);
                 })
                 .filter(issue -> !issue.key().isEmpty())
                 .toList();
@@ -204,7 +223,7 @@ public final class JiraClient {
         try {
             return mapper.readTree(json);
         } catch (IOException e) {
-            throw new JiraException("Resposta inválida do Jira", e);
+            throw new JiraException(I18n.t("Resposta inválida do Jira"), e);
         }
     }
 

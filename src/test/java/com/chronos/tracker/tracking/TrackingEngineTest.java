@@ -18,6 +18,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -422,6 +423,86 @@ class TrackingEngineTest {
     }
 
     @Test
+    void someoneElsesTaskInTheColumnOnlyCountsAfterPlay() {
+        engine.setWorkingStatuses(List.of("Test"));
+        JiraIssue others = new JiraIssue("PROJ-2", "Título de PROJ-2", "Test", StatusCategory.IN_PROGRESS, "",
+                "Ana", false);
+        jira.issues = List.of(new JiraIssue("PROJ-1", "Título de PROJ-1", "Test", StatusCategory.IN_PROGRESS), others);
+        engine.pollJira();
+        engine.tick();
+        TrackingEngine.Snapshot snapshot = advance(Duration.ofMinutes(5));
+        assertTrue(task(snapshot, "PROJ-1").running());
+        assertFalse(task(snapshot, "PROJ-2").running());
+        assertEquals("Ana", task(snapshot, "PROJ-2").assignee());
+        assertFalse(task(snapshot, "PROJ-2").mine());
+
+        engine.play("PROJ-2");
+        snapshot = advance(Duration.ofMinutes(5));
+        assertTrue(task(snapshot, "PROJ-2").running());
+    }
+
+    @Test
+    void lockedColumnsRefuseTimeOnTasksOutsideThem() throws Exception {
+        engine.setOnlyWorkingColumns(true);
+        jira.issues = List.of(DOING_1, TODO_3);
+        engine.pollJira();
+        engine.tick();
+
+        engine.play("PROJ-3");
+        TrackingEngine.Snapshot snapshot = advance(Duration.ofMinutes(5));
+        assertFalse(task(snapshot, "PROJ-3").running());
+        assertFalse(task(snapshot, "PROJ-3").timeAllowed());
+        assertFalse(task(snapshot, "PROJ-3").inWorkingColumn());
+        assertTrue(task(snapshot, "PROJ-1").timeAllowed());
+        assertTrue(task(snapshot, "PROJ-1").inWorkingColumn());
+        assertThrows(InvalidManualEntryException.class, () ->
+                engine.addManual("PROJ-3", LocalDate.of(2026, 9, 26), Duration.ofMinutes(30), ""));
+        // Task digitada à mão não vem do Jira: continua livre.
+        engine.play("LOCAL-9");
+        assertTrue(task(advance(Duration.ofMinutes(1)), "LOCAL-9").running());
+
+        engine.setOnlyWorkingColumns(false);
+        engine.play("PROJ-3");
+        assertTrue(task(advance(Duration.ofMinutes(1)), "PROJ-3").running());
+    }
+
+    @Test
+    void validationTagsGoOnAtPlayAndSwapWhenTheTaskLeavesTheColumn() {
+        engine.setValidationLabels(List.of("em-teste"), List.of("testado"));
+        jira.issues = List.of(DOING_1, TODO_3);
+        engine.pollJira();
+        engine.tick();
+        engine.play("PROJ-3");
+        engine.play("LOCAL-9");
+        advance(Duration.ofMinutes(1));
+        engine.pollJira();
+        assertEquals(List.of("PROJ-1 +[em-teste] -[]", "PROJ-3 +[em-teste] -[]"), jira.labelChanges);
+
+        // Pausar e voltar não repete as tags.
+        engine.pause("PROJ-1");
+        engine.play("PROJ-1");
+        jira.issues = List.of(new JiraIssue("PROJ-1", "Título de PROJ-1", "Concluído", StatusCategory.DONE), TODO_3);
+        engine.pollJira();
+        engine.tick();
+        engine.pollJira();
+        assertEquals(List.of("PROJ-1 +[em-teste] -[]", "PROJ-3 +[em-teste] -[]", "PROJ-1 +[testado] -[em-teste]"),
+                jira.labelChanges);
+    }
+
+    @Test
+    void failingTagsShowUpInTheRecentActivity() {
+        engine.setValidationLabels(List.of("em-teste"), List.of());
+        jira.labelFailure = new JiraException("Campo labels não está na tela");
+        jira.issues = List.of(DOING_1);
+        engine.pollJira();
+        engine.tick();
+        engine.pollJira();
+        TrackingEngine.Snapshot snapshot = engine.tick();
+        assertTrue(snapshot.recentEvents().stream()
+                .anyMatch(event -> event.title().equals("Não deu para mudar as tags de PROJ-1")));
+    }
+
+    @Test
     void leavingTheColumnPausesATaskStartedByHand() {
         jira.issues = List.of(DOING_1);
         engine.pollJira();
@@ -487,6 +568,16 @@ class TrackingEngineTest {
     private static final class FakeJira implements JiraService {
         List<JiraIssue> issues = List.of();
         JiraException failure;
+        JiraException labelFailure;
+        final List<String> labelChanges = new ArrayList<>();
+
+        @Override
+        public void updateLabels(String issueKey, List<String> add, List<String> remove) throws JiraException {
+            if (labelFailure != null) {
+                throw labelFailure;
+            }
+            labelChanges.add(issueKey + " +" + add + " -" + remove);
+        }
 
         @Override
         public boolean isConfigured() {

@@ -1,5 +1,7 @@
 package com.chronos.tracker.jira;
 
+import com.chronos.tracker.config.I18n;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -37,7 +39,7 @@ public interface JiraService {
 
     /** Move a issue para "Concluído" no Jira e devolve o nome do status em que ela ficou. */
     default String completeIssue(String issueKey) throws JiraException {
-        throw new JiraException("O Jira não está configurado");
+        throw new JiraException(I18n.t("O Jira não está configurado"));
     }
 
     /**
@@ -45,7 +47,7 @@ public interface JiraService {
      * registro no Jira.
      */
     default String addWorklog(String issueKey, Duration spent, Instant started) throws JiraException {
-        throw new JiraException("O Jira não está configurado");
+        throw new JiraException(I18n.t("O Jira não está configurado"));
     }
 
     /**
@@ -54,6 +56,11 @@ public interface JiraService {
      */
     default Optional<Boolean> hasTimeTracking(String issueKey) throws JiraException {
         return Optional.empty();
+    }
+
+    /** Põe e tira labels da issue (as tags da validação). */
+    default void updateLabels(String issueKey, List<String> add, List<String> remove) throws JiraException {
+        throw new JiraException(I18n.t("O Jira não está configurado"));
     }
 
     /** Chave e nome dos projetos configurados, por exemplo "SCRUM · Minha equipe de software". */

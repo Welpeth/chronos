@@ -3,6 +3,7 @@ package com.chronos.tracker.tracking;
 import com.chronos.tracker.activity.ActivityClassifier;
 import com.chronos.tracker.activity.ActivityMonitor;
 import com.chronos.tracker.activity.ActivityState;
+import com.chronos.tracker.config.I18n;
 import com.chronos.tracker.jira.JiraAuthException;
 import com.chronos.tracker.jira.JiraException;
 import com.chronos.tracker.jira.JiraIssue;
@@ -76,6 +77,10 @@ public final class TrackingEngine {
     private volatile Predicate<JiraIssue> working = JiraIssue::isInProgress;
     /** Se o tempo começa sozinho quando a task entra numa coluna que conta; senão, só pelo play. */
     private volatile boolean autoStart = true;
+    private volatile boolean onlyWorkingColumns;
+    private final ValidationLabels labels = new ValidationLabels();
+    /** Se cada issue estava numa coluna monitorada na última busca, para saber quando ela sai. */
+    private final Map<String, Boolean> lastInColumn = new HashMap<>();
     private long seenIssuesVersion;
     private boolean inactivityPause;
     private Instant inactiveSince;
@@ -161,6 +166,7 @@ public final class TrackingEngine {
             jiraStatus = JiraSyncStatus.NOT_CONFIGURED;
             return;
         }
+        sendLabels(service);
         JiraSyncStatus previous = jiraStatus;
         try {
             List<JiraIssue> fetched = service.fetchMyIssues();
@@ -180,7 +186,7 @@ public final class TrackingEngine {
             jiraError = Optional.empty();
             lastSync = Optional.of(clock.instant());
             if (changed || previous != JiraSyncStatus.SYNCED) {
-                addEvent(ActivityEvent.Kind.SYNC, "Sincronização com Jira concluída", describeSync(fetched));
+                addEvent(ActivityEvent.Kind.SYNC, I18n.t("Sincronização com Jira concluída"), describeSync(fetched));
             }
         } catch (JiraException e) {
             // Mantém as últimas issues conhecidas: uma queda curta de rede não deve interromper o tracking.
@@ -189,21 +195,25 @@ public final class TrackingEngine {
                     : JiraSyncStatus.ERROR;
             jiraError = Optional.ofNullable(e.getMessage());
             if (previous != jiraStatus) {
-                addEvent(ActivityEvent.Kind.ERROR, "Falha ao sincronizar com o Jira", jiraError.orElse(""));
+                addEvent(ActivityEvent.Kind.ERROR, I18n.t("Falha ao sincronizar com o Jira"), jiraError.orElse(""));
             }
         }
     }
 
-    /** Liga o tempo de {@code issueKey} na hora, sem mexer nas outras tasks. */
+    /**
+     * Liga o tempo de {@code issueKey} na hora, sem mexer nas outras tasks. Não faz nada se a task está fora
+     * das colunas monitoradas e o tempo está travado nelas.
+     */
     public synchronized void play(String issueKey) {
         String key = normalize(issueKey);
-        if (key.isEmpty()) {
+        if (key.isEmpty() || isTimeLocked(key)) {
             return;
         }
         overrides.put(key, true);
         if (!inactivityPause && !tracker.isRunning(key)) {
             tracker.start(key);
-            addEvent(ActivityEvent.Kind.TASK, "Tempo iniciado", "Task: " + key);
+            labelStarted(key);
+            addEvent(ActivityEvent.Kind.TASK, I18n.t("Tempo iniciado"), I18n.t("Task: {0}", key));
         }
     }
 
@@ -215,7 +225,7 @@ public final class TrackingEngine {
         }
         overrides.put(key, false);
         if (closeInterval(key)) {
-            addEvent(ActivityEvent.Kind.TASK, "Tempo pausado", "Task: " + key);
+            addEvent(ActivityEvent.Kind.TASK, I18n.t("Tempo pausado"), I18n.t("Task: {0}", key));
         }
     }
 
@@ -229,21 +239,25 @@ public final class TrackingEngine {
         Instant now = clock.instant();
         LocalDate today = LocalDate.ofInstant(now, zone);
         if (key.isEmpty()) {
-            throw new InvalidManualEntryException("Escolha a task.");
+            throw new InvalidManualEntryException(I18n.t("Escolha a task."));
+        }
+        if (isTimeLocked(key)) {
+            throw new InvalidManualEntryException(I18n.t(
+                    "{0} está fora das colunas monitoradas. Para contar tempo nela, desligue a trava na aba Colunas das Configurações.",
+                    key));
         }
         if (duration == null || duration.isZero() || duration.isNegative()) {
-            throw new InvalidManualEntryException("Informe quanto tempo foi trabalhado.");
+            throw new InvalidManualEntryException(I18n.t("Informe quanto tempo foi trabalhado."));
         }
         if (date == null || date.isAfter(today)) {
-            throw new InvalidManualEntryException("Não dá para inserir tempo num dia que ainda não chegou.");
+            throw new InvalidManualEntryException(I18n.t("Não dá para inserir tempo num dia que ainda não chegou."));
         }
         Duration dayTotal = workedOn(date, today);
         Duration after = dayTotal.plus(duration);
         if (after.compareTo(DAILY_LIMIT) > 0) {
-            throw new InvalidManualEntryException("Tempo manual inválido: com esta inserção o dia "
-                    + DAY_MONTH.format(date) + " teria "
-                    + hoursMinutes(after) + ", acima do limite de " + DAILY_LIMIT.toHours() + "h. "
-                    + "Já contado no dia: " + hoursMinutes(dayTotal) + ".");
+            throw new InvalidManualEntryException(I18n.t(
+                    "Tempo manual inválido: com esta inserção o dia {0} teria {1}, acima do limite de {2}h. Já contado no dia: {3}.",
+                    DAY_MONTH.format(date), hoursMinutes(after), DAILY_LIMIT.toHours(), hoursMinutes(dayTotal)));
         }
         ManualEntry saved = store.saveManual(new ManualEntry(0, key, summaries.getOrDefault(key, ""), date,
                 duration, note == null ? "" : note.strip(), now));
@@ -251,9 +265,9 @@ public final class TrackingEngine {
         if (date.equals(today)) {
             manualToday.add(saved);
         }
-        addEvent(ActivityEvent.Kind.TASK, "Tempo manual adicionado",
-                key + " · " + hoursMinutes(duration) + (date.equals(today) ? "" : " em "
-                        + DAY_MONTH.format(date)));
+        String added = key + " · " + hoursMinutes(duration);
+        addEvent(ActivityEvent.Kind.TASK, I18n.t("Tempo manual adicionado"),
+                date.equals(today) ? added : I18n.t("{0} em {1}", added, DAY_MONTH.format(date)));
         return saved;
     }
 
@@ -277,8 +291,9 @@ public final class TrackingEngine {
     public void finish(String issueKey) throws JiraException {
         String key = normalize(issueKey);
         pause(key);
+        labels.finished(key);
         String status = jiraService.completeIssue(key);
-        addEvent(ActivityEvent.Kind.TASK, "Task finalizada", key + " movida para " + status);
+        addEvent(ActivityEvent.Kind.TASK, I18n.t("Task finalizada"), I18n.t("{0} movida para {1}", key, status));
         pollJira();
     }
 
@@ -286,12 +301,12 @@ public final class TrackingEngine {
     public void recordWorklog(String issueKey, Duration spent) {
         long minutes = spent.toMinutes();
         String amount = minutes < 60 ? minutes + "m" : (minutes / 60) + "h " + (minutes % 60) + "m";
-        addEvent(ActivityEvent.Kind.TASK, "Tempo apontado no Jira", issueKey + " · " + amount);
+        addEvent(ActivityEvent.Kind.TASK, I18n.t("Tempo apontado no Jira"), issueKey + " · " + amount);
     }
 
     /** Registra em "Atividade recente" que chegou uma task de um tipo avisado. */
     public void recordAlert(JiraIssue issue) {
-        String type = issue.issueType().isEmpty() ? "Nova task" : issue.issueType();
+        String type = issue.issueType().isEmpty() ? I18n.t("Nova task") : issue.issueType();
         addEvent(ActivityEvent.Kind.ALERT, type + ": " + issue.key(), issue.summary());
     }
 
@@ -357,7 +372,7 @@ public final class TrackingEngine {
         setJiraService(service);
         jiraStatus = service.isConfigured() ? JiraSyncStatus.SYNCING : JiraSyncStatus.NOT_CONFIGURED;
         restoreFromStore();
-        addEvent(ActivityEvent.Kind.SYNC, "Jira trocado", "Histórico e totais agora são do novo Jira");
+        addEvent(ActivityEvent.Kind.SYNC, I18n.t("Jira trocado"), I18n.t("Histórico e totais agora são do novo Jira"));
     }
 
     /** Serviço do Jira em uso (muda quando as configurações são salvas). */
@@ -403,6 +418,46 @@ public final class TrackingEngine {
     }
 
     /**
+     * Com {@code true}, tasks do Jira fora das colunas monitoradas não aceitam tempo: nem play nem inserção
+     * manual. Tasks digitadas à mão, que não vêm do Jira, continuam livres.
+     */
+    public synchronized void setOnlyWorkingColumns(boolean enabled) {
+        onlyWorkingColumns = enabled;
+    }
+
+    /** Tags da validação: {@code playLabels} ao começar o tempo, {@code doneLabels} no lugar delas ao terminar. */
+    public void setValidationLabels(List<String> playLabels, List<String> doneLabels) {
+        labels.configure(playLabels, doneLabels);
+    }
+
+    /** Só issues do Jira recebem tags: tasks digitadas à mão não existem lá. */
+    private void labelStarted(String key) {
+        if (issues.stream().anyMatch(issue -> issue.key().equals(key))) {
+            labels.started(key);
+        }
+    }
+
+    /** Envia ao Jira as tags pendentes. Bloqueia; nunca chamar na thread da UI. */
+    private void sendLabels(JiraService service) {
+        for (ValidationLabels.Change change : labels.drain()) {
+            try {
+                service.updateLabels(change.issueKey(), change.add(), change.remove());
+                addEvent(ActivityEvent.Kind.TASK, I18n.t("Tags atualizadas"),
+                        change.issueKey() + " · " + ValidationLabels.describe(change));
+            } catch (JiraException e) {
+                addEvent(ActivityEvent.Kind.ERROR, I18n.t("Não deu para mudar as tags de {0}", change.issueKey()),
+                        String.valueOf(e.getMessage()));
+            }
+        }
+    }
+
+    private boolean isTimeLocked(String key) {
+        return onlyWorkingColumns && issues.stream()
+                .filter(issue -> issue.key().equals(key))
+                .anyMatch(issue -> !working.test(issue));
+    }
+
+    /**
      * Quando uma issue muda de coluna no Jira (ou some da busca), o play/pause manual dela deixa de valer:
      * saiu de "em andamento", pausa; entrou, começa a contar. Sem o início automático, uma task ligada no
      * play continua contando enquanto passa de uma coluna que conta para outra.
@@ -416,8 +471,14 @@ public final class TrackingEngine {
         Set<String> present = new HashSet<>();
         for (JiraIssue issue : currentIssues) {
             present.add(issue.key());
+            boolean inColumn = working.test(issue);
+            Boolean wasInColumn = lastInColumn.put(issue.key(), inColumn);
             String before = lastStatus.put(issue.key(), issue.statusName());
             if (before != null && !before.equals(issue.statusName())) {
+                // Saiu da coluna no Jira (e não porque as colunas mudaram nas Configurações): validação acabou.
+                if (Boolean.TRUE.equals(wasInColumn) && !inColumn) {
+                    labels.finished(issue.key());
+                }
                 boolean keepPlaying = !autoStart && Boolean.TRUE.equals(overrides.get(issue.key()))
                         && working.test(issue);
                 if (!keepPlaying) {
@@ -430,6 +491,7 @@ public final class TrackingEngine {
                 return false;
             }
             overrides.remove(key);
+            lastInColumn.remove(key);
             return true;
         });
     }
@@ -437,7 +499,7 @@ public final class TrackingEngine {
     private Set<String> wantedRunning(List<JiraIssue> currentIssues) {
         Set<String> wanted = new LinkedHashSet<>();
         for (JiraIssue issue : currentIssues) {
-            if (overrides.getOrDefault(issue.key(), autoStart && working.test(issue))) {
+            if (overrides.getOrDefault(issue.key(), autoStart && issue.mine() && working.test(issue))) {
                 wanted.add(issue.key());
             }
         }
@@ -458,7 +520,7 @@ public final class TrackingEngine {
             if (!inactivityPause) {
                 inactivityPause = true;
                 inactiveSince = now;
-                addEvent(ActivityEvent.Kind.ACTIVITY, "Inatividade detectada", "Tempo pausado em todas as tasks");
+                addEvent(ActivityEvent.Kind.ACTIVITY, I18n.t("Inatividade detectada"), I18n.t("Tempo pausado em todas as tasks"));
             }
             return Set.of();
         }
@@ -466,8 +528,8 @@ public final class TrackingEngine {
             inactivityPause = false;
             justResumed = true;
             persistIdle(inactiveSince, now);
-            addEvent(ActivityEvent.Kind.ACTIVITY, "Você voltou a estar ativo",
-                    "Após " + minutes(Duration.between(inactiveSince, now)) + " de inatividade");
+            addEvent(ActivityEvent.Kind.ACTIVITY, I18n.t("Você voltou a estar ativo"),
+                    I18n.t("Após {0} de inatividade", minutes(Duration.between(inactiveSince, now))));
         }
         return wanted;
     }
@@ -480,15 +542,16 @@ public final class TrackingEngine {
             if (!effective.contains(key)) {
                 closeInterval(key);
                 if (!quiet) {
-                    addEvent(ActivityEvent.Kind.TASK, "Tempo pausado", "Task: " + key);
+                    addEvent(ActivityEvent.Kind.TASK, I18n.t("Tempo pausado"), I18n.t("Task: {0}", key));
                 }
             }
         }
         for (String key : effective) {
             if (!tracker.isRunning(key)) {
                 tracker.start(key);
+                labelStarted(key);
                 if (!quiet) {
-                    addEvent(ActivityEvent.Kind.TASK, "Tempo iniciado", "Task: " + key);
+                    addEvent(ActivityEvent.Kind.TASK, I18n.t("Tempo iniciado"), I18n.t("Task: {0}", key));
                 }
             }
         }
@@ -498,12 +561,14 @@ public final class TrackingEngine {
         List<TaskView> tasks = new ArrayList<>();
         Set<String> listed = new LinkedHashSet<>();
         for (JiraIssue issue : currentIssues) {
-            tasks.add(view(issue.key(), issue.summary(), issue.statusName(), issue.category()));
+            boolean inColumn = working.test(issue);
+            tasks.add(view(issue.key(), issue.summary(), issue.statusName(), issue.category(), issue.assignee(),
+                    issue.mine(), inColumn, inColumn || !onlyWorkingColumns));
             listed.add(issue.key());
         }
         // Tasks que contaram tempo mas não vêm mais do Jira (digitadas à mão ou fora da busca).
         tracker.trackedKeys().stream().filter(key -> !listed.contains(key)).sorted().forEach(key ->
-                tasks.add(view(key, "", "", StatusCategory.IN_PROGRESS)));
+                tasks.add(view(key, "", "", StatusCategory.IN_PROGRESS, "", true, false, true)));
 
         return new Snapshot(
                 activity,
@@ -524,13 +589,14 @@ public final class TrackingEngine {
                 history());
     }
 
-    private TaskView view(String key, String summary, String statusName, StatusCategory category) {
+    private TaskView view(String key, String summary, String statusName, StatusCategory category, String assignee,
+                          boolean mine, boolean inWorkingColumn, boolean timeAllowed) {
         return new TaskView(key, summary, statusName, category, tracker.totalFor(key), tracker.isRunning(key),
-                overrides.containsKey(key), tracker.runningSince(key));
+                overrides.containsKey(key), tracker.runningSince(key), assignee, mine, inWorkingColumn, timeAllowed);
     }
 
     /**
-     * Task em destaque no painel: a que começou a contar por último; senão, a primeira em andamento.
+     * Task em destaque no painel: a que começou a contar por último; senão, a primeira do usuário em andamento.
      * Tasks que começaram no mesmo segundo desempatam pela ordem do Jira.
      */
     private static Optional<TaskView> featured(List<TaskView> tasks) {
@@ -539,7 +605,7 @@ public final class TrackingEngine {
                 .max(Comparator.comparing(task ->
                         task.runningSince().orElse(Instant.MIN).truncatedTo(ChronoUnit.SECONDS)));
         return latestRunning.or(() -> tasks.stream()
-                .filter(task -> task.category() == StatusCategory.IN_PROGRESS)
+                .filter(task -> task.mine() && task.category() == StatusCategory.IN_PROGRESS)
                 .findFirst());
     }
 
@@ -600,7 +666,7 @@ public final class TrackingEngine {
     private void reportStorageFailure(HistoryStore.HistoryException e) {
         if (!storageFailing) {
             storageFailing = true;
-            addEvent(ActivityEvent.Kind.ERROR, "Falha ao gravar o histórico", String.valueOf(e.getMessage()));
+            addEvent(ActivityEvent.Kind.ERROR, I18n.t("Falha ao gravar o histórico"), String.valueOf(e.getMessage()));
         }
     }
 
@@ -625,7 +691,9 @@ public final class TrackingEngine {
 
     private String describeSync(List<JiraIssue> fetched) {
         long inProgress = fetched.stream().filter(working).count();
-        return fetched.size() + (fetched.size() == 1 ? " task, " : " tasks, ") + inProgress + " em andamento";
+        return fetched.size() == 1
+                ? I18n.t("{0} task, {1} em andamento", fetched.size(), inProgress)
+                : I18n.t("{0} tasks, {1} em andamento", fetched.size(), inProgress);
     }
 
     private static String hoursMinutes(Duration duration) {
@@ -635,7 +703,7 @@ public final class TrackingEngine {
 
     private static String minutes(Duration duration) {
         long minutes = Math.max(1, duration.toMinutes());
-        return minutes + (minutes == 1 ? " minuto" : " minutos");
+        return minutes == 1 ? I18n.t("{0} minuto", minutes) : I18n.t("{0} minutos", minutes);
     }
 
     private static String normalize(String issueKey) {

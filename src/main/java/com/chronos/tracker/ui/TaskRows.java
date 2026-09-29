@@ -1,5 +1,6 @@
 package com.chronos.tracker.ui;
 
+import com.chronos.tracker.config.I18n;
 import com.chronos.tracker.jira.StatusCategory;
 import com.chronos.tracker.tracking.TaskView;
 import javafx.geometry.Pos;
@@ -22,9 +23,14 @@ public final class TaskRows {
     public static HBox row(TaskView task, Consumer<TaskView> onToggle) {
         Label key = new Label(task.key());
         key.getStyleClass().add("task-key");
-        Label summary = new Label(task.summary().isEmpty() ? "Task fora do Jira" : task.summary());
+        Label summary = new Label(task.summary().isEmpty() ? I18n.t("Task fora do Jira") : task.summary());
         summary.getStyleClass().add("task-summary");
         VBox text = new VBox(2, key, summary);
+        if (!task.mine()) {
+            Label owner = new Label(task.assignee().isEmpty() ? I18n.t("Sem responsável") : I18n.t("De {0}", task.assignee()));
+            owner.getStyleClass().add("task-owner");
+            text.getChildren().add(owner);
+        }
         text.setMinWidth(0);
         HBox.setHgrow(text, Priority.ALWAYS);
 
@@ -38,11 +44,15 @@ public final class TaskRows {
         if (task.running()) {
             row.getStyleClass().add("task-row-running");
         }
+        if (!task.timeAllowed()) {
+            row.getStyleClass().add("task-row-locked");
+            Tooltip.install(row, new Tooltip(I18n.t("Fora das colunas monitoradas: não aceita tempo")));
+        }
         return row;
     }
 
     public static Label statusBadge(TaskView task) {
-        String text = task.statusName().isEmpty() ? "Manual" : task.statusName();
+        String text = task.statusName().isEmpty() ? I18n.t("Manual") : task.statusName();
         Label badge = new Label(text);
         badge.getStyleClass().addAll("badge", badgeClass(task.category()));
         badge.setMinWidth(Region.USE_PREF_SIZE);
@@ -64,7 +74,12 @@ public final class TaskRows {
         if (task.running()) {
             button.getStyleClass().add("row-toggle-running");
         }
-        button.setTooltip(new Tooltip(task.running() ? "Pausar o tempo desta task" : "Contar tempo nesta task"));
+        button.setTooltip(new Tooltip(task.running() ? I18n.t("Pausar o tempo desta task") : I18n.t("Contar tempo nesta task")));
+        if (!task.running() && !task.timeAllowed()) {
+            button.setDisable(true);
+            // Botão desativado não mostra tooltip: explica pela linha.
+            button.setTooltip(null);
+        }
         button.setOnAction(event -> onToggle.accept(task));
         return button;
     }

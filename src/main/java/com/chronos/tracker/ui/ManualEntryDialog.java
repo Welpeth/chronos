@@ -1,5 +1,6 @@
 package com.chronos.tracker.ui;
 
+import com.chronos.tracker.config.I18n;
 import com.chronos.tracker.tracking.TaskView;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -48,16 +49,17 @@ public final class ManualEntryDialog {
     private ManualEntryDialog() {
     }
 
-    public static void show(Window owner, List<TaskView> tasks, String preselectedKey, Submitter submitter) {
+    public static void show(Window owner, List<TaskView> allTasks, String preselectedKey, Submitter submitter) {
+        List<TaskView> tasks = allTasks.stream().filter(TaskView::timeAllowed).toList();
         Stage stage = new Stage(StageStyle.TRANSPARENT);
         stage.initOwner(owner);
         stage.initModality(Modality.WINDOW_MODAL);
-        stage.setTitle("Adicionar tempo manual");
+        stage.setTitle(I18n.t("Adicionar tempo manual"));
 
         // Campos
         ComboBox<String> task = new ComboBox<>();
         task.setEditable(true);
-        task.setPromptText("Selecione uma task...");
+        task.setPromptText(I18n.t("Selecione uma task..."));
         task.setMaxWidth(Double.MAX_VALUE);
         task.getStyleClass().add("dialog-input");
         for (TaskView view : tasks) {
@@ -74,13 +76,13 @@ public final class ManualEntryDialog {
         duration.setAlignment(Pos.CENTER_LEFT);
 
         TextArea note = new TextArea();
-        note.setPromptText("Opcional: o que foi feito...");
+        note.setPromptText(I18n.t("Opcional: o que foi feito..."));
         note.setPrefRowCount(3);
         note.setWrapText(true);
         note.getStyleClass().add("dialog-input");
 
         // Aviso do limite e erro de validação
-        Label info = new Label("O tempo manual soma com o tempo contado das tasks. O dia não pode passar de 8h.");
+        Label info = new Label(I18n.t("O tempo manual soma com o tempo contado das tasks. O dia não pode passar de 8h."));
         info.setWrapText(true);
         info.getStyleClass().add("dialog-info-text");
         Region divider = new Region();
@@ -98,16 +100,16 @@ public final class ManualEntryDialog {
         error.setManaged(false);
 
         VBox body = new VBox(18,
-                field(Icons.CLIPBOARD_CHECK, "Task", true, task),
-                field(Icons.CALENDAR, "Dia", true, date),
-                field(Icons.CLOCK, "Tempo", true, duration),
-                field(Icons.NOTE, "Nota", false, note),
+                field(Icons.CLIPBOARD_CHECK, I18n.t("Task"), true, task),
+                field(Icons.CALENDAR, I18n.t("Dia"), true, date),
+                field(Icons.CLOCK, I18n.t("Tempo"), true, duration),
+                field(Icons.NOTE, I18n.t("Nota"), false, note),
                 infoBox,
                 error);
         body.getStyleClass().add("dialog-body");
 
         // Cabeçalho azul com fechar
-        Label title = new Label("Adicionar tempo manual");
+        Label title = new Label(I18n.t("Adicionar tempo manual"));
         title.getStyleClass().add("dialog-title");
         Button close = new Button();
         close.setGraphic(Icons.of(Icons.CLOSE, 22, "icon-white"));
@@ -121,11 +123,11 @@ public final class ManualEntryDialog {
         makeDraggable(header, stage);
 
         // Rodapé
-        Button add = new Button("Adicionar");
+        Button add = new Button(I18n.t("Adicionar"));
         add.setGraphic(Icons.of(Icons.PLUS, 18, "icon-white"));
         add.getStyleClass().add("dialog-primary");
         add.setDefaultButton(true);
-        Button cancel = new Button("Cancelar");
+        Button cancel = new Button(I18n.t("Cancelar"));
         cancel.getStyleClass().add("dialog-secondary");
         cancel.setCancelButton(true);
         cancel.setOnAction(e -> stage.close());

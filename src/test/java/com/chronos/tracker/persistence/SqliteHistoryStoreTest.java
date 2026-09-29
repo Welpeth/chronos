@@ -43,6 +43,21 @@ class SqliteHistoryStoreTest {
     }
 
     @Test
+    void backupIsAWorkingCopyOfTheHistory() throws Exception {
+        Path backup = dir.resolve("backup/chronos-0.2.0.db");
+        java.nio.file.Files.createDirectories(backup.getParent());
+        try (SqliteHistoryStore store = new SqliteHistoryStore(dir.resolve("chronos.db"), ZoneOffset.UTC)) {
+            store.saveInterval(entry("PROJ-1", NINE, Duration.ofMinutes(40)), "A");
+            store.backupTo(backup);
+            // O que entra depois da cópia fica só na base atual.
+            store.saveInterval(entry("PROJ-2", NINE, Duration.ofMinutes(5)), "B");
+        }
+        try (SqliteHistoryStore copy = new SqliteHistoryStore(backup, ZoneOffset.UTC)) {
+            assertEquals(Map.of("PROJ-1", Duration.ofMinutes(40)), copy.totalsByTask());
+        }
+    }
+
+    @Test
     void dataSurvivesReopeningTheFile() throws Exception {
         Path file = dir.resolve("sub/chronos.db");
         try (SqliteHistoryStore store = new SqliteHistoryStore(file, ZoneOffset.UTC)) {

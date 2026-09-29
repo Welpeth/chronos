@@ -1,6 +1,8 @@
 package com.chronos.tracker.ui;
 
+import com.chronos.tracker.config.I18n;
 import com.chronos.tracker.config.AppConfig;
+import com.chronos.tracker.config.AppPaths;
 import com.chronos.tracker.jira.JiraIssue;
 import com.chronos.tracker.jira.RestJiraService;
 import com.chronos.tracker.tracking.HistoryStore;
@@ -50,7 +52,8 @@ public final class AppController {
         this.store = store;
         this.pollingInterval = config.pollingInterval();
         this.alerts = alertMonitor(config, false);
-        SettingsController settings = new SettingsController(envFile, config, engine, this::applyConfig);
+        Maintenance maintenance = new Maintenance(store, AppPaths.dataDir(), Platform::exit);
+        SettingsController settings = new SettingsController(envFile, config, engine, this::applyConfig, maintenance);
         WorklogBook book = new WorklogBook(store, engine::jiraService, Clock.systemDefaultZone());
         this.window = new MainWindow(this::toggle, this::addManual, store, worklogHandler(book), settings);
         window.render(engine.tick());
@@ -133,7 +136,7 @@ public final class AppController {
             try {
                 engine.finish(issueKey);
             } catch (Exception e) {
-                onError.accept("Não foi possível finalizar " + issueKey + ": " + e.getMessage());
+                onError.accept(I18n.t("Não foi possível finalizar {0}: {1}", issueKey, e.getMessage()));
             }
             refresh();
         }, "chronos-finish");
@@ -149,9 +152,12 @@ public final class AppController {
         });
     }
 
-    /** Configurações salvas: novo intervalo do Jira e, se mudou algo, novos avisos. */
+    /** Configurações salvas: novo intervalo do Jira, o tema e, se mudou algo, novos avisos. */
     private void applyConfig(AppConfig previous, AppConfig next) {
         setPollingInterval(next.pollingInterval());
+        if (window.getView().getScene() != null) {
+            Themes.apply(window.getView().getScene(), next.darkMode());
+        }
         // Tipos novos: registra o que já existe sem avisar, para não chover notificação das tasks antigas.
         alerts = alertMonitor(next, !previous.alertIssueTypes().equals(next.alertIssueTypes()));
     }

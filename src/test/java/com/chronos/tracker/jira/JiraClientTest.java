@@ -53,7 +53,7 @@ class JiraClientTest {
                 {"issues":[
                   {"id":"1","key":"PROJ-123","fields":{"summary":"Corrigir login",
                     "status":{"name":"Em andamento","statusCategory":{"key":"indeterminate"}}}},
-                  {"id":"2","key":"PROJ-456","fields":{"summary":"Nova tela",
+                  {"id":"2","key":"PROJ-456","fields":{"summary":"Nova tela","assignee":{"displayName":"Ana"},
                     "status":{"name":"Em análise","statusCategory":{"key":"indeterminate"}}}},
                   {"id":"3","key":"PROJ-789","fields":{"summary":"Deploy",
                     "status":{"name":"Concluído","statusCategory":{"key":"done"}}}}
@@ -63,12 +63,13 @@ class JiraClientTest {
 
         assertEquals(List.of(
                 new JiraIssue("PROJ-123", "Corrigir login", "Em andamento", StatusCategory.IN_PROGRESS),
-                new JiraIssue("PROJ-456", "Nova tela", "Em análise", StatusCategory.IN_PROGRESS),
+                new JiraIssue("PROJ-456", "Nova tela", "Em análise", StatusCategory.IN_PROGRESS, "", "Ana", true),
                 new JiraIssue("PROJ-789", "Deploy", "Concluído", StatusCategory.DONE)), issues);
         // base64("eu@empresa.com:token")
         assertEquals("Basic ZXVAZW1wcmVzYS5jb206dG9rZW4=", receivedAuth.get());
         assertTrue(receivedBody.get().contains("\"jql\":\"project = PROJ\""));
         assertTrue(receivedBody.get().contains("\"maxResults\":2"));
+        assertTrue(receivedBody.get().contains("\"assignee\""));
     }
 
     @Test
@@ -162,6 +163,23 @@ class JiraClientTest {
         assertTrue(posted.get().contains("\"timeSpentSeconds\":4800"), posted.get());
         assertTrue(posted.get().contains("\"started\":\"2026-09-27T10:00:00.000-0300\""), posted.get());
         assertTrue(posted.get().contains("Apontado pelo Chronos"), posted.get());
+    }
+
+    @Test
+    void updateLabelsAddsAndRemovesInOneEdit() throws Exception {
+        AtomicReference<String> method = new AtomicReference<>();
+        AtomicReference<String> sent = new AtomicReference<>();
+        server.createContext("/rest/api/3/issue/PROJ-1", exchange -> {
+            method.set(exchange.getRequestMethod());
+            sent.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            exchange.sendResponseHeaders(204, -1);
+            exchange.close();
+        });
+
+        new JiraClient(baseUrl, "e", "t").updateLabels("PROJ-1", List.of("testado"), List.of("em-teste"));
+
+        assertEquals("PUT", method.get());
+        assertEquals("{\"update\":{\"labels\":[{\"add\":\"testado\"},{\"remove\":\"em-teste\"}]}}", sent.get());
     }
 
     private void serve(String path, int code, String body) {

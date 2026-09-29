@@ -1,5 +1,6 @@
 package com.chronos.tracker.persistence;
 
+import com.chronos.tracker.config.I18n;
 import com.chronos.tracker.tracking.HistoryStore;
 import com.chronos.tracker.tracking.ManualEntry;
 import com.chronos.tracker.tracking.TimeEntry;
@@ -58,7 +59,7 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
             connection = DriverManager.getConnection("jdbc:sqlite:" + file.toAbsolutePath());
             migrate();
         } catch (Exception e) {
-            throw new HistoryException("Não foi possível abrir o histórico em " + file + ": " + e.getMessage(), e);
+            throw new HistoryException(I18n.t("Não foi possível abrir o histórico em {0}: {1}", file, e.getMessage()), e);
         }
     }
 
@@ -166,7 +167,7 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
             statement.setString(7, site);
             statement.executeUpdate();
         } catch (SQLException e) {
-            throw new HistoryException("Falha ao gravar o intervalo de " + entry.issueKey(), e);
+            throw new HistoryException(I18n.t("Falha ao gravar o intervalo de {0}", entry.issueKey()), e);
         }
     }
 
@@ -182,7 +183,7 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
             statement.setString(4, dayOf(start));
             statement.executeUpdate();
         } catch (SQLException e) {
-            throw new HistoryException("Falha ao gravar o período ocioso", e);
+            throw new HistoryException(I18n.t("Falha ao gravar o período ocioso"), e);
         }
     }
 
@@ -204,7 +205,7 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
             }
             return totals;
         } catch (SQLException e) {
-            throw new HistoryException("Falha ao ler os totais do histórico", e);
+            throw new HistoryException(I18n.t("Falha ao ler os totais do histórico"), e);
         }
     }
 
@@ -243,7 +244,7 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
             }
             return times;
         } catch (SQLException e) {
-            throw new HistoryException("Falha ao ler o tempo das tasks", e);
+            throw new HistoryException(I18n.t("Falha ao ler o tempo das tasks"), e);
         }
     }
 
@@ -259,7 +260,7 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
             statement.setString(5, site);
             statement.executeUpdate();
         } catch (SQLException e) {
-            throw new HistoryException("Falha ao gravar o apontamento de " + issueKey, e);
+            throw new HistoryException(I18n.t("Falha ao gravar o apontamento de {0}", issueKey), e);
         }
     }
 
@@ -272,7 +273,7 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
             statement.setString(2, day.toString());
             return readEntries(statement);
         } catch (SQLException e) {
-            throw new HistoryException("Falha ao ler o histórico de " + day, e);
+            throw new HistoryException(I18n.t("Falha ao ler o histórico de {0}", day), e);
         }
     }
 
@@ -285,7 +286,7 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
                 return Duration.ofMillis(rs.next() ? rs.getLong(1) : 0);
             }
         } catch (SQLException e) {
-            throw new HistoryException("Falha ao ler o tempo ocioso de " + day, e);
+            throw new HistoryException(I18n.t("Falha ao ler o tempo ocioso de {0}", day), e);
         }
     }
 
@@ -311,7 +312,7 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
             statement.setInt(3, limit);
             return readEntries(statement);
         } catch (SQLException e) {
-            throw new HistoryException("Falha ao buscar no histórico", e);
+            throw new HistoryException(I18n.t("Falha ao buscar no histórico"), e);
         }
     }
 
@@ -335,7 +336,7 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
                         entry.note(), entry.createdAt());
             }
         } catch (SQLException e) {
-            throw new HistoryException("Falha ao gravar o tempo manual de " + entry.issueKey(), e);
+            throw new HistoryException(I18n.t("Falha ao gravar o tempo manual de {0}", entry.issueKey()), e);
         }
     }
 
@@ -347,7 +348,7 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
             statement.setString(2, day.toString());
             return readManual(statement);
         } catch (SQLException e) {
-            throw new HistoryException("Falha ao ler o tempo manual de " + day, e);
+            throw new HistoryException(I18n.t("Falha ao ler o tempo manual de {0}", day), e);
         }
     }
 
@@ -366,7 +367,7 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
             statement.setInt(3, limit);
             return readManual(statement);
         } catch (SQLException e) {
-            throw new HistoryException("Falha ao buscar no tempo manual", e);
+            throw new HistoryException(I18n.t("Falha ao buscar no tempo manual"), e);
         }
     }
 
@@ -404,7 +405,7 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
             }
             return keys;
         } catch (SQLException e) {
-            throw new HistoryException("Falha ao ler os avisos de task", e);
+            throw new HistoryException(I18n.t("Falha ao ler os avisos de task"), e);
         }
     }
 
@@ -420,7 +421,7 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
             }
             statement.executeBatch();
         } catch (SQLException e) {
-            throw new HistoryException("Falha ao gravar os avisos de task", e);
+            throw new HistoryException(I18n.t("Falha ao gravar os avisos de task"), e);
         }
     }
 
@@ -437,7 +438,7 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
             }
             return days;
         } catch (SQLException e) {
-            throw new HistoryException("Falha ao ler os dias do histórico", e);
+            throw new HistoryException(I18n.t("Falha ao ler os dias do histórico"), e);
         }
     }
 
@@ -457,6 +458,16 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
 
     private String dayOf(Instant instant) {
         return LocalDate.ofInstant(instant, zone).toString();
+    }
+
+    /** Cópia pelo próprio SQLite ({@code VACUUM INTO}): fica consistente mesmo com o app gravando. */
+    @Override
+    public synchronized void backupTo(Path target) throws HistoryException {
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("VACUUM INTO '" + target.toAbsolutePath().toString().replace("'", "''") + "'");
+        } catch (SQLException e) {
+            throw new HistoryException(I18n.t("Não foi possível copiar o histórico para {0}", target), e);
+        }
     }
 
     @Override

@@ -1,5 +1,6 @@
 package com.chronos.tracker.ui;
 
+import com.chronos.tracker.config.I18n;
 import com.chronos.tracker.tracking.HistoryStore;
 import com.chronos.tracker.tracking.Intervals;
 import com.chronos.tracker.tracking.ManualEntry;
@@ -87,7 +88,7 @@ public final class HistoryPage {
     public HistoryPage(HistoryStore store) {
         this.store = store;
 
-        Label title = new Label("Histórico");
+        Label title = new Label(I18n.t("Histórico"));
         title.getStyleClass().add("page-title");
         subtitle.getStyleClass().add("muted");
         HBox heading = new HBox(12, title, subtitle);
@@ -99,16 +100,16 @@ public final class HistoryPage {
         error.setManaged(false);
 
         setupDatePicker();
-        Button previous = navButton("‹", "Dia anterior", () -> datePicker.setValue(selectedDay().minusDays(1)));
-        Button next = navButton("›", "Próximo dia", () -> datePicker.setValue(selectedDay().plusDays(1)));
-        Button today = new Button("Hoje");
+        Button previous = navButton("‹", I18n.t("Dia anterior"), () -> datePicker.setValue(selectedDay().minusDays(1)));
+        Button next = navButton("›", I18n.t("Próximo dia"), () -> datePicker.setValue(selectedDay().plusDays(1)));
+        Button today = new Button(I18n.t("Hoje"));
         today.getStyleClass().add("filter-chip");
         today.setOnAction(e -> {
             search.clear();
             datePicker.setValue(LocalDate.now());
         });
 
-        search.setPromptText("Buscar task em todas as datas");
+        search.setPromptText(I18n.t("Buscar task em todas as datas"));
         search.setPrefWidth(320);
         search.getStyleClass().add("search");
         search.textProperty().addListener((obs, before, now) -> invalidate());
@@ -194,13 +195,15 @@ public final class HistoryPage {
     }
 
     private void showDay(LocalDate day, List<Row> rows, Duration active, Duration manual) {
-        String label = day.equals(LocalDate.now()) ? "Hoje" : Formats.date(day);
-        subtitle.setText(label + " · " + count(rows.size(), "registro", "registros")
-                + " · " + Formats.hoursMinutes(active) + " de tempo ativo"
-                + (manual.isZero() ? "" : " + " + Formats.hoursMinutes(manual) + " manual"));
-        intervalsTitle.setText("Registros");
-        totalsTitle.setText("Tempo por task no dia");
-        renderIntervals(rows, false, "Nenhum tempo contado neste dia.");
+        String label = day.equals(LocalDate.now()) ? I18n.t("Hoje") : Formats.date(day);
+        String records = records(rows.size());
+        subtitle.setText(manual.isZero()
+                ? I18n.t("{0} · {1} · {2} de tempo ativo", label, records, Formats.hoursMinutes(active))
+                : I18n.t("{0} · {1} · {2} de tempo ativo + {3} manual", label, records,
+                        Formats.hoursMinutes(active), Formats.hoursMinutes(manual)));
+        intervalsTitle.setText(I18n.t("Registros"));
+        totalsTitle.setText(I18n.t("Tempo por task no dia"));
+        renderIntervals(rows, false, I18n.t("Nenhum tempo contado neste dia."));
         renderTotals(rows, false);
     }
 
@@ -213,12 +216,14 @@ public final class HistoryPage {
             rows.sort(NEWEST_FIRST);
             clearError();
             long days = rows.stream().map(Row::day).distinct().count();
-            subtitle.setText(count(rows.size(), "registro", "registros") + " com \"" + text + "\" em "
-                    + count((int) days, "dia", "dias")
-                    + (rows.size() >= SEARCH_LIMIT ? " (mostrando os mais recentes)" : ""));
-            intervalsTitle.setText("Resultados da busca");
-            totalsTitle.setText("Tempo por task na busca");
-            renderIntervals(rows, true, "Nada gravado com esse texto.");
+            // O texto buscado entra por último, para um {n} digitado nele não ser trocado.
+            String dayCount = days == 1 ? I18n.t("{0} dia", days) : I18n.t("{0} dias", days);
+            subtitle.setText(rows.size() >= SEARCH_LIMIT
+                    ? I18n.t("{0} com \"{2}\" em {1} (mostrando os mais recentes)", records(rows.size()), dayCount, text)
+                    : I18n.t("{0} com \"{2}\" em {1}", records(rows.size()), dayCount, text));
+            intervalsTitle.setText(I18n.t("Resultados da busca"));
+            totalsTitle.setText(I18n.t("Tempo por task na busca"));
+            renderIntervals(rows, true, I18n.t("Nada gravado com esse texto."));
             renderTotals(rows, true);
         } catch (HistoryStore.HistoryException e) {
             showError(e);
@@ -230,10 +235,10 @@ public final class HistoryPage {
         intervals.getColumnConstraints().clear();
         if (withDate) {
             setupColumns(intervals, 18, 40, 14, 14, 14);
-            header(intervals, "Data", "Task", "Início", "Fim", "Duração");
+            header(intervals, I18n.t("Data"), I18n.t("Task"), I18n.t("Início"), I18n.t("Fim"), I18n.t("Duração"));
         } else {
             setupColumns(intervals, 46, 18, 18, 18);
-            header(intervals, "Task", "Início", "Fim", "Duração");
+            header(intervals, I18n.t("Task"), I18n.t("Início"), I18n.t("Fim"), I18n.t("Duração"));
         }
         int columns = withDate ? 5 : 4;
         if (rows.isEmpty()) {
@@ -262,11 +267,11 @@ public final class HistoryPage {
 
             intervals.add(taskCell, column++, row);
             if (entry.manual()) {
-                intervals.add(badge("manual", "badge-manual"), column, row, 2, 1);
+                intervals.add(badge(I18n.t("manual"), "badge-manual"), column, row, 2, 1);
                 column += 2;
             } else {
                 intervals.add(cell(Formats.clock(entry.start())), column++, row);
-                intervals.add(entry.open() ? badge("agora", "badge-progress") : cell(Formats.clock(entry.end())),
+                intervals.add(entry.open() ? badge(I18n.t("agora"), "badge-progress") : cell(Formats.clock(entry.end())),
                         column++, row);
             }
             intervals.add(cell(Formats.hms(entry.duration())), column, row);
@@ -279,10 +284,10 @@ public final class HistoryPage {
         totals.getColumnConstraints().clear();
         if (withDays) {
             setupColumns(totals, 50, 20, 30);
-            header(totals, "Task", "Dias", "Total");
+            header(totals, I18n.t("Task"), I18n.t("Dias"), I18n.t("Total"));
         } else {
             setupColumns(totals, 60, 40);
-            header(totals, "Task", "Total");
+            header(totals, I18n.t("Task"), I18n.t("Total"));
         }
         if (rows.isEmpty()) {
             totals.add(muted("—"), 0, 1, withDays ? 3 : 2, 1);
@@ -369,8 +374,8 @@ public final class HistoryPage {
         return LocalDate.ofInstant(entry.startedAt(), ZoneId.systemDefault());
     }
 
-    private static String count(int n, String singular, String plural) {
-        return n + " " + (n == 1 ? singular : plural);
+    private static String records(int n) {
+        return n == 1 ? I18n.t("{0} registro", n) : I18n.t("{0} registros", n);
     }
 
     private void showError(HistoryStore.HistoryException e) {

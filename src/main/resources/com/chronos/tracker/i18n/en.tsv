@@ -1,0 +1,312 @@
+# Traduções (en): texto em português, TAB, tradução. Quebra de linha como \n.
+"Possivelmente ausente" precisa ser menor que o tempo para pausar.	"Possibly away" must be shorter than the time to pause.
++{0} outra contando	+{0} other running
++{0} outras contando	+{0} others running
+1 task falta apontar	1 task left to log
+A atualização falhou: {0}	The update failed: {0}
+A cópia escolhida para restaurar não existe mais: {0}	The copy chosen for restore no longer exists: {0}
+A fazer	To do
+A restauração do histórico falhou:\n{0}\n\nO Chronos abre com o histórico que já estava em uso.	Restoring the history failed:\n{0}\n\nChronos will open with the history that was already in use.
+A versão {0} está disponível (você tem a {1}).	Version {0} is available (you have {1}).
+API token	API token
+API token do Jira	Jira API token
+ATIVO	ACTIVE
+Abra o Chronos de novo para terminar a restauração.	Open Chronos again to finish the restore.
+Abra o Chronos de novo para ver o novo idioma.	Open Chronos again to see the new language.
+Abra o Chronos pelo executável instalado para usar esta opção.	Open Chronos from the installed executable to use this option.
+Abrir o Chronos	Open Chronos
+Abrir o Chronos quando eu entrar no Windows	Open Chronos when I sign in to Windows
+Adicionar	Add
+Adicionar tempo manual	Add manual time
+Ainda não sincronizou	Not synced yet
+Anterior	Previous
+Antes de cada atualização, o histórico é copiado para a pasta backup com o nome da versão (ex.: chronos-0.2.0.db). Restaurar troca o histórico atual pela cópia escolhida e reinicia o Chronos; o atual também fica guardado em backup.	Before each update, the history is copied to the backup folder with the version name (e.g. chronos-0.2.0.db). Restoring replaces the current history with the chosen copy and restarts Chronos; the current one is also kept in backup.
+Apontado	Logged
+Apontamentos	Worklogs
+Apontando...	Logging...
+Apontar	Log
+Após {0} de inatividade	After {0} of inactivity
+Arquivo do histórico	History file
+Atividade recente	Recent activity
+Ativo	Active
+Atualizar o Chronos	Update Chronos
+Avisos	Alerts
+Avisos de task	Task alerts
+Base histórica restaurada	History restored
+Buscar por chave ou título	Search by key or title
+Buscar task em todas as datas	Search tasks across all dates
+Cancelar	Cancel
+Categorias	Categories
+Categorias da validação	Validation categories
+Chaves separadas por vírgula, ex.: SCRUM	Keys separated by commas, e.g. SCRUM
+Chronos · 1 task contando	Chronos · 1 task running
+Chronos · nenhuma task contando	Chronos · no tasks running
+Chronos · {0} tasks contando	Chronos · {0} tasks running
+Clique no ícone da bandeja para abrir, ou com o botão direito para pausar ou sair.	Click the tray icon to open it, or right-click to pause or quit.
+Colunas	Columns
+Colunas do quadro	Board columns
+Colunas monitoradas	Tracked columns
+Colunas monitoradas ({0})	Tracked columns ({0})
+Colunas que contam tempo	Columns that track time
+Começar a contar sozinho quando a task entrar numa dessas colunas	Start tracking automatically when the task enters one of these columns
+Concluídas	Done
+Concluídas hoje	Done today
+Conectado	Connected
+Conectado como {0} · 1 task encontrada	Connected as {0} · 1 task found
+Conectado como {0} · {1} tasks encontradas	Connected as {0} · {1} tasks found
+Conectando...	Connecting...
+Conexão com o Jira	Jira connection
+Configurações	Settings
+Configurações salvas.	Settings saved.
+Consulta ao Jira interrompida	Jira request interrupted
+Consulta recusada	Query rejected
+Consultar o Jira a cada (segundos)	Check Jira every (seconds)
+Contando	Running
+Contando desde {0}	Running since {0}
+Contar também as colunas padrão (Em andamento, Em progresso, In Progress)	Also count the default columns (Em andamento, Em progresso, In Progress)
+Contar tempo nesta task	Track time on this task
+Copiando o histórico e baixando a versão {0}...	Copying the history and downloading version {0}...
+Credenciais inválidas	Invalid credentials
+Data	Date
+Data de validade:	Expiration date:
+Data de validade: {0} · {1}	Expiration date: {0} · {1}
+De {0}	Assigned to {0}
+Desfazer alterações	Undo changes
+Dia	Day
+Dia anterior	Previous day
+Dias	Days
+Disponível no Windows, abrindo o Chronos pelo executável instalado.	Available on Windows, when running Chronos from the installed executable.
+Disponível só no Windows.	Only available on Windows.
+Duração	Duration
+E-mail	Email
+Em andamento	In progress
+Endereço do Jira	Jira URL
+Escolha a task.	Choose the task.
+Ex.: Bug Cliente (separe vários por vírgula)	E.g. Customer Bug (separate several with commas)
+Ex.: Test (escreva como aparece no quadro do Jira)	E.g. Test (type it as it appears on the Jira board)
+Ex.: em-teste (separe várias por vírgula)	E.g. in-testing (separate several with commas)
+Ex.: quem testa vê tudo que está na coluna Test. As tasks de outras pessoas aparecem na lista, mas só contam tempo com o play.	E.g. testers see everything in the Test column. Other people's tasks show up in the list, but only track time with play.
+Ex.: testado (separe várias por vírgula)	E.g. tested (separate several with commas)
+Falha ao buscar no histórico	Failed to search the history
+Falha ao buscar no tempo manual	Failed to search manual time
+Falha ao gravar o apontamento de {0}	Failed to save the time log for {0}
+Falha ao gravar o histórico	Failed to save the history
+Falha ao gravar o intervalo de {0}	Failed to save the interval for {0}
+Falha ao gravar o período ocioso	Failed to save the idle period
+Falha ao gravar o tempo manual de {0}	Failed to save manual time for {0}
+Falha ao gravar os avisos de task	Failed to save task alerts
+Falha ao ler o histórico de {0}	Failed to read the history for {0}
+Falha ao ler o tempo das tasks	Failed to read task time
+Falha ao ler o tempo manual de {0}	Failed to read manual time for {0}
+Falha ao ler o tempo ocioso de {0}	Failed to read idle time for {0}
+Falha ao ler os avisos de task	Failed to read task alerts
+Falha ao ler os dias do histórico	Failed to read the history days
+Falha ao ler os totais do histórico	Failed to read the history totals
+Falha ao sincronizar com o Jira	Failed to sync with Jira
+Falhou: {0}	Failed: {0}
+Falta apontar	Left to log
+Falta apontar {0}	{0} left to log
+Fim	End
+Finalizar (mover para Concluído)	Finish (move to Done)
+Fora das colunas monitoradas: não aceita tempo	Outside the tracked columns: time can't be added
+Gerado em id.atlassian.com	Generated at id.atlassian.com
+Geral	All
+Geral ({0})	All ({0})
+Gravadas em {0}	Saved in {0}
+Histórico	History
+Histórico do Chronos (*.db)	Chronos history (*.db)
+Histórico e totais agora são do novo Jira	History and totals now come from the new Jira
+Hoje	Today
+INATIVO	INACTIVE
+Idioma	Language
+Inatividade detectada	Inactivity detected
+Inativo	Inactive
+Informe quanto tempo foi trabalhado.	Enter how much time was worked.
+Interrompido	Interrupted
+Início	Start
+JQL (opcional)	JQL (optional)
+Jira conectado	Jira connected
+Jira trocado	Jira switched
+Jira: {0}	Jira: {0}
+Ligada, as tasks do Jira fora dessas colunas ficam sem play e sem tempo manual. Desligada, qualquer task aceita tempo.	When on, Jira tasks outside these columns have no play and no manual time. When off, any task accepts time.
+Manual	Manual
+Modo escuro	Dark mode
+Mostrar mais	Show more
+Mostrar mais ({0})	Show more ({0})
+Mostrar todas as tasks dessas colunas, de qualquer responsável	Show all tasks in these columns, from any assignee
+Mova uma task para "Em andamento" no Jira ou dê play numa task da lista.	Move a task to "In progress" in Jira or press play on a task in the list.
+Nada gravado com esse texto.	Nothing recorded with that text.
+Nada por aqui ainda.	Nothing here yet.
+Nenhum tempo contado ainda.	No time tracked yet.
+Nenhum tempo contado neste dia.	No time tracked on this day.
+Nenhum tempo gravado em {0}	No time recorded on {0}
+Nenhuma task contando	No tasks running
+Nenhuma task contando tempo	No task is tracking time
+Nenhuma task nas colunas monitoradas agora.	No tasks in the tracked columns right now.
+Nenhuma task neste filtro.	No tasks match this filter.
+Nenhuma task sua no Jira ainda.	No tasks assigned to you in Jira yet.
+Nota	Note
+Nova task	New task
+Não configurado	Not configured
+Não deu para abrir a pasta backup: {0}	Couldn't open the backup folder: {0}
+Não deu para abrir o instalador: {0}. Ele está em {1}	Couldn't open the installer: {0}. It is at {1}
+Não deu para mudar a inicialização com o Windows: {0}	Couldn't change starting with Windows: {0}
+Não deu para mudar as tags de {0}	Couldn't change the tags of {0}
+Não deu para procurar: {0}	Couldn't check: {0}
+Não deu para restaurar: {0}	Couldn't restore: {0}
+Não dá para inserir tempo num dia que ainda não chegou.	You can't add time to a day that hasn't come yet.
+Não foi possível abrir o histórico em {0}: {1}	Couldn't open the history at {0}: {1}
+Não foi possível apontar: {0}	Couldn't log time: {0}
+Não foi possível conectar ao Jira: {0}	Couldn't connect to Jira: {0}
+Não foi possível copiar o histórico para {0}	Couldn't copy the history to {0}
+Não foi possível finalizar {0}: {1}	Couldn't finish {0}: {1}
+Não foi possível gravar {0}: {1}	Couldn't save {0}: {1}
+Não foi possível ler o arquivo .env:\n{0}	Couldn't read the .env file:\n{0}
+Não foi possível ler o histórico: {0}	Couldn't read the history: {0}
+O Chronos abre minimizado quando você entra no Windows.	Chronos opens minimized when you sign in to Windows.
+O Chronos continua rodando	Chronos is still running
+O GitHub respondeu HTTP {0} ao procurar atualização	GitHub responded HTTP {0} when checking for updates
+O Jira não está configurado	Jira is not configured
+O Jira recusou a consulta: {0}	Jira rejected the query: {0}
+O Jira recusou as credenciais (HTTP {0})	Jira rejected the credentials (HTTP {0})
+O Jira respondeu HTTP {0}: {1}	Jira responded HTTP {0}: {1}
+O Windows recusou a alteração (código {0}).	Windows rejected the change (code {0}).
+O comando do registro não respondeu.	The registry command didn't respond.
+O download do instalador falhou (HTTP {0})	The installer download failed (HTTP {0})
+O fluxo de {0} não tem como ir direto para um status concluído	The workflow of {0} can't go directly to a done status
+O histórico agora é a cópia {0}. O que estava em uso antes ficou guardado na pasta backup.	The history is now the copy {0}. The one in use before was kept in the backup folder.
+O histórico atual é copiado para a pasta backup, o instalador é baixado e o Chronos fecha para instalar. Atualizar agora?	The current history is copied to the backup folder, the installer is downloaded and Chronos closes to install. Update now?
+O histórico atual é guardado na pasta backup, a cópia escolhida passa a ser o histórico e o Chronos reinicia.	The current history is kept in the backup folder, the chosen copy becomes the history and Chronos restarts.
+O histórico não está sendo gravado	History is not being saved
+O novo arquivo do histórico vale ao reabrir o app.	The new history file takes effect when you reopen the app.
+O novo idioma aparece quando o Chronos reabre. Reiniciar agora?	The new language shows up when Chronos reopens. Restart now?
+O seu quadro precisa ter o campo "Controle de tempo" dentro das tarefas para o Chronos apontar as horas. No Jira, adicione o campo Controle de tempo (Time tracking) aos tipos de task do projeto.	Your board needs the "Time tracking" field on its issues for Chronos to log hours. In Jira, add the Time tracking field to the project's task types.
+O tempo manual soma com o tempo contado das tasks. O dia não pode passar de 8h.	Manual time adds up with the time tracked on tasks. A day can't go over 8h.
+Opcional: o que foi feito...	Optional: what was done...
+POSSIVELMENTE IDLE	POSSIBLY IDLE
+Painel	Dashboard
+Para conectar ao Jira, preencha endereço, e-mail, API token e projetos (ou uma JQL).	To connect to Jira, fill in the URL, email, API token and projects (or a JQL).
+Pausada	Paused
+Pausada por inatividade	Paused due to inactivity
+Pausar	Pause
+Pausar o tempo desta task	Pause time on this task
+Pausar por inatividade após (segundos)	Pause for inactivity after (seconds)
+Pausar todas	Pause all
+Possivelmente ausente	Possibly away
+Possivelmente ausente após (segundos)	Possibly away after (seconds)
+Preencha endereço, e-mail, token e projetos (ou JQL).	Fill in the URL, email, token and projects (or JQL).
+Procurando...	Checking...
+Procurar atualização	Check for updates
+Progresso do dia	Today's progress
+Projeto	Project
+Projetos	Projects
+Próxima	Next
+Próximo dia	Next day
+Página 1 de 1	Page 1 of 1
+Página {0} de {1} · {2} a {3} de {4}	Page {0} of {1} · {2} to {3} of {4}
+Quando o tempo de uma task começa, o Chronos põe as tags do play nela, no campo Labels do Jira. Quando a task sai das colunas monitoradas ou é finalizada, ele tira as do play e põe as de terminar. Espaços viram hífen. O campo Labels precisa estar nas tasks do projeto.	When a task's time starts, Chronos adds the play tags to it, in the Jira Labels field. When the task leaves the tracked columns or is finished, it removes the play tags and adds the finish ones. Spaces become hyphens. The Labels field must be on the project's tasks.
+Quando uma task desses tipos é criada nos projetos acima, de qualquer pessoa, o Chronos mostra uma notificação do Windows e deixa uma bolinha vermelha no ícone até você abrir a janela. Precisa dos projetos preenchidos (não vale só com JQL).	When a task of these types is created in the projects above, by anyone, Chronos shows a Windows notification and puts a red dot on the icon until you open the window. Requires the projects to be filled in (JQL alone doesn't work).
+Quando uma task sai da coluna em andamento, ela pausa e o tempo contado aparece aqui. "Apontar" lança esse tempo no controle de tempo da task no Jira.	When a task leaves the in-progress column, it pauses and the tracked time shows up here. "Log" adds that time to the task's time tracking in Jira.
+Reabra o Chronos para terminar.	Reopen Chronos to finish.
+Registros	Entries
+Resposta inválida do Jira	Invalid response from Jira
+Restaurar base histórica	Restore history
+Restaurar {0}?	Restore {0}?
+Resultados da busca	Search results
+Sair	Quit
+Salvar	Save
+Selecione uma task...	Select a task...
+Sem começar sozinho, o tempo só conta depois do play. Nos dois casos, a task pausa quando sai dessas colunas.	Without starting automatically, time only counts after play. Either way, the task pauses when it leaves these columns.
+Sem conexão	No connection
+Sem responsável	Unassigned
+Sincronização Jira	Jira sync
+Sincronização com Jira concluída	Jira sync completed
+Sistema	System
+Status da atividade	Activity status
+Substitui a busca padrão pelos projetos	Replaces the default search by projects
+Só aceitar tempo nas tasks que estão nessas colunas	Only accept time on tasks in these columns
+Tags ao dar play	Tags on play
+Tags ao terminar	Tags on finish
+Tags atualizadas	Tags updated
+Tarefas	Tasks
+Tarefas do projeto	Project tasks
+Task	Task
+Task atual	Current task
+Task finalizada	Task finished
+Task fora do Jira	Task outside Jira
+Task: {0}	Task: {0}
+Tasks nas colunas que contam tempo (configuradas na aba Colunas das Configurações).	Tasks in the columns that track time (set in the Columns tab of Settings).
+Tempo	Time
+Tempo apontado no Jira	Time logged in Jira
+Tempo ativo	Active time
+Tempo e inatividade	Time and inactivity
+Tempo iniciado	Timer started
+Tempo manual	Manual time
+Tempo manual adicionado	Manual time added
+Tempo manual inválido: com esta inserção o dia {0} teria {1}, acima do limite de {2}h. Já contado no dia: {3}.	Invalid manual time: with this entry, {0} would have {1}, over the {2}h limit. Already tracked that day: {3}.
+Tempo na task	Time on task
+Tempo ocioso	Idle time
+Tempo pausado	Timer paused
+Tempo pausado em todas as tasks	Timer paused on all tasks
+Tempo por task na busca	Time per task in search
+Tempo por task no dia	Time per task this day
+Tempo total	Total time
+Testando...	Testing...
+Testar conexão	Test connection
+Tipos de task que geram aviso	Task types that trigger alerts
+Todas	All
+Total	Total
+Veja em id.atlassian.com, na lista de API tokens	See id.atlassian.com, in the API tokens list
+Versão {0}	Version {0}
+Versão {0} disponível.	Version {0} available.
+Você	You
+Você já está na versão mais nova.	You're already on the latest version.
+Você voltou a estar ativo	You're active again
+agora	now
+chronos.db (vale ao reabrir o app)	chronos.db (takes effect when you reopen the app)
+dd/mm/aaaa	dd/mm/yyyy
+faltam {0} dias	{0} days left
+https://empresa.atlassian.net	https://company.atlassian.net
+há {0} h	{0} h ago
+há {0} min	{0} min ago
+manual	manual
+não configurado	not configured
+seu-email@empresa.com	your-email@company.com
+sincronizando...	syncing...
+tudo apontado	all logged
+vence amanhã	expires tomorrow
+vence hoje	expires today
+venceu há {0} dias	expired {0} days ago
+venceu ontem	expired yesterday
+você	you
+{0} com "{2}" em {1}	{0} with "{2}" across {1}
+{0} com "{2}" em {1} (mostrando os mais recentes)	{0} with "{2}" across {1} (showing the most recent)
+{0} deve ser maior que zero: {1}	{0} must be greater than zero: {1}
+{0} deve ser true ou false: {1}	{0} must be true or false: {1}
+{0} deve ser um número de segundos: {1}	{0} must be a number of seconds: {1}
+{0} dia	{0} day
+{0} dias	{0} days
+{0} em {1}	{0} on {1}
+{0} está fora das colunas monitoradas. Para contar tempo nela, desligue a trava na aba Colunas das Configurações.	{0} is outside the monitored columns. To track time on it, turn off the lock in the Columns tab of Settings.
+{0} já está apontada	{0} is already logged
+{0} minuto	{0} minute
+{0} minutos	{0} minutes
+{0} movida para {1}	{0} moved to {1}
+{0} registro	{0} entry
+{0} registros	{0} entries
+{0} task · {1} contando	{0} task · {1} running
+{0} task, {1} em andamento	{0} task, {1} in progress
+{0} tasks faltam apontar	{0} tasks left to log
+{0} tasks · {1} contando	{0} tasks · {1} running
+{0} tasks, {1} em andamento	{0} tasks, {1} in progress
+{0} · {1} · {2} de tempo ativo	{0} · {1} · {2} of active time
+{0} · {1} · {2} de tempo ativo + {3} manual	{0} · {1} · {2} of active time + {3} manual
+{0}. Gere um novo em id.atlassian.com e troque em Configurações.	{0}. Generate a new one at id.atlassian.com and replace it in Settings.
+{0}\n\nO app vai funcionar, mas o tempo não será gravado.	{0}\n\nThe app will work, but time won't be saved.
+Última atualização: {0}	Last update: {0}
+Última interação: {0}	Last interaction: {0}
+Última sync: {0}	Last sync: {0}
+✓ sincronizado	✓ synced
+✗ consulta recusada	✗ query rejected
+✗ credenciais inválidas	✗ invalid credentials
+✗ erro de conexão	✗ connection error

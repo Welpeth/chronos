@@ -14,6 +14,12 @@ Cada merge na `main` com uma versão nova gera uma release no GitHub (aba **Rele
 O Java vai junto, não precisa instalar nada. No app instalado, o `.env` e o histórico (`chronos.db`) ficam em
 `%APPDATA%\Chronos`; na primeira vez, preencha o Jira em **Configurações**. O caminho aparece no topo dessa página.
 
+Para atualizar pelo app: **Configurações > Sistema > Procurar atualização**. Se houver versão nova, o Chronos
+pergunta, copia o histórico atual para `%APPDATA%\Chronos\backup\chronos-<versão atual>.db`, baixa o instalador
+e fecha para instalar; o histórico em uso continua o mesmo. Se algo der errado, **Configurações > Histórico >
+Restaurar base histórica** deixa escolher uma cópia da pasta `backup`: ela vira o histórico atual (o que estava em
+uso também é guardado em `backup`) e o Chronos reinicia.
+
 O desenvolvimento acontece na branch `develop`; a `main` recebe o que vai virar release. Para lançar uma
 versão, suba o `<version>` do `pom.xml`, descreva as mudanças no `CHANGELOG.md` e leve a `develop` para a
 `main`: a release sai com o nome `v<versão>` e as notas dessa seção do changelog.
@@ -92,7 +98,14 @@ Conta tempo toda issue que está numa coluna que conta. As colunas padrão são 
 "Test", para quem testa). Com `JIRA_USE_DEFAULT_STATUSES=false`, só as digitadas contam. Com
 `CHRONOS_AUTO_START=false`, entrar numa dessas colunas não liga o tempo: ele só conta depois do play, e
 continua contando se a task passar para outra coluna que conta. As duas opções também ficam em
-Configurações e começam ligadas. Ao mudar de
+Configurações e começam ligadas. Com `JIRA_WATCH_WHOLE_COLUMNS=true` (desligada por padrão), a lista traz também
+as tasks dessas colunas de outros responsáveis ou sem responsável, como tudo que está em "Test" para quem testa;
+elas aparecem com o nome do responsável e só contam tempo pelo play. Com `CHRONOS_ONLY_WORKING_COLUMNS=true`
+(também desligada por padrão), as tasks do Jira fora dessas colunas ficam sem play e sem tempo manual. Na tela
+Tarefas, a aba "Colunas monitoradas" lista só as tasks que estão nessas colunas. Na aba Categorias
+(`CHRONOS_PLAY_LABELS` e `CHRONOS_DONE_LABELS`) ficam as tags da validação: quando o tempo de uma task começa, ela
+recebe as tags do play no campo Labels do Jira; quando sai dessas colunas ou é finalizada, troca as do play pelas
+de terminar. Ao mudar de
 coluna, por exemplo para "Em análise" ou "Concluído", a task pausa. Várias contam ao mesmo tempo: uma hora trabalhada com duas tasks em andamento soma uma hora em
 cada uma. O "tempo hoje" conta o relógio, então essa hora aparece como uma hora só.
 
