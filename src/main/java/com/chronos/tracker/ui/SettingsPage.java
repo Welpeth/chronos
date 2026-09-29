@@ -118,6 +118,19 @@ public final class SettingsPage {
         columns.add(onlyHint, 1, 7);
         VBox columnsCard = card("Colunas do quadro", columns);
 
+        GridPane categories = form();
+        row(categories, 0, "CHRONOS_PLAY_LABELS", "Tags ao dar play",
+                "Ex.: em-teste (separe várias por vírgula)", new TextField());
+        row(categories, 1, "CHRONOS_DONE_LABELS", "Tags ao terminar",
+                "Ex.: testado (separe várias por vírgula)", new TextField());
+        Label categoriesHint = new Label("Quando o tempo de uma task começa, o Chronos põe as tags do play nela, "
+                + "no campo Labels do Jira. Quando a task sai das colunas monitoradas ou é finalizada, ele tira as "
+                + "do play e põe as de terminar. Espaços viram hífen. O campo Labels precisa estar nas tasks do "
+                + "projeto.");
+        categoriesHint.getStyleClass().add("muted");
+        categoriesHint.setWrapText(true);
+        VBox categoriesCard = card("Categorias da validação", categories, categoriesHint);
+
         GridPane timing = form();
         row(timing, 0, "POLLING_INTERVAL_SECONDS", "Consultar o Jira a cada (segundos)", "5", new TextField());
         row(timing, 1, "POSSIBLY_IDLE_SECONDS", "Possivelmente ausente após (segundos)", "120", new TextField());
@@ -146,6 +159,7 @@ public final class SettingsPage {
         tabs.getTabs().addAll(
                 BrowserTabs.tab("Jira", jiraCard),
                 BrowserTabs.tab("Colunas", columnsCard),
+                BrowserTabs.tab("Categorias", categoriesCard),
                 BrowserTabs.tab("Tempo", timingCard),
                 BrowserTabs.tab("Avisos", alertsCard),
                 BrowserTabs.tab("Histórico", storageCard),

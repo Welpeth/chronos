@@ -73,6 +73,7 @@ public final class ChronosApp extends Application {
         engine.setWorkingStatuses(config.workingStatuses());
         engine.setAutoStart(config.autoStart());
         engine.setOnlyWorkingColumns(config.onlyWorkingColumns());
+        engine.setValidationLabels(config.playLabels(), config.doneLabels());
 
         controller = new AppController(engine, config, history, ENV_FILE);
 

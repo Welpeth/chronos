@@ -13,6 +13,9 @@ As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma vers
   tempo.
 - Opção "Só aceitar tempo nas tasks que estão nessas colunas" (aba Colunas, desligada por padrão): as tasks do
   Jira fora das colunas ficam sem play e sem tempo manual.
+- Tags da validação (aba Categorias): ao começar o tempo de uma task, o Chronos põe nela as tags do play (ex.:
+  em-teste) no campo Labels do Jira; quando ela sai das colunas monitoradas ou é finalizada, tira essas e põe
+  as de terminar (ex.: testado). Falhas aparecem em Atividade recente.
 
 ### Alterado
 - Configurações separadas em abas no topo (Jira, Colunas, Tempo, Avisos, Histórico, Sistema), no estilo das

@@ -165,6 +165,23 @@ class JiraClientTest {
         assertTrue(posted.get().contains("Apontado pelo Chronos"), posted.get());
     }
 
+    @Test
+    void updateLabelsAddsAndRemovesInOneEdit() throws Exception {
+        AtomicReference<String> method = new AtomicReference<>();
+        AtomicReference<String> sent = new AtomicReference<>();
+        server.createContext("/rest/api/3/issue/PROJ-1", exchange -> {
+            method.set(exchange.getRequestMethod());
+            sent.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            exchange.sendResponseHeaders(204, -1);
+            exchange.close();
+        });
+
+        new JiraClient(baseUrl, "e", "t").updateLabels("PROJ-1", List.of("testado"), List.of("em-teste"));
+
+        assertEquals("PUT", method.get());
+        assertEquals("{\"update\":{\"labels\":[{\"add\":\"testado\"},{\"remove\":\"em-teste\"}]}}", sent.get());
+    }
+
     private void serve(String path, int code, String body) {
         server.createContext(path, exchange -> {
             byte[] bytes = body.getBytes(StandardCharsets.UTF_8);

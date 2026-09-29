@@ -96,7 +96,10 @@ Configurações e começam ligadas. Com `JIRA_WATCH_WHOLE_COLUMNS=true` (desliga
 as tasks dessas colunas de outros responsáveis ou sem responsável, como tudo que está em "Test" para quem testa;
 elas aparecem com o nome do responsável e só contam tempo pelo play. Com `CHRONOS_ONLY_WORKING_COLUMNS=true`
 (também desligada por padrão), as tasks do Jira fora dessas colunas ficam sem play e sem tempo manual. Na tela
-Tarefas, a aba "Colunas monitoradas" lista só as tasks que estão nessas colunas. Ao mudar de
+Tarefas, a aba "Colunas monitoradas" lista só as tasks que estão nessas colunas. Na aba Categorias
+(`CHRONOS_PLAY_LABELS` e `CHRONOS_DONE_LABELS`) ficam as tags da validação: quando o tempo de uma task começa, ela
+recebe as tags do play no campo Labels do Jira; quando sai dessas colunas ou é finalizada, troca as do play pelas
+de terminar. Ao mudar de
 coluna, por exemplo para "Em análise" ou "Concluído", a task pausa. Várias contam ao mesmo tempo: uma hora trabalhada com duas tasks em andamento soma uma hora em
 cada uma. O "tempo hoje" conta o relógio, então essa hora aparece como uma hora só.
 
