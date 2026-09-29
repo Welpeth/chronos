@@ -4,6 +4,7 @@ import com.chronos.tracker.config.I18n;
 import com.chronos.tracker.tracking.HistoryStore;
 import com.chronos.tracker.tracking.Intervals;
 import com.chronos.tracker.tracking.ManualEntry;
+import com.chronos.tracker.tracking.Projects;
 import com.chronos.tracker.tracking.TaskView;
 import com.chronos.tracker.tracking.TimeEntry;
 import com.chronos.tracker.tracking.TrackingEngine.Snapshot;
@@ -63,6 +64,7 @@ public final class HistoryPage {
     private Set<LocalDate> daysWithEntries = Set.of();
     private Snapshot last;
     private boolean stale = true;
+    private String project = Projects.ALL;
 
     /** Uma linha da tabela: um intervalo contado ou uma inserção manual (sem início e fim). */
     private record Row(String key, String summary, LocalDate day, Instant start, Instant end, Duration duration,
@@ -141,6 +143,14 @@ public final class HistoryPage {
         return root;
     }
 
+    /** Mostra só o projeto do Jira escolhido; {@link Projects#ALL} mostra todos. */
+    public void setProject(String project) {
+        if (!this.project.equals(project)) {
+            this.project = project;
+            invalidate();
+        }
+    }
+
     public void render(Snapshot snapshot) {
         last = snapshot;
         if (isSearching()) {
@@ -180,8 +190,10 @@ public final class HistoryPage {
 
     private void showStoredDay(LocalDate day) {
         try {
-            List<HistoryStore.StoredEntry> stored = store.entriesOn(day);
-            List<ManualEntry> manual = store.manualOn(day);
+            List<HistoryStore.StoredEntry> stored = store.entriesOn(day).stream()
+                    .filter(s -> Projects.matches(s.entry().issueKey(), project)).toList();
+            List<ManualEntry> manual = store.manualOn(day).stream()
+                    .filter(m -> Projects.matches(m.issueKey(), project)).toList();
             List<Row> rows = new ArrayList<>();
             stored.forEach(s -> rows.add(Row.interval(s.entry(), s.summary(), false)));
             manual.forEach(m -> rows.add(Row.manual(m)));
@@ -211,8 +223,12 @@ public final class HistoryPage {
         String text = search.getText().strip();
         try {
             List<Row> rows = new ArrayList<>();
-            store.search(text, SEARCH_LIMIT).forEach(s -> rows.add(Row.interval(s.entry(), s.summary(), false)));
-            store.searchManual(text, SEARCH_LIMIT).forEach(m -> rows.add(Row.manual(m)));
+            store.search(text, SEARCH_LIMIT).stream()
+                    .filter(s -> Projects.matches(s.entry().issueKey(), project))
+                    .forEach(s -> rows.add(Row.interval(s.entry(), s.summary(), false)));
+            store.searchManual(text, SEARCH_LIMIT).stream()
+                    .filter(m -> Projects.matches(m.issueKey(), project))
+                    .forEach(m -> rows.add(Row.manual(m)));
             rows.sort(NEWEST_FIRST);
             clearError();
             long days = rows.stream().map(Row::day).distinct().count();

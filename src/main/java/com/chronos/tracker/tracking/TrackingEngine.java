@@ -740,5 +740,33 @@ public final class TrackingEngine {
         public long runningCount() {
             return tasks.stream().filter(TaskView::running).count();
         }
+
+        /** Projetos que aparecem nas tasks e nos registros de hoje. */
+        public List<String> projects() {
+            List<String> keys = new ArrayList<>();
+            tasks.forEach(task -> keys.add(task.key()));
+            history.forEach(entry -> keys.add(entry.issueKey()));
+            manualEntries.forEach(entry -> keys.add(entry.issueKey()));
+            return Projects.distinct(keys);
+        }
+
+        /**
+         * O mesmo estado visto só de um projeto: tasks, registros e totais de hoje só dele. O tempo ocioso é do PC
+         * e não muda. {@link Projects#ALL} devolve tudo.
+         */
+        public Snapshot forProject(String project) {
+            if (project == null || project.isEmpty()) {
+                return this;
+            }
+            List<TaskView> ownTasks = tasks.stream().filter(task -> Projects.matches(task.key(), project)).toList();
+            List<TimeEntry> ownHistory = history.stream()
+                    .filter(entry -> Projects.matches(entry.issueKey(), project)).toList();
+            List<ManualEntry> ownManual = manualEntries.stream()
+                    .filter(entry -> Projects.matches(entry.issueKey(), project)).toList();
+            return new Snapshot(activity, idleTime,
+                    featuredTask.filter(task -> Projects.matches(task.key(), project)).or(() -> featured(ownTasks)),
+                    ownTasks, pausedForInactivity, Intervals.union(ownHistory), inactiveToday, sum(ownManual),
+                    ownManual, jiraStatus, jiraError, lastSync, user, Optional.of(project), recentEvents, ownHistory);
+        }
     }
 }
