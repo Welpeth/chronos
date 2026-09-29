@@ -30,7 +30,8 @@ public record AppConfig(
         List<String> typedStatuses,
         boolean useDefaultStatuses,
         boolean autoStart,
-        boolean watchWholeColumns) {
+        boolean watchWholeColumns,
+        boolean onlyWorkingColumns) {
 
     public static final Duration DEFAULT_POLLING_INTERVAL = Duration.ofSeconds(5);
     public static final Duration DEFAULT_POSSIBLY_IDLE_AFTER = Duration.ofMinutes(2);
@@ -75,7 +76,8 @@ public record AppConfig(
                 typedStatuses,
                 useDefaultStatuses,
                 flag(nonBlank, "CHRONOS_AUTO_START", true),
-                flag(nonBlank, "JIRA_WATCH_WHOLE_COLUMNS", false));
+                flag(nonBlank, "JIRA_WATCH_WHOLE_COLUMNS", false),
+                flag(nonBlank, "CHRONOS_ONLY_WORKING_COLUMNS", false));
     }
 
     /**
@@ -148,6 +150,7 @@ public record AppConfig(
                 + ", workingStatuses=" + workingStatuses
                 + ", alertIssueTypes=" + alertIssueTypes
                 + ", autoStart=" + autoStart
-                + ", watchWholeColumns=" + watchWholeColumns + "]";
+                + ", watchWholeColumns=" + watchWholeColumns
+                + ", onlyWorkingColumns=" + onlyWorkingColumns + "]";
     }
 }

@@ -94,7 +94,9 @@ Conta tempo toda issue que está numa coluna que conta. As colunas padrão são 
 continua contando se a task passar para outra coluna que conta. As duas opções também ficam em
 Configurações e começam ligadas. Com `JIRA_WATCH_WHOLE_COLUMNS=true` (desligada por padrão), a lista traz também
 as tasks dessas colunas de outros responsáveis ou sem responsável, como tudo que está em "Test" para quem testa;
-elas aparecem com o nome do responsável e só contam tempo pelo play. Ao mudar de
+elas aparecem com o nome do responsável e só contam tempo pelo play. Com `CHRONOS_ONLY_WORKING_COLUMNS=true`
+(também desligada por padrão), as tasks do Jira fora dessas colunas ficam sem play e sem tempo manual. Na tela
+Tarefas, a aba "Colunas monitoradas" lista só as tasks que estão nessas colunas. Ao mudar de
 coluna, por exemplo para "Em análise" ou "Concluído", a task pausa. Várias contam ao mesmo tempo: uma hora trabalhada com duas tasks em andamento soma uma hora em
 cada uma. O "tempo hoje" conta o relógio, então essa hora aparece como uma hora só.
 

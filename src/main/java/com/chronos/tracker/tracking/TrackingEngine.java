@@ -76,6 +76,7 @@ public final class TrackingEngine {
     private volatile Predicate<JiraIssue> working = JiraIssue::isInProgress;
     /** Se o tempo começa sozinho quando a task entra numa coluna que conta; senão, só pelo play. */
     private volatile boolean autoStart = true;
+    private volatile boolean onlyWorkingColumns;
     private long seenIssuesVersion;
     private boolean inactivityPause;
     private Instant inactiveSince;
@@ -194,10 +195,13 @@ public final class TrackingEngine {
         }
     }
 
-    /** Liga o tempo de {@code issueKey} na hora, sem mexer nas outras tasks. */
+    /**
+     * Liga o tempo de {@code issueKey} na hora, sem mexer nas outras tasks. Não faz nada se a task está fora
+     * das colunas monitoradas e o tempo está travado nelas.
+     */
     public synchronized void play(String issueKey) {
         String key = normalize(issueKey);
-        if (key.isEmpty()) {
+        if (key.isEmpty() || isTimeLocked(key)) {
             return;
         }
         overrides.put(key, true);
@@ -230,6 +234,10 @@ public final class TrackingEngine {
         LocalDate today = LocalDate.ofInstant(now, zone);
         if (key.isEmpty()) {
             throw new InvalidManualEntryException("Escolha a task.");
+        }
+        if (isTimeLocked(key)) {
+            throw new InvalidManualEntryException(key + " está fora das colunas monitoradas. Para contar tempo "
+                    + "nela, desligue a trava na aba Colunas das Configurações.");
         }
         if (duration == null || duration.isZero() || duration.isNegative()) {
             throw new InvalidManualEntryException("Informe quanto tempo foi trabalhado.");
@@ -403,6 +411,20 @@ public final class TrackingEngine {
     }
 
     /**
+     * Com {@code true}, tasks do Jira fora das colunas monitoradas não aceitam tempo: nem play nem inserção
+     * manual. Tasks digitadas à mão, que não vêm do Jira, continuam livres.
+     */
+    public synchronized void setOnlyWorkingColumns(boolean enabled) {
+        onlyWorkingColumns = enabled;
+    }
+
+    private boolean isTimeLocked(String key) {
+        return onlyWorkingColumns && issues.stream()
+                .filter(issue -> issue.key().equals(key))
+                .anyMatch(issue -> !working.test(issue));
+    }
+
+    /**
      * Quando uma issue muda de coluna no Jira (ou some da busca), o play/pause manual dela deixa de valer:
      * saiu de "em andamento", pausa; entrou, começa a contar. Sem o início automático, uma task ligada no
      * play continua contando enquanto passa de uma coluna que conta para outra.
@@ -498,13 +520,14 @@ public final class TrackingEngine {
         List<TaskView> tasks = new ArrayList<>();
         Set<String> listed = new LinkedHashSet<>();
         for (JiraIssue issue : currentIssues) {
+            boolean inColumn = working.test(issue);
             tasks.add(view(issue.key(), issue.summary(), issue.statusName(), issue.category(), issue.assignee(),
-                    issue.mine()));
+                    issue.mine(), inColumn, inColumn || !onlyWorkingColumns));
             listed.add(issue.key());
         }
         // Tasks que contaram tempo mas não vêm mais do Jira (digitadas à mão ou fora da busca).
         tracker.trackedKeys().stream().filter(key -> !listed.contains(key)).sorted().forEach(key ->
-                tasks.add(view(key, "", "", StatusCategory.IN_PROGRESS, "", true)));
+                tasks.add(view(key, "", "", StatusCategory.IN_PROGRESS, "", true, false, true)));
 
         return new Snapshot(
                 activity,
@@ -526,9 +549,9 @@ public final class TrackingEngine {
     }
 
     private TaskView view(String key, String summary, String statusName, StatusCategory category, String assignee,
-                          boolean mine) {
+                          boolean mine, boolean inWorkingColumn, boolean timeAllowed) {
         return new TaskView(key, summary, statusName, category, tracker.totalFor(key), tracker.isRunning(key),
-                overrides.containsKey(key), tracker.runningSince(key), assignee, mine);
+                overrides.containsKey(key), tracker.runningSince(key), assignee, mine, inWorkingColumn, timeAllowed);
     }
 
     /**
