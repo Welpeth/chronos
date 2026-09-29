@@ -5,6 +5,7 @@ import com.chronos.tracker.config.I18n;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -61,6 +62,19 @@ public interface JiraService {
     /** Põe e tira labels da issue (as tags da validação). */
     default void updateLabels(String issueKey, List<String> add, List<String> remove) throws JiraException {
         throw new JiraException(I18n.t("O Jira não está configurado"));
+    }
+
+    /** Se o .env separa as tasks por quadro ({@code JIRA_BOARDS}). */
+    default boolean usesBoards() {
+        return false;
+    }
+
+    /**
+     * Quadro de cada issue, pelo nome do quadro no Jira. Issues fora de todos os quadros configurados não entram;
+     * uma issue em mais de um quadro fica com o primeiro da lista.
+     */
+    default Map<String, String> fetchBoards(List<String> issueKeys) throws JiraException {
+        return Map.of();
     }
 
     /** Chave e nome dos projetos configurados, por exemplo "SCRUM · Minha equipe de software". */

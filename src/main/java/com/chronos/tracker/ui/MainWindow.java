@@ -62,6 +62,8 @@ public final class MainWindow {
         this.history = new HistoryPage(store);
         this.worklog = new WorklogPage(worklogHandler);
         this.settings = new SettingsPage(settingsHandler);
+        history.setGrouping(this::groupOf);
+        worklog.setGrouping(this::groupOf);
         history.setProject(project);
         worklog.setProject(project);
         root.getStyleClass().add("app");
@@ -94,13 +96,16 @@ public final class MainWindow {
 
     /** Atualiza as opções do seletor de projetos quando aparece ou some um projeto. */
     private void updateProjects(List<String> projects) {
+        if (!project.isEmpty() && !projects.isEmpty() && !projects.contains(project)) {
+            // O escolhido não existe mais (outro quadro, outro Jira): volta a mostrar tudo.
+            project = Projects.ALL;
+            saveProject(project);
+            history.setProject(project);
+            worklog.setProject(project);
+        }
         List<String> options = new ArrayList<>();
         options.add(Projects.ALL);
         options.addAll(projects);
-        if (!project.isEmpty() && !options.contains(project)) {
-            // O projeto escolhido continua na lista mesmo sem task hoje, para o histórico dele.
-            options.add(project);
-        }
         if (!projectPicker.getItems().equals(options)) {
             // Trocar as opções mexe no valor; isso não é o usuário escolhendo.
             updatingProjects = true;
@@ -111,6 +116,11 @@ public final class MainWindow {
         boolean several = options.size() > 2;
         projectPicker.setVisible(several);
         projectPicker.setManaged(several);
+    }
+
+    private String groupOf(String issueKey) {
+        Snapshot snapshot = last;
+        return snapshot == null ? Projects.of(issueKey) : snapshot.groupOf(issueKey);
     }
 
     private void selectProject(String selected) {
@@ -207,7 +217,11 @@ public final class MainWindow {
         projectPicker.setConverter(new StringConverter<>() {
             @Override
             public String toString(String value) {
-                return value == null || value.isEmpty() ? I18n.t("Todos os projetos") : I18n.t("Projeto {0}", value);
+                if (value == null || value.isEmpty()) {
+                    return last != null && last.byBoard() ? I18n.t("Todos os quadros") : I18n.t("Todos os projetos");
+                }
+                // Com quadros, o nome do quadro já diz o que é (ex.: "Quadro RP").
+                return last != null && last.byBoard() ? value : I18n.t("Projeto {0}", value);
             }
 
             @Override

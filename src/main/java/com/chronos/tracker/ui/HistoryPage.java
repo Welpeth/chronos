@@ -65,6 +65,8 @@ public final class HistoryPage {
     private Snapshot last;
     private boolean stale = true;
     private String project = Projects.ALL;
+    /** Grupo de cada task no seletor do topo (quadro ou projeto). */
+    private java.util.function.Function<String, String> groupOf = Projects::of;
 
     /** Uma linha da tabela: um intervalo contado ou uma inserção manual (sem início e fim). */
     private record Row(String key, String summary, LocalDate day, Instant start, Instant end, Duration duration,
@@ -143,7 +145,16 @@ public final class HistoryPage {
         return root;
     }
 
-    /** Mostra só o projeto do Jira escolhido; {@link Projects#ALL} mostra todos. */
+    /** Como saber o grupo (quadro ou projeto) de uma task. */
+    public void setGrouping(java.util.function.Function<String, String> groupOf) {
+        this.groupOf = groupOf;
+    }
+
+    private boolean inProject(String issueKey) {
+        return project.isEmpty() || groupOf.apply(issueKey).equalsIgnoreCase(project);
+    }
+
+    /** Mostra só o quadro ou projeto escolhido; {@link Projects#ALL} mostra todos. */
     public void setProject(String project) {
         if (!this.project.equals(project)) {
             this.project = project;
@@ -191,9 +202,9 @@ public final class HistoryPage {
     private void showStoredDay(LocalDate day) {
         try {
             List<HistoryStore.StoredEntry> stored = store.entriesOn(day).stream()
-                    .filter(s -> Projects.matches(s.entry().issueKey(), project)).toList();
+                    .filter(s -> inProject(s.entry().issueKey())).toList();
             List<ManualEntry> manual = store.manualOn(day).stream()
-                    .filter(m -> Projects.matches(m.issueKey(), project)).toList();
+                    .filter(m -> inProject(m.issueKey())).toList();
             List<Row> rows = new ArrayList<>();
             stored.forEach(s -> rows.add(Row.interval(s.entry(), s.summary(), false)));
             manual.forEach(m -> rows.add(Row.manual(m)));
@@ -224,10 +235,10 @@ public final class HistoryPage {
         try {
             List<Row> rows = new ArrayList<>();
             store.search(text, SEARCH_LIMIT).stream()
-                    .filter(s -> Projects.matches(s.entry().issueKey(), project))
+                    .filter(s -> inProject(s.entry().issueKey()))
                     .forEach(s -> rows.add(Row.interval(s.entry(), s.summary(), false)));
             store.searchManual(text, SEARCH_LIMIT).stream()
-                    .filter(m -> Projects.matches(m.issueKey(), project))
+                    .filter(m -> inProject(m.issueKey()))
                     .forEach(m -> rows.add(Row.manual(m)));
             rows.sort(NEWEST_FIRST);
             clearError();

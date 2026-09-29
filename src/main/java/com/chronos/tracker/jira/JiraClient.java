@@ -74,6 +74,24 @@ public final class JiraClient {
         return readTree(send(request(path).GET().build())).path("name").asText(projectKey);
     }
 
+    /** Nome do quadro (board) com o id informado, o número no fim do endereço do quadro. */
+    public String boardName(String boardId) throws JiraException {
+        String path = "/rest/agile/1.0/board/" + URLEncoder.encode(boardId, StandardCharsets.UTF_8);
+        return readTree(send(request(path).GET().build())).path("name").asText(boardId);
+    }
+
+    /** Chaves das issues do quadro que também atendem ao JQL (o filtro do quadro vale junto). */
+    public List<String> boardIssueKeys(String boardId, String jql, int maxResults) throws JiraException {
+        String path = "/rest/agile/1.0/board/" + URLEncoder.encode(boardId, StandardCharsets.UTF_8)
+                + "/issue?fields=summary&maxResults=" + maxResults
+                + "&jql=" + URLEncoder.encode(jql, StandardCharsets.UTF_8);
+        JsonNode issues = readTree(send(request(path).GET().build())).path("issues");
+        return StreamSupport.stream(issues.spliterator(), false)
+                .map(issue -> issue.path("key").asText(""))
+                .filter(key -> !key.isEmpty())
+                .toList();
+    }
+
     /**
      * Move a issue para o primeiro status da categoria "Concluído" que o fluxo dela permite, e devolve o nome
      * desse status.

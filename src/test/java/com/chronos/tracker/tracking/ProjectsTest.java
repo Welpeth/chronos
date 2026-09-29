@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -48,7 +49,7 @@ class ProjectsTest {
         Snapshot all = new Snapshot(ActivityState.ACTIVE, Duration.ZERO, Optional.of(scrum), List.of(scrum, ops),
                 false, Duration.ofMinutes(50), Duration.ofMinutes(5), Duration.ofMinutes(15), List.of(opsManual),
                 JiraSyncStatus.SYNCED, Optional.empty(), Optional.empty(), Optional.empty(), Optional.of("SCRUM, OPS"),
-                List.of(), List.of(opsTime, scrumTime));
+                List.of(), List.of(opsTime, scrumTime), Map.of(), false);
 
         assertEquals(List.of("OPS", "SCRUM"), all.projects());
         assertSame(all, all.forProject(Projects.ALL));
@@ -67,6 +68,26 @@ class ProjectsTest {
         assertEquals(Duration.ofMinutes(30), onlyScrum.activeToday());
         assertEquals(Duration.ZERO, onlyScrum.manualToday());
         assertEquals(Optional.of(scrum), onlyScrum.featuredTask());
+    }
+
+    @Test
+    void withBoardsTheGroupIsTheBoardNotTheProject() {
+        TaskView front = task("RP-1", true);
+        TaskView support = task("RP-2", false);
+        TaskView loose = task("RP-3", false);
+        Snapshot all = new Snapshot(ActivityState.ACTIVE, Duration.ZERO, Optional.of(front),
+                List.of(front, support, loose), false, Duration.ZERO, Duration.ZERO, Duration.ZERO, List.of(),
+                JiraSyncStatus.SYNCED, Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(),
+                List.of(), List.of(entry("RP-2", 0, 10)), Map.of("RP-1", "Quadro RP", "RP-2", "Suporte RP"), true);
+
+        assertEquals(List.of("Quadro RP", "Suporte RP"), all.projects());
+        assertEquals("", all.groupOf("RP-3"));
+
+        Snapshot onlySupport = all.forProject("Suporte RP");
+        assertEquals(List.of(support), onlySupport.tasks());
+        assertEquals(Duration.ofMinutes(10), onlySupport.activeToday());
+        assertEquals(Optional.of(support), onlySupport.featuredTask());
+        assertEquals(List.of(front), all.forProject("Quadro RP").tasks());
     }
 
     private static TaskView task(String key, boolean running) {

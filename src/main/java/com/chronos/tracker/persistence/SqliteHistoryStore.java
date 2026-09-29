@@ -33,7 +33,7 @@ import java.util.Set;
  */
 public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
 
-    private static final int SCHEMA_VERSION = 5;
+    private static final int SCHEMA_VERSION = 6;
 
     private final Connection connection;
     private final ZoneId zone;
@@ -138,6 +138,16 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
                 statement.executeUpdate("DROP TABLE alerted_issue");
                 statement.executeUpdate("ALTER TABLE alerted_issue_v5 RENAME TO alerted_issue");
                 statement.executeUpdate("CREATE INDEX IF NOT EXISTS time_entry_site ON time_entry (jira_site, issue_key)");
+            }
+            if (version < 6) {
+                // Quadro do Jira de cada task, para separar na tela os quadros do mesmo projeto.
+                statement.executeUpdate("""
+                        CREATE TABLE IF NOT EXISTS issue_board (
+                            jira_site  TEXT NOT NULL DEFAULT '',
+                            issue_key  TEXT NOT NULL,
+                            board      TEXT NOT NULL,
+                            PRIMARY KEY (jira_site, issue_key)
+                        )""");
             }
             statement.executeUpdate("PRAGMA user_version = " + SCHEMA_VERSION);
         }
@@ -261,6 +271,39 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
             statement.executeUpdate();
         } catch (SQLException e) {
             throw new HistoryException(I18n.t("Falha ao gravar o apontamento de {0}", issueKey), e);
+        }
+    }
+
+    @Override
+    public synchronized Map<String, String> issueBoards() throws HistoryException {
+        Map<String, String> boards = new HashMap<>();
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT issue_key, board FROM issue_board WHERE jira_site = ?")) {
+            statement.setString(1, site);
+            ResultSet rs = statement.executeQuery();
+            while (rs.next()) {
+                boards.put(rs.getString(1), rs.getString(2));
+            }
+        } catch (SQLException e) {
+            throw new HistoryException(I18n.t("Falha ao ler os quadros das tasks"), e);
+        }
+        return boards;
+    }
+
+    @Override
+    public synchronized void saveIssueBoards(Map<String, String> boards) throws HistoryException {
+        String sql = "INSERT INTO issue_board (jira_site, issue_key, board) VALUES (?, ?, ?) "
+                + "ON CONFLICT (jira_site, issue_key) DO UPDATE SET board = excluded.board";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            for (Map.Entry<String, String> entry : boards.entrySet()) {
+                statement.setString(1, site);
+                statement.setString(2, entry.getKey());
+                statement.setString(3, entry.getValue());
+                statement.addBatch();
+            }
+            statement.executeBatch();
+        } catch (SQLException e) {
+            throw new HistoryException(I18n.t("Falha ao gravar os quadros das tasks"), e);
         }
     }
 

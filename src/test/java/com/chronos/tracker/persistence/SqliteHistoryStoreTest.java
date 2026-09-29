@@ -43,6 +43,20 @@ class SqliteHistoryStoreTest {
     }
 
     @Test
+    void boardOfEachTaskIsKeptPerJiraAndUpdated() throws Exception {
+        Path file = dir.resolve("chronos.db");
+        try (SqliteHistoryStore store = new SqliteHistoryStore(file, ZoneOffset.UTC)) {
+            store.saveIssueBoards(Map.of("RP-1", "Quadro RP", "RP-2", "Quadro RP"));
+            store.saveIssueBoards(Map.of("RP-2", "Suporte RP"));
+            store.useSite("https://outro.atlassian.net");
+            assertEquals(Map.of(), store.issueBoards());
+        }
+        try (SqliteHistoryStore store = new SqliteHistoryStore(file, ZoneOffset.UTC)) {
+            assertEquals(Map.of("RP-1", "Quadro RP", "RP-2", "Suporte RP"), store.issueBoards());
+        }
+    }
+
+    @Test
     void backupIsAWorkingCopyOfTheHistory() throws Exception {
         Path backup = dir.resolve("backup/chronos-0.2.0.db");
         java.nio.file.Files.createDirectories(backup.getParent());
