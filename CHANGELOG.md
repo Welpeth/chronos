@@ -5,32 +5,34 @@ As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma vers
 
 ## [Não lançado]
 
+## [0.3.0] - 2026-09-29
+
 ### Adicionado
 - Opção "Mostrar todas as tasks dessas colunas, de qualquer responsável" (aba Colunas): a lista traz também as
   tasks das colunas que contam tempo que estão com outra pessoa ou sem responsável, por exemplo tudo em "Test"
-  para quem testa. Elas mostram o responsável e só contam tempo pelo play.
+  para quem testa. Elas mostram o responsável e só contam tempo pelo play. (#29)
 - Tela Tarefas em abas: "Geral", com todas, e "Colunas monitoradas", só com as que estão nas colunas que contam
-  tempo.
+  tempo. (#30)
 - Opção "Só aceitar tempo nas tasks que estão nessas colunas" (aba Colunas, desligada por padrão): as tasks do
-  Jira fora das colunas ficam sem play e sem tempo manual.
+  Jira fora das colunas ficam sem play e sem tempo manual. (#30)
 - Tags da validação (aba Categorias): ao começar o tempo de uma task, o Chronos põe nela as tags do play (ex.:
   em-teste) no campo Labels do Jira; quando ela sai das colunas monitoradas ou é finalizada, tira essas e põe
-  as de terminar (ex.: testado). Falhas aparecem em Atividade recente.
-- Modo escuro (Configurações > Sistema), aplicado na hora ao salvar.
+  as de terminar (ex.: testado). Falhas aparecem em Atividade recente. (#31)
+- Modo escuro (Configurações > Sistema), aplicado na hora ao salvar. (#32)
 - Atualizar pelo app (Configurações > Sistema > Procurar atualização): procura a última release no GitHub,
-  pergunta, copia o histórico para `backup/chronos-<versão>.db`, baixa o instalador e fecha para instalar.
+  pergunta, copia o histórico para `backup/chronos-<versão>.db`, baixa o instalador e fecha para instalar. (#33)
 - Restaurar base histórica (Configurações > Histórico): escolhe uma cópia da pasta `backup`, que vira o
-  histórico atual, e o Chronos reinicia. O histórico que estava em uso também fica guardado em `backup`.
-- Idioma da interface (Configurações > Sistema): português, inglês ou espanhol. Troca ao reiniciar.
+  histórico atual, e o Chronos reinicia. O histórico que estava em uso também fica guardado em `backup`. (#33)
+- Idioma da interface (Configurações > Sistema): português, inglês ou espanhol. Troca ao reiniciar. (#34)
 
 ### Alterado
 - Configurações separadas em abas no topo (Jira, Colunas, Tempo, Avisos, Histórico, Sistema), no estilo das
-  abas do navegador, sem fechar. O botão Salvar grava todas as abas.
+  abas do navegador, sem fechar. O botão Salvar grava todas as abas. (#28)
 
 ### Corrigido
 - Tempo em dobro no apontamento (2 min contados em 1 min de trabalho): abrir o Chronos de novo com ele na
   bandeja criava um segundo app contando as mesmas tasks no mesmo histórico. Agora só um Chronos roda; abrir
-  outra vez mostra a janela do que já está aberto.
+  outra vez mostra a janela do que já está aberto. (#27)
 
 ## [0.2.0] - 2026-09-28
 
@@ -69,5 +71,6 @@ Primeira versão instalável.
 - O histórico de um Jira antigo aparecia depois de trocar o Jira nas configurações. (#19)
 - O aviso de "controle de tempo" aparecia em projetos gerenciados pela equipe que tinham o campo. (#19)
 
+[0.3.0]: https://github.com/Welpeth/chronos/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Welpeth/chronos/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/Welpeth/chronos/releases/tag/v0.1.2
