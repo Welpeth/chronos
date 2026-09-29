@@ -34,6 +34,8 @@ public final class Icons {
             + "l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58z"
             + "M12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z";
     public static final String PLUS = "M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z";
+    /** Balão de comentário. */
+    public static final String COMMENT = "M2 3h20v15H9l-5 4v-4H2zM4 5v11h2v1.8L8.3 16H20V5z";
 
     private Icons() {
     }

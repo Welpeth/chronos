@@ -3,6 +3,7 @@ package com.chronos.tracker.persistence;
 import com.chronos.tracker.config.I18n;
 import com.chronos.tracker.tracking.HistoryStore;
 import com.chronos.tracker.tracking.ManualEntry;
+import com.chronos.tracker.tracking.TaskComment;
 import com.chronos.tracker.tracking.TimeEntry;
 
 import java.nio.file.Files;
@@ -33,7 +34,7 @@ import java.util.Set;
  */
 public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
 
-    private static final int SCHEMA_VERSION = 6;
+    private static final int SCHEMA_VERSION = 7;
 
     private final Connection connection;
     private final ZoneId zone;
@@ -146,6 +147,20 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
                             jira_site  TEXT NOT NULL DEFAULT '',
                             issue_key  TEXT NOT NULL,
                             board      TEXT NOT NULL,
+                            PRIMARY KEY (jira_site, issue_key)
+                        )""");
+            }
+            if (version < 7) {
+                // Comentário que o Chronos fez em cada task (o template ou o escrito pela pessoa).
+                statement.executeUpdate("""
+                        CREATE TABLE IF NOT EXISTS task_comment (
+                            jira_site   TEXT    NOT NULL DEFAULT '',
+                            issue_key   TEXT    NOT NULL,
+                            summary     TEXT    NOT NULL DEFAULT '',
+                            comment_id  TEXT    NOT NULL DEFAULT '',
+                            body        TEXT    NOT NULL,
+                            kind        TEXT    NOT NULL,
+                            updated_at  INTEGER NOT NULL,
                             PRIMARY KEY (jira_site, issue_key)
                         )""");
             }
@@ -271,6 +286,45 @@ public final class SqliteHistoryStore implements HistoryStore, AutoCloseable {
             statement.executeUpdate();
         } catch (SQLException e) {
             throw new HistoryException(I18n.t("Falha ao gravar o apontamento de {0}", issueKey), e);
+        }
+    }
+
+    @Override
+    public synchronized List<TaskComment> comments() throws HistoryException {
+        List<TaskComment> comments = new ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT issue_key, summary, comment_id, body, kind, updated_at FROM task_comment "
+                        + "WHERE jira_site = ? ORDER BY updated_at DESC")) {
+            statement.setString(1, site);
+            ResultSet rs = statement.executeQuery();
+            while (rs.next()) {
+                comments.add(new TaskComment(rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4),
+                        TaskComment.Kind.fromCode(rs.getString(5)), Instant.ofEpochMilli(rs.getLong(6))));
+            }
+        } catch (SQLException e) {
+            throw new HistoryException(I18n.t("Falha ao ler os comentários"), e);
+        }
+        return comments;
+    }
+
+    @Override
+    public synchronized void saveComment(TaskComment comment) throws HistoryException {
+        String sql = "INSERT INTO task_comment (jira_site, issue_key, summary, comment_id, body, kind, updated_at) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (jira_site, issue_key) DO UPDATE SET "
+                + "summary = CASE WHEN excluded.summary <> '' THEN excluded.summary ELSE summary END, "
+                + "comment_id = excluded.comment_id, body = excluded.body, kind = excluded.kind, "
+                + "updated_at = excluded.updated_at";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, site);
+            statement.setString(2, comment.issueKey());
+            statement.setString(3, comment.summary() == null ? "" : comment.summary());
+            statement.setString(4, comment.commentId() == null ? "" : comment.commentId());
+            statement.setString(5, comment.body());
+            statement.setString(6, comment.kind().code());
+            statement.setLong(7, comment.updatedAt().toEpochMilli());
+            statement.executeUpdate();
+        } catch (SQLException e) {
+            throw new HistoryException(I18n.t("Falha ao gravar o comentário de {0}", comment.issueKey()), e);
         }
     }
 

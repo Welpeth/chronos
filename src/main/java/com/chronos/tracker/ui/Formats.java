@@ -50,6 +50,12 @@ public final class Formats {
         return SHORT_DATE.format(date);
     }
 
+    /** {@code 25/09/2026 14:32}, no fuso do computador. */
+    public static String dateTime(Instant instant) {
+        LocalDate day = LocalDate.ofInstant(instant, java.time.ZoneId.systemDefault());
+        return shortDate(day) + " " + clock(instant);
+    }
+
     /** {@code agora}, {@code há 1 min}, {@code há 2 h}. */
     public static String ago(Duration duration) {
         long minutes = duration.toMinutes();

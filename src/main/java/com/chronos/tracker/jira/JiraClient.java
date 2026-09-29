@@ -139,6 +139,30 @@ public final class JiraClient {
         return readTree(response).path("id").asText("");
     }
 
+    /** Adiciona um comentário (texto em Markdown) na issue e devolve o id dele no Jira. */
+    public String addComment(String issueKey, String markdown) throws JiraException {
+        String path = "/rest/api/3/issue/" + URLEncoder.encode(issueKey, StandardCharsets.UTF_8) + "/comment";
+        ObjectNode body = mapper.createObjectNode();
+        body.set("body", Adf.fromMarkdown(markdown));
+        String response = send(request(path)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body.toString(), StandardCharsets.UTF_8))
+                .build());
+        return readTree(response).path("id").asText("");
+    }
+
+    /** Troca o texto de um comentário que já está na issue. */
+    public void updateComment(String issueKey, String commentId, String markdown) throws JiraException {
+        String path = "/rest/api/3/issue/" + URLEncoder.encode(issueKey, StandardCharsets.UTF_8) + "/comment/"
+                + URLEncoder.encode(commentId, StandardCharsets.UTF_8);
+        ObjectNode body = mapper.createObjectNode();
+        body.set("body", Adf.fromMarkdown(markdown));
+        send(request(path)
+                .header("Content-Type", "application/json")
+                .PUT(HttpRequest.BodyPublishers.ofString(body.toString(), StandardCharsets.UTF_8))
+                .build());
+    }
+
     /**
      * Põe e tira labels da issue numa chamada só. O campo "Labels" precisa estar na tela de edição da issue.
      */

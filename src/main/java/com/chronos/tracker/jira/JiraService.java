@@ -64,6 +64,16 @@ public interface JiraService {
         throw new JiraException(I18n.t("O Jira não está configurado"));
     }
 
+    /** Adiciona um comentário (Markdown) na issue e devolve o id dele. */
+    default String addComment(String issueKey, String markdown) throws JiraException {
+        throw new JiraException(I18n.t("O Jira não está configurado"));
+    }
+
+    /** Troca o texto de um comentário já feito. */
+    default void updateComment(String issueKey, String commentId, String markdown) throws JiraException {
+        throw new JiraException(I18n.t("O Jira não está configurado"));
+    }
+
     /** Se o .env separa as tasks por quadro ({@code JIRA_BOARDS}). */
     default boolean usesBoards() {
         return false;

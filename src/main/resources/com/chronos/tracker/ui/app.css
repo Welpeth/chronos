@@ -866,3 +866,17 @@
     -fx-min-width: 180;
     -fx-font-size: 13px;
 }
+
+/* Editor do comentário e do template (Markdown). */
+.text-area.comment-editor {
+    -fx-font-family: "Consolas", "Monospaced";
+    -fx-font-size: 13px;
+    -fx-background-color: -c-input-line, -c-surface;
+    -fx-background-insets: 0, 1;
+    -fx-background-radius: 8, 7;
+}
+
+.text-area.comment-editor .content {
+    -fx-background-color: -c-surface;
+    -fx-background-radius: 7;
+}

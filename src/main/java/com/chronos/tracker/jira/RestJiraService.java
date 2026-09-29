@@ -119,6 +119,16 @@ public final class RestJiraService implements JiraService {
     }
 
     @Override
+    public String addComment(String issueKey, String markdown) throws JiraException {
+        return client.addComment(issueKey, markdown);
+    }
+
+    @Override
+    public void updateComment(String issueKey, String commentId, String markdown) throws JiraException {
+        client.updateComment(issueKey, commentId, markdown);
+    }
+
+    @Override
     public boolean usesBoards() {
         return !boardIds.isEmpty();
     }

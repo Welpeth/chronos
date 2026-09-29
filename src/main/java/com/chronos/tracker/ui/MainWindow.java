@@ -32,13 +32,16 @@ import java.util.prefs.Preferences;
 /** Janela principal: barra superior, menu lateral e a página atual. */
 public final class MainWindow {
 
-    private enum Page { DASHBOARD, TASKS, HISTORY, WORKLOG, SETTINGS }
+    private enum Page { DASHBOARD, TASKS, HISTORY, WORKLOG, COMMENTS, SETTINGS }
 
     private final BorderPane root = new BorderPane();
     private final DashboardPage dashboard;
     private final TasksPage tasks;
     private final HistoryPage history;
     private final WorklogPage worklog;
+    private final CommentsPage comments;
+    private final Label commentsNavLabel = new Label();
+    private boolean commentsEnabled;
     private final SettingsPage settings;
     private final Map<Page, HBox> navItems = new EnumMap<>(Page.class);
     private Page page = Page.DASHBOARD;
@@ -56,16 +59,22 @@ public final class MainWindow {
     private boolean updatingProjects;
 
     public MainWindow(Consumer<TaskView> onToggle, Runnable onAddManual, HistoryStore store,
-                      WorklogPage.Handler worklogHandler, SettingsPage.Handler settingsHandler) {
+                      WorklogPage.Handler worklogHandler, CommentsPage.Handler commentsHandler,
+                      SettingsPage.Handler settingsHandler) {
         this.dashboard = new DashboardPage(onToggle, onAddManual);
         this.tasks = new TasksPage(onToggle);
         this.history = new HistoryPage(store);
         this.worklog = new WorklogPage(worklogHandler);
+        this.comments = new CommentsPage(commentsHandler);
+        comments.setOnPendingCount(count -> commentsNavLabel.setText(count == 0 ? I18n.t("Comentários")
+                : I18n.t("Comentários ({0})", count)));
         this.settings = new SettingsPage(settingsHandler);
         history.setGrouping(this::groupOf);
         worklog.setGrouping(this::groupOf);
+        comments.setGrouping(this::groupOf);
         history.setProject(project);
         worklog.setProject(project);
+        comments.setProject(project);
         root.getStyleClass().add("app");
         root.setTop(buildTopBar());
         root.setLeft(buildSidebar());
@@ -102,6 +111,7 @@ public final class MainWindow {
             saveProject(project);
             history.setProject(project);
             worklog.setProject(project);
+            comments.setProject(project);
         }
         List<String> options = new ArrayList<>();
         options.add(Projects.ALL);
@@ -132,6 +142,7 @@ public final class MainWindow {
         saveProject(next);
         history.setProject(next);
         worklog.setProject(next);
+        comments.setProject(next);
         renderPage();
     }
 
@@ -167,6 +178,10 @@ public final class MainWindow {
                 worklog.reload();
                 yield worklog.getView();
             }
+            case COMMENTS -> {
+                comments.reload();
+                yield comments.getView();
+            }
             case SETTINGS -> {
                 settings.load();
                 yield settings.getView();
@@ -175,17 +190,35 @@ public final class MainWindow {
         renderPage();
     }
 
+    /** Mostra ou esconde a aba Comentários (Configurações > Comentários). */
+    public void setCommentsEnabled(boolean enabled) {
+        commentsEnabled = enabled;
+        HBox item = navItems.get(Page.COMMENTS);
+        if (item != null) {
+            item.setVisible(enabled);
+            item.setManaged(enabled);
+        }
+        if (!enabled && page == Page.COMMENTS) {
+            show(Page.DASHBOARD);
+        }
+    }
+
     /** Só a página visível é atualizada a cada segundo. */
     private void renderPage() {
         if (last == null) {
             return;
         }
         Snapshot view = last.forProject(project);
+        if (commentsEnabled && page != Page.COMMENTS) {
+            // O contador do menu lateral: as pendências de comentário contam mesmo com outra página aberta.
+            comments.countPending(view);
+        }
         switch (page) {
             case DASHBOARD -> dashboard.render(view);
             case TASKS -> tasks.render(view);
             case HISTORY -> history.render(view);
             case WORKLOG -> worklog.render(view);
+            case COMMENTS -> comments.render(view);
             case SETTINGS -> {
                 // Nada muda sozinho nas configurações.
             }
@@ -248,8 +281,10 @@ public final class MainWindow {
                 navItem(Page.TASKS, Icons.LIST, I18n.t("Tarefas")),
                 navItem(Page.HISTORY, Icons.CLOCK, I18n.t("Histórico")),
                 navItem(Page.WORKLOG, Icons.CLIPBOARD_CHECK, I18n.t("Apontamentos")),
+                navItem(Page.COMMENTS, Icons.COMMENT, I18n.t("Comentários")),
                 navItem(Page.SETTINGS, Icons.GEAR, I18n.t("Configurações")));
         navItems.get(Page.DASHBOARD).getStyleClass().add("nav-selected");
+        setCommentsEnabled(false);
 
         avatar.getStyleClass().add("avatar");
         avatar.setAlignment(Pos.CENTER);
@@ -269,7 +304,8 @@ public final class MainWindow {
     }
 
     private HBox navItem(Page target, String icon, String text) {
-        Label label = new Label(text);
+        Label label = target == Page.COMMENTS ? commentsNavLabel : new Label();
+        label.setText(text);
         label.getStyleClass().add("nav-label");
         HBox item = new HBox(14, Icons.of(icon, 20, "icon-nav"), label);
         item.setAlignment(Pos.CENTER_LEFT);
