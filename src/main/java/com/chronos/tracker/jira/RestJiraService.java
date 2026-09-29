@@ -7,10 +7,13 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
@@ -29,16 +32,21 @@ public final class RestJiraService implements JiraService {
     private final String jql;
     private final List<String> projectKeys;
     private final Optional<String> columnJql;
+    private final List<String> boardIds;
+    /** Nome de cada quadro, lido do Jira uma vez. */
+    private final Map<String, String> boardNames = new ConcurrentHashMap<>();
 
     public RestJiraService(JiraClient client, String jql, List<String> projectKeys) {
-        this(client, jql, projectKeys, Optional.empty());
+        this(client, jql, projectKeys, Optional.empty(), List.of());
     }
 
-    RestJiraService(JiraClient client, String jql, List<String> projectKeys, Optional<String> columnJql) {
+    RestJiraService(JiraClient client, String jql, List<String> projectKeys, Optional<String> columnJql,
+                    List<String> boardIds) {
         this.client = client;
         this.jql = jql;
         this.projectKeys = List.copyOf(projectKeys);
         this.columnJql = columnJql;
+        this.boardIds = List.copyOf(boardIds);
     }
 
     public static JiraService from(AppConfig config) {
@@ -53,7 +61,8 @@ public final class RestJiraService implements JiraService {
         Optional<String> columnJql = config.watchWholeColumns() && !config.jiraProjectKeys().isEmpty()
                 ? Optional.of(columnJql(config.jiraProjectKeys(), config.workingStatuses()))
                 : Optional.empty();
-        return new RestJiraService(client, withOrdering(jql), config.jiraProjectKeys(), columnJql);
+        return new RestJiraService(client, withOrdering(jql), config.jiraProjectKeys(), columnJql,
+                config.jiraBoards());
     }
 
     /** Tasks nas colunas que contam tempo que não são do usuário: de outra pessoa ou sem responsável. */
@@ -107,6 +116,43 @@ public final class RestJiraService implements JiraService {
         mine.forEach(issue -> keys.add(issue.key()));
         column.stream().filter(issue -> keys.add(issue.key())).map(JiraIssue::asOthers).forEach(all::add);
         return List.copyOf(all);
+    }
+
+    @Override
+    public boolean usesBoards() {
+        return !boardIds.isEmpty();
+    }
+
+    @Override
+    public Map<String, String> fetchBoards(List<String> issueKeys) throws JiraException {
+        Map<String, String> boards = new LinkedHashMap<>();
+        if (boardIds.isEmpty() || issueKeys.isEmpty()) {
+            return boards;
+        }
+        for (String boardId : boardIds) {
+            String name = boardName(boardId);
+            for (int from = 0; from < issueKeys.size(); from += MAX_ISSUES) {
+                List<String> chunk = issueKeys.subList(from, Math.min(issueKeys.size(), from + MAX_ISSUES));
+                for (String key : client.boardIssueKeys(boardId, keyJql(chunk), MAX_ISSUES)) {
+                    boards.putIfAbsent(key, name);
+                }
+            }
+        }
+        return boards;
+    }
+
+    private String boardName(String boardId) throws JiraException {
+        String cached = boardNames.get(boardId);
+        if (cached != null) {
+            return cached;
+        }
+        String name = client.boardName(boardId);
+        boardNames.put(boardId, name);
+        return name;
+    }
+
+    static String keyJql(List<String> issueKeys) {
+        return "key in (" + quoted(issueKeys) + ")";
     }
 
     @Override

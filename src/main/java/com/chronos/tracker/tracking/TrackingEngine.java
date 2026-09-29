@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 
 /**
@@ -50,6 +51,8 @@ public final class TrackingEngine {
     static final int MAX_EVENTS = 200;
     /** De quanto em quanto tempo os intervalos ainda abertos são gravados, para não perder tempo numa queda. */
     static final Duration CHECKPOINT_INTERVAL = Duration.ofSeconds(30);
+    /** De quanto em quanto tempo confere de novo o quadro das tasks (uma task pode mudar de quadro). */
+    static final Duration BOARDS_REFRESH = Duration.ofMinutes(5);
     /** Limite de um dia: tempo contado mais o inserido à mão não pode passar disto. */
     public static final Duration DAILY_LIMIT = Duration.ofHours(8);
     private static final DateTimeFormatter DAY_MONTH = DateTimeFormatter.ofPattern("dd/MM");
@@ -92,6 +95,11 @@ public final class TrackingEngine {
     private List<TimeEntry> storedToday = new ArrayList<>();
     private List<ManualEntry> manualToday = new ArrayList<>();
     private final Map<String, String> summaries = new HashMap<>();
+    /** Quadro de cada task (com {@code JIRA_BOARDS}), guardado no histórico para os dias anteriores. */
+    private volatile Map<String, String> boards = Map.of();
+    private Instant boardsCheckedAt = Instant.MIN;
+    /** Tasks cujo quadro já foi procurado, mesmo as que não estão em nenhum dos quadros. */
+    private final Set<String> boardsLookedUp = ConcurrentHashMap.newKeySet();
     private Instant lastCheckpoint;
     private boolean storageFailing;
 
@@ -132,6 +140,7 @@ public final class TrackingEngine {
                 }
             }
             activeToday = Intervals.union(storedToday);
+            boards = Map.copyOf(store.issueBoards());
             inactiveToday = store.idleOn(day);
             manualToday = new ArrayList<>(store.manualOn(day));
         } catch (HistoryStore.HistoryException e) {
@@ -182,6 +191,7 @@ public final class TrackingEngine {
             }
             issues = List.copyOf(fetched);
             issuesVersion++;
+            updateBoards(service, fetched);
             jiraStatus = JiraSyncStatus.SYNCED;
             jiraError = Optional.empty();
             lastSync = Optional.of(clock.instant());
@@ -197,6 +207,45 @@ public final class TrackingEngine {
             if (previous != jiraStatus) {
                 addEvent(ActivityEvent.Kind.ERROR, I18n.t("Falha ao sincronizar com o Jira"), jiraError.orElse(""));
             }
+        }
+    }
+
+    /**
+     * Descobre o quadro das tasks quando aparece uma task nova e, de tempos em tempos, para as que mudaram de
+     * quadro. Falhar aqui não derruba a sincronização: as tasks só ficam sem quadro até a próxima vez.
+     */
+    private void updateBoards(JiraService service, List<JiraIssue> fetched) {
+        if (!service.usesBoards()) {
+            return;
+        }
+        Instant now = clock.instant();
+        Map<String, String> known = boards;
+        boolean unknown = fetched.stream().anyMatch(issue -> !boardsLookedUp.contains(issue.key()));
+        if (!unknown && Duration.between(boardsCheckedAt, now).compareTo(BOARDS_REFRESH) < 0) {
+            return;
+        }
+        boardsCheckedAt = now;
+        try {
+            List<String> keys = fetched.stream().map(JiraIssue::key).toList();
+            Map<String, String> found = service.fetchBoards(keys);
+            boardsLookedUp.addAll(keys);
+            Map<String, String> changed = new HashMap<>();
+            found.forEach((key, board) -> {
+                if (!board.equals(known.get(key))) {
+                    changed.put(key, board);
+                }
+            });
+            if (changed.isEmpty()) {
+                return;
+            }
+            Map<String, String> merged = new HashMap<>(known);
+            merged.putAll(changed);
+            boards = Map.copyOf(merged);
+            store.saveIssueBoards(changed);
+        } catch (JiraException e) {
+            addEvent(ActivityEvent.Kind.ERROR, I18n.t("Falha ao ler os quadros do Jira"), e.getMessage());
+        } catch (HistoryStore.HistoryException e) {
+            reportStorageFailure(e);
         }
     }
 
@@ -364,6 +413,8 @@ public final class TrackingEngine {
         overrides.clear();
         lastStatus.clear();
         summaries.clear();
+        boardsLookedUp.clear();
+        boardsCheckedAt = Instant.MIN;
         storedToday = new ArrayList<>();
         manualToday = new ArrayList<>();
         issues = List.of();
@@ -386,6 +437,9 @@ public final class TrackingEngine {
      */
     public void setJiraService(JiraService service) {
         jiraService = Objects.requireNonNull(service, "jiraService");
+        // Os quadros podem ter mudado: procura de novo o quadro de cada task.
+        boardsLookedUp.clear();
+        boardsCheckedAt = Instant.MIN;
         user = Optional.empty();
         projectLabel = Optional.empty();
         jiraError = Optional.empty();
@@ -586,7 +640,9 @@ public final class TrackingEngine {
                 user,
                 projectLabel,
                 recentEvents(),
-                history());
+                history(),
+                boards,
+                jiraService.usesBoards());
     }
 
     private TaskView view(String key, String summary, String statusName, StatusCategory category, String assignee,
@@ -726,7 +782,9 @@ public final class TrackingEngine {
             Optional<JiraUser> user,
             Optional<String> projectLabel,
             List<ActivityEvent> recentEvents,
-            List<TimeEntry> history) {
+            List<TimeEntry> history,
+            Map<String, String> boards,
+            boolean byBoard) {
 
         /** Tempo do dia que conta para a meta: o relógio com tasks ligadas mais o inserido à mão. */
         public Duration workedToday() {
@@ -741,13 +799,26 @@ public final class TrackingEngine {
             return tasks.stream().filter(TaskView::running).count();
         }
 
-        /** Projetos que aparecem nas tasks e nos registros de hoje. */
+        /**
+         * Grupo em que a task aparece no seletor do topo: o quadro dela, com {@code JIRA_BOARDS}, ou o projeto da
+         * chave. Vazio quando não se sabe (a task só aparece em "Todos").
+         */
+        public String groupOf(String issueKey) {
+            return byBoard ? boards.getOrDefault(issueKey, "") : Projects.of(issueKey);
+        }
+
+        /** Grupos (quadros ou projetos) das tasks e dos registros de hoje, em ordem alfabética. */
         public List<String> projects() {
-            List<String> keys = new ArrayList<>();
-            tasks.forEach(task -> keys.add(task.key()));
-            history.forEach(entry -> keys.add(entry.issueKey()));
-            manualEntries.forEach(entry -> keys.add(entry.issueKey()));
-            return Projects.distinct(keys);
+            java.util.TreeSet<String> groups = new java.util.TreeSet<>();
+            tasks.forEach(task -> groups.add(groupOf(task.key())));
+            history.forEach(entry -> groups.add(groupOf(entry.issueKey())));
+            manualEntries.forEach(entry -> groups.add(groupOf(entry.issueKey())));
+            groups.remove("");
+            return List.copyOf(groups);
+        }
+
+        private boolean inGroup(String issueKey, String group) {
+            return groupOf(issueKey).equalsIgnoreCase(group);
         }
 
         /**
@@ -758,15 +829,15 @@ public final class TrackingEngine {
             if (project == null || project.isEmpty()) {
                 return this;
             }
-            List<TaskView> ownTasks = tasks.stream().filter(task -> Projects.matches(task.key(), project)).toList();
-            List<TimeEntry> ownHistory = history.stream()
-                    .filter(entry -> Projects.matches(entry.issueKey(), project)).toList();
+            List<TaskView> ownTasks = tasks.stream().filter(task -> inGroup(task.key(), project)).toList();
+            List<TimeEntry> ownHistory = history.stream().filter(entry -> inGroup(entry.issueKey(), project)).toList();
             List<ManualEntry> ownManual = manualEntries.stream()
-                    .filter(entry -> Projects.matches(entry.issueKey(), project)).toList();
+                    .filter(entry -> inGroup(entry.issueKey(), project)).toList();
             return new Snapshot(activity, idleTime,
-                    featuredTask.filter(task -> Projects.matches(task.key(), project)).or(() -> featured(ownTasks)),
+                    featuredTask.filter(task -> inGroup(task.key(), project)).or(() -> featured(ownTasks)),
                     ownTasks, pausedForInactivity, Intervals.union(ownHistory), inactiveToday, sum(ownManual),
-                    ownManual, jiraStatus, jiraError, lastSync, user, Optional.of(project), recentEvents, ownHistory);
+                    ownManual, jiraStatus, jiraError, lastSync, user, Optional.of(project), recentEvents, ownHistory,
+                    boards, byBoard);
         }
     }
 }

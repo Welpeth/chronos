@@ -5,6 +5,11 @@ As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma vers
 
 ## [Não lançado]
 
+### Adicionado
+- Separação por quadro (Configurações > Jira > Quadros, ou `JIRA_BOARDS` no `.env`): com os números ou endereços
+  dos quadros, por exemplo 215 e 514 do mesmo projeto, o seletor do topo passa a listar os quadros pelo nome, e
+  cada tela mostra só as tasks do quadro escolhido, inclusive nos dias anteriores do histórico.
+
 ## [0.4.0] - 2026-09-29
 
 ### Adicionado

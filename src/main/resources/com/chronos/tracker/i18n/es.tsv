@@ -312,3 +312,9 @@ você	ti
 ✗ erro de conexão	✗ error de conexión
 Todos os projetos	Todos los proyectos
 Projeto {0}	Proyecto {0}
+Todos os quadros	Todos los tableros
+Falha ao ler os quadros do Jira	Error al leer los tableros de Jira
+Falha ao ler os quadros das tasks	Error al leer los tableros de las tareas
+Falha ao gravar os quadros das tasks	Error al guardar los tableros de las tareas
+Quadros (opcional)	Tableros (opcional)
+Números ou endereços dos quadros, separados por vírgula, ex.: 215, 514	Números o direcciones de los tableros, separados por comas, p. ej.: 215, 514

@@ -312,3 +312,9 @@ você	you
 ✗ erro de conexão	✗ connection error
 Todos os projetos	All projects
 Projeto {0}	Project {0}
+Todos os quadros	All boards
+Falha ao ler os quadros do Jira	Failed to read the Jira boards
+Falha ao ler os quadros das tasks	Failed to read the task boards
+Falha ao gravar os quadros das tasks	Failed to save the task boards
+Quadros (opcional)	Boards (optional)
+Números ou endereços dos quadros, separados por vírgula, ex.: 215, 514	Board numbers or addresses, separated by commas, e.g. 215, 514

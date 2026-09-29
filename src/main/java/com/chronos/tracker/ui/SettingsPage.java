@@ -97,6 +97,8 @@ public final class SettingsPage {
         jira.add(tokenExpiryRow(), 1, 3);
         row(jira, 4, "JIRA_PROJECT_KEY", I18n.t("Projetos"), I18n.t("Chaves separadas por vírgula, ex.: SCRUM"), new TextField());
         row(jira, 5, "JIRA_JQL", I18n.t("JQL (opcional)"), I18n.t("Substitui a busca padrão pelos projetos"), new TextField());
+        row(jira, 6, "JIRA_BOARDS", I18n.t("Quadros (opcional)"),
+                I18n.t("Números ou endereços dos quadros, separados por vírgula, ex.: 215, 514"), new TextField());
         Button test = new Button(I18n.t("Testar conexão"));
         test.getStyleClass().add("secondary-button");
         test.setOnAction(e -> testConnection(test));

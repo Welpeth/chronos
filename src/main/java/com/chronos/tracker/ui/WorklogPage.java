@@ -64,6 +64,8 @@ public final class WorklogPage {
     private final Map<String, String> errors = new HashMap<>();
     private Snapshot last;
     private String project = Projects.ALL;
+    /** Grupo de cada task no seletor do topo (quadro ou projeto). */
+    private java.util.function.Function<String, String> groupOf = Projects::of;
     private Instant loadedAt = Instant.EPOCH;
 
     public WorklogPage(Handler handler) {
@@ -115,7 +117,16 @@ public final class WorklogPage {
     }
 
     /** Página aberta: relê o banco na hora. */
-    /** Mostra só o projeto do Jira escolhido; {@link Projects#ALL} mostra todos. */
+    /** Como saber o grupo (quadro ou projeto) de uma task. */
+    public void setGrouping(java.util.function.Function<String, String> groupOf) {
+        this.groupOf = groupOf;
+    }
+
+    private boolean inProject(String issueKey) {
+        return project.isEmpty() || groupOf.apply(issueKey).equalsIgnoreCase(project);
+    }
+
+    /** Mostra só o quadro ou projeto escolhido; {@link Projects#ALL} mostra todos. */
     public void setProject(String project) {
         if (!this.project.equals(project)) {
             this.project = project;
@@ -141,7 +152,7 @@ public final class WorklogPage {
         List<Item> items;
         try {
             items = handler.items(snapshot.tasks()).stream()
-                    .filter(item -> Projects.matches(item.key(), project)).toList();
+                    .filter(item -> inProject(item.key())).toList();
             showPageError(null);
         } catch (Exception e) {
             showPageError(I18n.t("Não foi possível ler o histórico: {0}", e.getMessage()));
