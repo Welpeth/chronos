@@ -3,6 +3,7 @@ package com.chronos.tracker.ui;
 import com.chronos.tracker.activity.ActivityClassifier;
 import com.chronos.tracker.config.AppConfig;
 import com.chronos.tracker.config.EnvFile;
+import com.chronos.tracker.config.I18n;
 import com.chronos.tracker.jira.JiraIssue;
 import com.chronos.tracker.jira.JiraService;
 import com.chronos.tracker.jira.JiraUser;
@@ -73,7 +74,7 @@ final class SettingsController implements SettingsPage.Handler {
         try {
             EnvFile.write(envFile, updates);
         } catch (IOException e) {
-            throw new IOException("Não foi possível gravar " + envFile.toAbsolutePath() + ": " + e.getMessage(), e);
+            throw new IOException(I18n.t("Não foi possível gravar {0}: {1}", envFile.toAbsolutePath(), e.getMessage()), e);
         }
 
         String startupNote = "";
@@ -81,14 +82,14 @@ final class SettingsController implements SettingsPage.Handler {
             try {
                 WindowsStartup.setEnabled(startWithWindows);
             } catch (IOException e) {
-                startupNote = " Não deu para mudar a inicialização com o Windows: " + e.getMessage();
+                startupNote = " " + I18n.t("Não deu para mudar a inicialização com o Windows: {0}", e.getMessage());
             }
         }
 
         boolean databaseChanged = !config.databasePath().equals(current.databasePath());
         apply(config);
-        return "Configurações salvas." + startupNote
-                + (databaseChanged ? " O novo arquivo do histórico vale ao reabrir o app." : "");
+        return I18n.t("Configurações salvas.") + startupNote
+                + (databaseChanged ? " " + I18n.t("O novo arquivo do histórico vale ao reabrir o app.") : "");
     }
 
     @Override
@@ -97,13 +98,14 @@ final class SettingsController implements SettingsPage.Handler {
             try {
                 AppConfig config = validate(typed);
                 if (!config.isJiraConfigured()) {
-                    throw new IllegalArgumentException("Preencha endereço, e-mail, token e projetos (ou JQL).");
+                    throw new IllegalArgumentException(I18n.t("Preencha endereço, e-mail, token e projetos (ou JQL)."));
                 }
                 JiraService service = RestJiraService.from(config);
-                String name = service.fetchCurrentUser().map(JiraUser::displayName).orElse("você");
+                String name = service.fetchCurrentUser().map(JiraUser::displayName).orElse(I18n.t("você"));
                 List<JiraIssue> issues = service.fetchMyIssues();
-                return "Conectado como " + name + " · " + issues.size()
-                        + (issues.size() == 1 ? " task encontrada" : " tasks encontradas");
+                return issues.size() == 1
+                        ? I18n.t("Conectado como {0} · 1 task encontrada", name)
+                        : I18n.t("Conectado como {0} · {1} tasks encontradas", name, issues.size());
             } catch (Exception e) {
                 throw new RuntimeException(e.getMessage(), e);
             }
@@ -134,10 +136,11 @@ final class SettingsController implements SettingsPage.Handler {
         boolean anyJira = JIRA_KEYS.stream().anyMatch(key -> !typed.getOrDefault(key, "").isBlank());
         if (anyJira && !config.isJiraConfigured()) {
             throw new IllegalArgumentException(
-                    "Para conectar ao Jira, preencha endereço, e-mail, API token e projetos (ou uma JQL).");
+                    I18n.t("Para conectar ao Jira, preencha endereço, e-mail, API token e projetos (ou uma JQL)."));
         }
         if (config.possiblyIdleAfter().compareTo(config.inactiveAfter()) >= 0) {
-            throw new IllegalArgumentException("\"Possivelmente ausente\" precisa ser menor que o tempo para pausar.");
+            throw new IllegalArgumentException(
+                    I18n.t("\"Possivelmente ausente\" precisa ser menor que o tempo para pausar."));
         }
         return config;
     }

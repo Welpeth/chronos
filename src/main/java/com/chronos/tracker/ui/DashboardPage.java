@@ -1,5 +1,6 @@
 package com.chronos.tracker.ui;
 
+import com.chronos.tracker.config.I18n;
 import com.chronos.tracker.activity.ActivityState;
 import com.chronos.tracker.jira.JiraSyncStatus;
 import com.chronos.tracker.jira.StatusCategory;
@@ -34,7 +35,7 @@ import java.util.function.Consumer;
 public final class DashboardPage {
 
     static final Duration DAILY_GOAL = TrackingEngine.DAILY_LIMIT;
-    /** Quantos itens cada lista mostra no painel; o resto fica no "Mostrar mais". */
+    /** Quantos itens cada lista mostra no painel; o resto fica no I18n.t("Mostrar mais"). */
     static final int VISIBLE_EVENTS = 4;
     static final int VISIBLE_TASKS = 5;
 
@@ -126,7 +127,7 @@ public final class DashboardPage {
         HBox heading = new HBox(14, Icons.of(Icons.DIAMOND, 34, "icon-jira"), new VBox(4, currentKey, currentSummary));
         heading.setAlignment(Pos.CENTER_LEFT);
 
-        Label timerCaption = new Label("Tempo na task");
+        Label timerCaption = new Label(I18n.t("Tempo na task"));
         timerCaption.getStyleClass().add("timer-caption");
         HBox captionRow = new HBox(8, Icons.of(Icons.CLOCK, 22, "icon-blue"), timerCaption);
         captionRow.setAlignment(Pos.CENTER_LEFT);
@@ -148,14 +149,14 @@ public final class DashboardPage {
         currentBody.getChildren().addAll(heading, currentChips, timerBox);
         VBox.setMargin(currentChips, new javafx.geometry.Insets(0, 0, 0, 48));
 
-        Label emptyTitle = new Label("Nenhuma task contando tempo");
+        Label emptyTitle = new Label(I18n.t("Nenhuma task contando tempo"));
         emptyTitle.getStyleClass().add("current-summary");
-        Label emptyHint = new Label("Mova uma task para \"Em andamento\" no Jira ou dê play numa task da lista.");
+        Label emptyHint = new Label(I18n.t("Mova uma task para \"Em andamento\" no Jira ou dê play numa task da lista."));
         emptyHint.getStyleClass().add("muted");
         emptyHint.setWrapText(true);
         currentEmpty.getChildren().addAll(emptyTitle, emptyHint);
 
-        currentCard.getChildren().addAll(cardTitle("Task atual"), currentBody);
+        currentCard.getChildren().addAll(cardTitle(I18n.t("Task atual")), currentBody);
         return currentCard;
     }
 
@@ -169,27 +170,29 @@ public final class DashboardPage {
             return;
         }
         currentKey.setText(featured.key());
-        currentSummary.setText(featured.summary().isEmpty() ? "Task fora do Jira" : featured.summary());
+        currentSummary.setText(featured.summary().isEmpty() ? I18n.t("Task fora do Jira") : featured.summary());
 
         currentChips.getChildren().setAll(TaskRows.statusBadge(featured));
         long othersRunning = snapshot.runningCount() - (featured.running() ? 1 : 0);
         if (othersRunning > 0) {
-            Label others = new Label("+" + othersRunning + (othersRunning == 1 ? " outra contando" : " outras contando"));
+            Label others = new Label(othersRunning == 1
+                    ? I18n.t("+{0} outra contando", othersRunning)
+                    : I18n.t("+{0} outras contando", othersRunning));
             others.getStyleClass().addAll("badge", "badge-neutral");
             currentChips.getChildren().add(others);
         }
 
         currentTime.setText(Formats.hms(featured.totalTime()));
         if (featured.running()) {
-            currentSince.setText("Contando desde " + Formats.clock(featured.runningSince().orElseThrow()));
+            currentSince.setText(I18n.t("Contando desde {0}", Formats.clock(featured.runningSince().orElseThrow())));
         } else if (snapshot.pausedForInactivity()) {
-            currentSince.setText("Pausada por inatividade");
+            currentSince.setText(I18n.t("Pausada por inatividade"));
         } else {
-            currentSince.setText("Pausada");
+            currentSince.setText(I18n.t("Pausada"));
         }
 
         currentToggle.setGraphic(Icons.of(featured.running() ? Icons.PAUSE : Icons.PLAY, 30, "icon-dark"));
-        currentToggle.setTooltip(new Tooltip(featured.running() ? "Pausar o tempo desta task" : "Contar tempo nesta task"));
+        currentToggle.setTooltip(new Tooltip(featured.running() ? I18n.t("Pausar o tempo desta task") : I18n.t("Contar tempo nesta task")));
     }
 
     // ---- Cartões de status -----------------------------------------------------------------------
@@ -203,9 +206,9 @@ public final class DashboardPage {
             row.getColumnConstraints().add(column);
         }
         row.addRow(0,
-                statCard(Icons.MONITOR, "Status da atividade", activityDot, activityValue, activityDetail),
-                statCard(Icons.DIAMOND, "Sincronização Jira", jiraDot, jiraValue, jiraDetail),
-                statCard(Icons.CHART, "Projeto", null, projectValue, projectDetail));
+                statCard(Icons.MONITOR, I18n.t("Status da atividade"), activityDot, activityValue, activityDetail),
+                statCard(Icons.DIAMOND, I18n.t("Sincronização Jira"), jiraDot, jiraValue, jiraDetail),
+                statCard(Icons.CHART, I18n.t("Projeto"), null, projectValue, projectDetail));
         return row;
     }
 
@@ -241,23 +244,23 @@ public final class DashboardPage {
             case INACTIVE -> "dot-red";
         });
         activityValue.setText(switch (activity) {
-            case ACTIVE -> "Ativo";
-            case POSSIBLY_IDLE -> "Possivelmente ausente";
-            case INACTIVE -> "Inativo";
+            case ACTIVE -> I18n.t("Ativo");
+            case POSSIBLY_IDLE -> I18n.t("Possivelmente ausente");
+            case INACTIVE -> I18n.t("Inativo");
         });
-        activityDetail.setText("Última interação: " + Formats.ago(snapshot.idleTime()));
+        activityDetail.setText(I18n.t("Última interação: {0}", Formats.ago(snapshot.idleTime())));
 
         JiraSyncStatus jira = snapshot.jiraStatus();
         setDot(jiraDot, jira == JiraSyncStatus.SYNCED ? "dot-green" : jira.isError() ? "dot-red" : "dot-gray");
         jiraValue.setText(switch (jira) {
-            case SYNCED -> "Conectado";
-            case SYNCING -> "Conectando...";
-            case NOT_CONFIGURED -> "Não configurado";
-            case AUTH_ERROR -> "Credenciais inválidas";
-            case QUERY_ERROR -> "Consulta recusada";
-            case ERROR -> "Sem conexão";
+            case SYNCED -> I18n.t("Conectado");
+            case SYNCING -> I18n.t("Conectando...");
+            case NOT_CONFIGURED -> I18n.t("Não configurado");
+            case AUTH_ERROR -> I18n.t("Credenciais inválidas");
+            case QUERY_ERROR -> I18n.t("Consulta recusada");
+            case ERROR -> I18n.t("Sem conexão");
         });
-        String lastSync = snapshot.lastSync().map(at -> "Última sync: " + Formats.clock(at)).orElse("Ainda não sincronizou");
+        String lastSync = snapshot.lastSync().map(at -> I18n.t("Última sync: {0}", Formats.clock(at))).orElse(I18n.t("Ainda não sincronizou"));
         jiraDetail.setText(snapshot.jiraError().map(error -> lastSync + "\n" + error).orElse(lastSync));
 
         String label = snapshot.projectLabel().orElse("—");
@@ -273,13 +276,13 @@ public final class DashboardPage {
     // ---- Progresso do dia ------------------------------------------------------------------------
 
     private VBox buildProgressCard() {
-        Label title = cardTitle("Progresso do dia");
+        Label title = cardTitle(I18n.t("Progresso do dia"));
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
         goalLabel.getStyleClass().add("goal");
         Button addManual = new Button("+");
         addManual.getStyleClass().add("add-manual");
-        addManual.setTooltip(new Tooltip("Adicionar tempo manual"));
+        addManual.setTooltip(new Tooltip(I18n.t("Adicionar tempo manual")));
         addManual.setOnAction(e -> onAddManual.run());
         HBox header = new HBox(12, title, spacer, goalLabel, addManual);
         header.setAlignment(Pos.CENTER_LEFT);
@@ -291,11 +294,11 @@ public final class DashboardPage {
             column.setPercentWidth(20);
             metrics.getColumnConstraints().add(column);
         }
-        metrics.add(metric(Icons.PLAY, "Tempo ativo", "dot-blue", activeValue), 0, 0);
-        metrics.add(metric(Icons.PAUSE, "Tempo ocioso", "dot-yellow", idleValue), 1, 0);
-        metrics.add(metric(Icons.CLOCK, "Tempo manual", "dot-manual", manualValue), 2, 0);
-        metrics.add(metric(Icons.CHECK_CIRCLE, "Concluídas", "dot-gray", doneValue), 3, 0);
-        metrics.add(metric(Icons.CIRCLE, "Em andamento", "dot-gray", inProgressValue), 4, 0);
+        metrics.add(metric(Icons.PLAY, I18n.t("Tempo ativo"), "dot-blue", activeValue), 0, 0);
+        metrics.add(metric(Icons.PAUSE, I18n.t("Tempo ocioso"), "dot-yellow", idleValue), 1, 0);
+        metrics.add(metric(Icons.CLOCK, I18n.t("Tempo manual"), "dot-manual", manualValue), 2, 0);
+        metrics.add(metric(Icons.CHECK_CIRCLE, I18n.t("Concluídas"), "dot-gray", doneValue), 3, 0);
+        metrics.add(metric(Icons.CIRCLE, I18n.t("Em andamento"), "dot-gray", inProgressValue), 4, 0);
 
         VBox card = card("progress-card");
         card.getChildren().addAll(header, progress, metrics);
@@ -376,7 +379,7 @@ public final class DashboardPage {
 
     private VBox buildTasksCard() {
         VBox card = card("list-card");
-        card.getChildren().addAll(cardTitle("Tarefas do projeto"), taskList, moreTasks);
+        card.getChildren().addAll(cardTitle(I18n.t("Tarefas do projeto")), taskList, moreTasks);
         return card;
     }
 
@@ -388,7 +391,7 @@ public final class DashboardPage {
             tasksDialog.update(tasks);
         }
         if (tasks.isEmpty()) {
-            Label empty = new Label("Nenhuma task sua no Jira ainda.");
+            Label empty = new Label(I18n.t("Nenhuma task sua no Jira ainda."));
             empty.getStyleClass().add("muted");
             taskList.getChildren().add(empty);
             return;
@@ -398,15 +401,15 @@ public final class DashboardPage {
 
     private void openTasks() {
         if (tasksDialog == null) {
-            tasksDialog = new PagedListDialog<>(root.getScene().getWindow(), Icons.LIST, "Tarefas do projeto",
-                    "Nenhuma task sua no Jira ainda.", task -> TaskRows.row(task, onToggle));
+            tasksDialog = new PagedListDialog<>(root.getScene().getWindow(), Icons.LIST, I18n.t("Tarefas do projeto"),
+                    I18n.t("Nenhuma task sua no Jira ainda."), task -> TaskRows.row(task, onToggle));
         }
         tasksDialog.show(allTasks);
     }
 
     private VBox buildEventsCard() {
         VBox card = card("list-card");
-        card.getChildren().addAll(cardTitle("Atividade recente"), eventList, moreEvents);
+        card.getChildren().addAll(cardTitle(I18n.t("Atividade recente")), eventList, moreEvents);
         return card;
     }
 
@@ -418,7 +421,7 @@ public final class DashboardPage {
             eventsDialog.update(events);
         }
         if (events.isEmpty()) {
-            Label empty = new Label("Nada por aqui ainda.");
+            Label empty = new Label(I18n.t("Nada por aqui ainda."));
             empty.getStyleClass().add("muted");
             eventList.getChildren().add(empty);
             return;
@@ -428,14 +431,14 @@ public final class DashboardPage {
 
     private void openEvents() {
         if (eventsDialog == null) {
-            eventsDialog = new PagedListDialog<>(root.getScene().getWindow(), Icons.CLOCK, "Atividade recente",
-                    "Nada por aqui ainda.", DashboardPage::eventRow);
+            eventsDialog = new PagedListDialog<>(root.getScene().getWindow(), Icons.CLOCK, I18n.t("Atividade recente"),
+                    I18n.t("Nada por aqui ainda."), DashboardPage::eventRow);
         }
         eventsDialog.show(allEvents);
     }
 
     private static Button moreButton() {
-        Button button = new Button("Mostrar mais");
+        Button button = new Button(I18n.t("Mostrar mais"));
         button.getStyleClass().add("show-more");
         button.setMaxWidth(Double.MAX_VALUE);
         return button;
@@ -444,7 +447,7 @@ public final class DashboardPage {
     /** O botão só aparece quando há mais itens do que cabem no painel. */
     private static void showMore(Button button, int total, int visible) {
         boolean hidden = total > visible;
-        button.setText("Mostrar mais (" + (total - visible) + ")");
+        button.setText(I18n.t("Mostrar mais ({0})", total - visible));
         button.setVisible(hidden);
         button.setManaged(hidden);
     }

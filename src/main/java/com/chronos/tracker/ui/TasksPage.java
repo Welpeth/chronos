@@ -1,5 +1,6 @@
 package com.chronos.tracker.ui;
 
+import com.chronos.tracker.config.I18n;
 import com.chronos.tracker.jira.StatusCategory;
 import com.chronos.tracker.tracking.TaskView;
 import com.chronos.tracker.tracking.TrackingEngine.Snapshot;
@@ -29,18 +30,26 @@ import java.util.function.Predicate;
 public final class TasksPage {
 
     private enum Filter {
-        ALL("Todas", task -> true),
-        RUNNING("Contando", TaskView::running),
-        IN_PROGRESS("Em andamento", task -> task.category() == StatusCategory.IN_PROGRESS),
-        TO_DO("A fazer", task -> task.category() == StatusCategory.TO_DO),
-        DONE("Concluídas hoje", task -> task.category() == StatusCategory.DONE);
+        ALL(task -> true),
+        RUNNING(TaskView::running),
+        IN_PROGRESS(task -> task.category() == StatusCategory.IN_PROGRESS),
+        TO_DO(task -> task.category() == StatusCategory.TO_DO),
+        DONE(task -> task.category() == StatusCategory.DONE);
 
-        final String label;
         final Predicate<TaskView> predicate;
 
-        Filter(String label, Predicate<TaskView> predicate) {
-            this.label = label;
+        Filter(Predicate<TaskView> predicate) {
             this.predicate = predicate;
+        }
+
+        String label() {
+            return switch (this) {
+                case ALL -> I18n.t("Todas");
+                case RUNNING -> I18n.t("Contando");
+                case IN_PROGRESS -> I18n.t("Em andamento");
+                case TO_DO -> I18n.t("A fazer");
+                case DONE -> I18n.t("Concluídas hoje");
+            };
         }
     }
 
@@ -62,7 +71,7 @@ public final class TasksPage {
     public TasksPage(Consumer<TaskView> onToggle) {
         this.onToggle = onToggle;
 
-        Label title = new Label("Tarefas");
+        Label title = new Label(I18n.t("Tarefas"));
         title.getStyleClass().add("page-title");
         countLabel.getStyleClass().add("muted");
         HBox heading = new HBox(12, title, countLabel);
@@ -70,7 +79,7 @@ public final class TasksPage {
 
         HBox filterBar = new HBox(8);
         for (Filter filter : Filter.values()) {
-            ToggleButton button = new ToggleButton(filter.label);
+            ToggleButton button = new ToggleButton(filter.label());
             button.setUserData(filter);
             button.setToggleGroup(filters);
             button.getStyleClass().add("filter-chip");
@@ -85,7 +94,7 @@ public final class TasksPage {
             refresh();
         });
 
-        search.setPromptText("Buscar por chave ou título");
+        search.setPromptText(I18n.t("Buscar por chave ou título"));
         search.setPrefWidth(260);
         search.getStyleClass().add("search");
         search.textProperty().addListener((obs, before, now) -> refresh());
@@ -97,13 +106,13 @@ public final class TasksPage {
         generalList.getStyleClass().add("list-card");
         columnsList.getStyleClass().add("list-card");
         generalBody = tabBody(generalList);
-        Label columnsHint = new Label("Tasks nas colunas que contam tempo (configuradas na aba Colunas das "
-                + "Configurações).");
+        Label columnsHint = new Label(
+                I18n.t("Tasks nas colunas que contam tempo (configuradas na aba Colunas das Configurações)."));
         columnsHint.getStyleClass().add("muted");
         columnsHint.setWrapText(true);
         columnsBody = tabBody(columnsHint, columnsList);
-        generalTab = BrowserTabs.tab("Geral", generalBody);
-        columnsTab = BrowserTabs.tab("Colunas monitoradas", columnsBody);
+        generalTab = BrowserTabs.tab(I18n.t("Geral"), generalBody);
+        columnsTab = BrowserTabs.tab(I18n.t("Colunas monitoradas"), columnsBody);
         tabs.getTabs().addAll(generalTab, columnsTab);
         // A barra de filtros é uma só: vai para a aba aberta.
         generalBody.getChildren().add(0, toolbar);
@@ -143,8 +152,8 @@ public final class TasksPage {
         boolean columnsOnly = tabs.getSelectionModel().getSelectedItem() == columnsTab;
         VBox list = columnsOnly ? columnsList : generalList;
         long inColumns = last.tasks().stream().filter(TaskView::inWorkingColumn).count();
-        generalTab.setText("Geral (" + last.tasks().size() + ")");
-        columnsTab.setText("Colunas monitoradas (" + inColumns + ")");
+        generalTab.setText(I18n.t("Geral ({0})", last.tasks().size()));
+        columnsTab.setText(I18n.t("Colunas monitoradas ({0})", inColumns));
 
         List<TaskView> visible = last.tasks().stream()
                 .filter(task -> !columnsOnly || task.inWorkingColumn())
@@ -154,13 +163,14 @@ public final class TasksPage {
                         || task.summary().toLowerCase(Locale.ROOT).contains(query))
                 .toList();
 
-        countLabel.setText(last.tasks().size() + (last.tasks().size() == 1 ? " task" : " tasks")
-                + " · " + last.runningCount() + " contando");
+        countLabel.setText(last.tasks().size() == 1
+                ? I18n.t("{0} task · {1} contando", last.tasks().size(), last.runningCount())
+                : I18n.t("{0} tasks · {1} contando", last.tasks().size(), last.runningCount()));
         list.getChildren().clear();
         if (visible.isEmpty()) {
             Label empty = new Label(columnsOnly && inColumns == 0
-                    ? "Nenhuma task nas colunas monitoradas agora."
-                    : "Nenhuma task neste filtro.");
+                    ? I18n.t("Nenhuma task nas colunas monitoradas agora.")
+                    : I18n.t("Nenhuma task neste filtro."));
             empty.getStyleClass().add("muted");
             list.getChildren().add(empty);
             return;

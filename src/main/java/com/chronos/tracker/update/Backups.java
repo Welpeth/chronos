@@ -1,5 +1,7 @@
 package com.chronos.tracker.update;
 
+import com.chronos.tracker.config.I18n;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -65,7 +67,7 @@ public final class Backups {
         Path chosen = Path.of(Files.readString(marker).strip());
         Files.delete(marker);
         if (!Files.isRegularFile(chosen)) {
-            throw new IOException("A cópia escolhida para restaurar não existe mais: " + chosen);
+            throw new IOException(I18n.t("A cópia escolhida para restaurar não existe mais: {0}", chosen));
         }
         if (Files.exists(database)) {
             Files.copy(database, dir().resolve("chronos-antes-da-restauracao-" + STAMP.format(now) + ".db"),

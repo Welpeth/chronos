@@ -1,6 +1,7 @@
 package com.chronos.tracker.update;
 
 import com.chronos.tracker.config.AppVersion;
+import com.chronos.tracker.config.I18n;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -52,7 +53,7 @@ public final class Updater {
             return Optional.empty();
         }
         if (response.statusCode() != 200) {
-            throw new IOException("O GitHub respondeu HTTP " + response.statusCode() + " ao procurar atualização");
+            throw new IOException(I18n.t("O GitHub respondeu HTTP {0} ao procurar atualização", response.statusCode()));
         }
         return parse(mapper.readTree(response.body())).filter(release -> AppVersion.isNewer(release.version(), installed));
     }
@@ -79,7 +80,7 @@ public final class Updater {
         HttpResponse<Path> response = http.send(request, HttpResponse.BodyHandlers.ofFile(target));
         if (response.statusCode() != 200) {
             Files.deleteIfExists(target);
-            throw new IOException("O download do instalador falhou (HTTP " + response.statusCode() + ")");
+            throw new IOException(I18n.t("O download do instalador falhou (HTTP {0})", response.statusCode()));
         }
         return target;
     }

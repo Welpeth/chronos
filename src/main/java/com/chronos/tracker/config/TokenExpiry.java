@@ -49,19 +49,19 @@ public final class TokenExpiry {
     public static String remaining(LocalDate expires, LocalDate today) {
         long days = ChronoUnit.DAYS.between(today, expires);
         if (days == 0) {
-            return "vence hoje";
+            return I18n.t("vence hoje");
         }
         if (days == 1) {
-            return "vence amanhã";
+            return I18n.t("vence amanhã");
         }
         if (days > 1) {
-            return "faltam " + days + " dias";
+            return I18n.t("faltam {0} dias", days);
         }
-        return days == -1 ? "venceu ontem" : "venceu há " + (-days) + " dias";
+        return days == -1 ? I18n.t("venceu ontem") : I18n.t("venceu há {0} dias", -days);
     }
 
     /** {@code Data de validade: 31/12/2026 · faltam 95 dias}. */
     public static String describe(LocalDate expires, LocalDate today) {
-        return "Data de validade: " + DISPLAY.format(expires) + " · " + remaining(expires, today);
+        return I18n.t("Data de validade: {0} · {1}", DISPLAY.format(expires), remaining(expires, today));
     }
 }

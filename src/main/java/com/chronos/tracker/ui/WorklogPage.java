@@ -1,5 +1,6 @@
 package com.chronos.tracker.ui;
 
+import com.chronos.tracker.config.I18n;
 import com.chronos.tracker.tracking.TaskView;
 import com.chronos.tracker.tracking.TrackingEngine.Snapshot;
 import com.chronos.tracker.tracking.WorklogBook;
@@ -66,26 +67,23 @@ public final class WorklogPage {
     public WorklogPage(Handler handler) {
         this.handler = handler;
 
-        Label title = new Label("Apontamentos");
+        Label title = new Label(I18n.t("Apontamentos"));
         title.getStyleClass().add("page-title");
         countLabel.getStyleClass().add("muted");
         HBox heading = new HBox(12, title, countLabel);
         heading.setAlignment(Pos.BASELINE_LEFT);
 
-        Label hint = new Label("Quando uma task sai da coluna em andamento, ela pausa e o tempo contado aparece "
-                + "aqui. \"Apontar\" lança esse tempo no controle de tempo da task no Jira.");
+        Label hint = new Label(I18n.t("Quando uma task sai da coluna em andamento, ela pausa e o tempo contado aparece aqui. \"Apontar\" lança esse tempo no controle de tempo da task no Jira."));
         hint.getStyleClass().add("muted");
         hint.setWrapText(true);
 
-        Label pendingCaption = new Label("Falta apontar");
+        Label pendingCaption = new Label(I18n.t("Falta apontar"));
         pendingCaption.getStyleClass().add("muted");
         pendingTotal.getStyleClass().add("worklog-pending-total");
         VBox summary = new VBox(4, pendingCaption, pendingTotal);
         summary.getStyleClass().addAll("card", "worklog-summary");
 
-        Label warningText = new Label("O seu quadro precisa ter o campo \"Controle de tempo\" dentro das tarefas "
-                + "para o Chronos apontar as horas. No Jira, adicione o campo Controle de tempo (Time tracking) aos "
-                + "tipos de task do projeto.");
+        Label warningText = new Label(I18n.t("O seu quadro precisa ter o campo \"Controle de tempo\" dentro das tarefas para o Chronos apontar as horas. No Jira, adicione o campo Controle de tempo (Time tracking) aos tipos de task do projeto."));
         warningText.setWrapText(true);
         warningText.getStyleClass().add("time-tracking-warning-text");
         HBox.setHgrow(warningText, Priority.ALWAYS);
@@ -135,7 +133,7 @@ public final class WorklogPage {
             items = handler.items(snapshot.tasks());
             showPageError(null);
         } catch (Exception e) {
-            showPageError("Não foi possível ler o histórico: " + e.getMessage());
+            showPageError(I18n.t("Não foi possível ler o histórico: {0}", e.getMessage()));
             return;
         }
         show(items);
@@ -147,13 +145,13 @@ public final class WorklogPage {
                 .filter(item -> item.status() == Status.PENDING)
                 .map(Item::pending)
                 .reduce(Duration.ZERO, Duration::plus);
-        countLabel.setText(pendingCount == 0 ? "tudo apontado"
-                : pendingCount == 1 ? "1 task falta apontar" : pendingCount + " tasks faltam apontar");
+        countLabel.setText(pendingCount == 0 ? I18n.t("tudo apontado")
+                : pendingCount == 1 ? I18n.t("1 task falta apontar") : I18n.t("{0} tasks faltam apontar", pendingCount));
         pendingTotal.setText(Formats.hoursMinutes(pending));
 
         list.getChildren().clear();
         if (items.isEmpty()) {
-            Label empty = new Label("Nenhum tempo contado ainda.");
+            Label empty = new Label(I18n.t("Nenhum tempo contado ainda."));
             empty.getStyleClass().add("muted");
             list.getChildren().add(empty);
             return;
@@ -164,19 +162,19 @@ public final class WorklogPage {
     private Node row(Item item) {
         Label key = new Label(item.key());
         key.getStyleClass().add("task-key");
-        Label summary = new Label(item.summary().isEmpty() ? "Task fora do Jira" : item.summary());
+        Label summary = new Label(item.summary().isEmpty() ? I18n.t("Task fora do Jira") : item.summary());
         summary.getStyleClass().add("task-summary");
         VBox text = new VBox(2, key, summary);
         text.setMinWidth(0);
         HBox.setHgrow(text, Priority.ALWAYS);
 
-        VBox total = column("Tempo total", Formats.hoursMinutes(item.total()));
-        VBox logged = column("Apontado", Formats.hoursMinutes(item.logged()));
+        VBox total = column(I18n.t("Tempo total"), Formats.hoursMinutes(item.total()));
+        VBox logged = column(I18n.t("Apontado"), Formats.hoursMinutes(item.logged()));
 
         Label badge = new Label(switch (item.status()) {
-            case PENDING -> "Falta apontar " + Formats.hoursMinutes(item.pending());
-            case COUNTING -> "Contando";
-            case LOGGED -> "Apontado";
+            case PENDING -> I18n.t("Falta apontar {0}", Formats.hoursMinutes(item.pending()));
+            case COUNTING -> I18n.t("Contando");
+            case LOGGED -> I18n.t("Apontado");
         });
         badge.getStyleClass().addAll("badge", switch (item.status()) {
             case PENDING -> "badge-neutral";
@@ -190,7 +188,7 @@ public final class WorklogPage {
 
         Node action;
         if (item.status() == Status.PENDING) {
-            Button apply = new Button(logging.contains(item.key()) ? "Apontando..." : "Apontar");
+            Button apply = new Button(logging.contains(item.key()) ? I18n.t("Apontando...") : I18n.t("Apontar"));
             apply.getStyleClass().addAll("primary-button", "worklog-button");
             apply.setDisable(logging.contains(item.key()));
             apply.setOnAction(e -> log(item.key()));
@@ -234,7 +232,7 @@ public final class WorklogPage {
         handler.log(issueKey).whenComplete((spent, error) -> Platform.runLater(() -> {
             logging.remove(issueKey);
             if (error != null) {
-                errors.put(issueKey, "Não foi possível apontar: " + rootMessage(error));
+                errors.put(issueKey, I18n.t("Não foi possível apontar: {0}", rootMessage(error)));
             }
             reload();
         }));

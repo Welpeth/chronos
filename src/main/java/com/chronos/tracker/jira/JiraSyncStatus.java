@@ -1,21 +1,25 @@
 package com.chronos.tracker.jira;
 
+import com.chronos.tracker.config.I18n;
+
 public enum JiraSyncStatus {
-    NOT_CONFIGURED("não configurado"),
-    SYNCING("sincronizando..."),
-    SYNCED("✓ sincronizado"),
-    AUTH_ERROR("✗ credenciais inválidas"),
-    QUERY_ERROR("✗ consulta recusada"),
-    ERROR("✗ erro de conexão");
+    NOT_CONFIGURED,
+    SYNCING,
+    SYNCED,
+    AUTH_ERROR,
+    QUERY_ERROR,
+    ERROR;
 
-    private final String label;
-
-    JiraSyncStatus(String label) {
-        this.label = label;
-    }
-
+    /** Texto no idioma atual (traduzido a cada chamada, pois o idioma pode mudar com o app aberto). */
     public String label() {
-        return label;
+        return switch (this) {
+            case NOT_CONFIGURED -> I18n.t("não configurado");
+            case SYNCING -> I18n.t("sincronizando...");
+            case SYNCED -> I18n.t("✓ sincronizado");
+            case AUTH_ERROR -> I18n.t("✗ credenciais inválidas");
+            case QUERY_ERROR -> I18n.t("✗ consulta recusada");
+            case ERROR -> I18n.t("✗ erro de conexão");
+        };
     }
 
     public boolean isError() {

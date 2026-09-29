@@ -1,5 +1,6 @@
 package com.chronos.tracker.ui;
 
+import com.chronos.tracker.config.I18n;
 import com.chronos.tracker.config.AppConfig;
 import com.chronos.tracker.config.AppPaths;
 import com.chronos.tracker.jira.JiraIssue;
@@ -135,7 +136,7 @@ public final class AppController {
             try {
                 engine.finish(issueKey);
             } catch (Exception e) {
-                onError.accept("Não foi possível finalizar " + issueKey + ": " + e.getMessage());
+                onError.accept(I18n.t("Não foi possível finalizar {0}: {1}", issueKey, e.getMessage()));
             }
             refresh();
         }, "chronos-finish");

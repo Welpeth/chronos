@@ -1,11 +1,12 @@
 package com.chronos.tracker.ui;
 
+import com.chronos.tracker.config.I18n;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.Locale;
 
 /** Formatos de tempo usados na interface. */
 public final class Formats {
@@ -13,7 +14,7 @@ public final class Formats {
     private static final DateTimeFormatter CLOCK = DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.systemDefault());
 
     private static final DateTimeFormatter DATE =
-            DateTimeFormatter.ofPattern("EEE, dd/MM/yyyy", Locale.forLanguageTag("pt-BR"));
+            DateTimeFormatter.ofPattern("EEE, dd/MM/yyyy", I18n.locale());
     private static final DateTimeFormatter SHORT_DATE = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     private Formats() {
@@ -53,11 +54,11 @@ public final class Formats {
     public static String ago(Duration duration) {
         long minutes = duration.toMinutes();
         if (minutes < 1) {
-            return "agora";
+            return I18n.t("agora");
         }
         if (minutes < 60) {
-            return "há " + minutes + " min";
+            return I18n.t("há {0} min", minutes);
         }
-        return "há " + (minutes / 60) + " h";
+        return I18n.t("há {0} h", minutes / 60);
     }
 }
