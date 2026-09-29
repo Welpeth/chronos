@@ -5,6 +5,11 @@ As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma vers
 
 ## [Não lançado]
 
+### Adicionado
+- Seletor de projeto no topo da janela, quando as tasks vêm de mais de um projeto do mesmo Jira (por exemplo
+  dois quadros): o painel, as tarefas, o histórico e os apontamentos mostram só o projeto escolhido, com os
+  totais do dia só dele. O tempo continua contando em todos, e a escolha fica guardada.
+
 ## [0.3.0] - 2026-09-29
 
 ### Adicionado
