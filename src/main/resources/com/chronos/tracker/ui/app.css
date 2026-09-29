@@ -740,3 +740,66 @@
     -fx-text-fill: #a11a1a;
     -fx-font-weight: bold;
 }
+
+/* Abas no estilo do navegador (sem fechar) */
+.browser-tabs {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+    -fx-tab-min-height: 34;
+}
+
+.browser-tabs > .tab-header-area {
+    -fx-padding: 0;
+}
+
+.browser-tabs > .tab-header-area > .tab-header-background {
+    -fx-background-color: transparent;
+}
+
+.browser-tabs > .tab-header-area > .headers-region > .tab {
+    -fx-background-color: #e4eaf3;
+    -fx-background-insets: 0 3 0 0;
+    -fx-background-radius: 10 10 0 0;
+    -fx-padding: 6 18;
+    -fx-cursor: hand;
+}
+
+.browser-tabs > .tab-header-area > .headers-region > .tab:hover {
+    -fx-background-color: #d6dfec;
+}
+
+.browser-tabs > .tab-header-area > .headers-region > .tab:selected {
+    -fx-background-color: white;
+}
+
+.browser-tabs .tab .tab-label {
+    -fx-text-fill: #52627f;
+    -fx-font-size: 13px;
+}
+
+.browser-tabs .tab:selected .tab-label {
+    -fx-text-fill: #0f2a5a;
+    -fx-font-weight: bold;
+}
+
+.browser-tabs .tab:selected .focus-indicator {
+    -fx-border-color: transparent;
+}
+
+.browser-tabs > .tab-content-area {
+    -fx-background-color: white;
+    -fx-background-radius: 0 12 12 12;
+    -fx-effect: dropshadow(gaussian, rgba(15, 42, 90, 0.06), 12, 0, 0, 2);
+}
+
+.browser-tab-scroll,
+.browser-tab-scroll > .viewport {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+
+.browser-tabs .card {
+    -fx-effect: null;
+    -fx-background-color: transparent;
+}

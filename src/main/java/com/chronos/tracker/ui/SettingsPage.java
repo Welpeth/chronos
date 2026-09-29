@@ -9,7 +9,7 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
-import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TabPane;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.layout.ColumnConstraints;
@@ -50,7 +50,8 @@ public final class SettingsPage {
     }
 
     private final Handler handler;
-    private final ScrollPane root;
+    private final VBox root;
+    private final TabPane tabs = BrowserTabs.create();
     private final Map<String, TextInputControl> fields = new LinkedHashMap<>();
     /** Opções liga/desliga gravadas como true/false; todas começam ligadas. */
     private final Map<String, CheckBox> flags = new LinkedHashMap<>();
@@ -78,17 +79,6 @@ public final class SettingsPage {
         jira.add(tokenExpiryRow(), 1, 3);
         row(jira, 4, "JIRA_PROJECT_KEY", "Projetos", "Chaves separadas por vírgula, ex.: SCRUM", new TextField());
         row(jira, 5, "JIRA_JQL", "JQL (opcional)", "Substitui a busca padrão pelos projetos", new TextField());
-        row(jira, 6, "JIRA_IN_PROGRESS_STATUSES", "Colunas que contam tempo",
-                "Ex.: Test (escreva como aparece no quadro do Jira)", new TextField());
-        jira.add(flag("JIRA_USE_DEFAULT_STATUSES",
-                "Contar também as colunas padrão (Em andamento, Em progresso, In Progress)"), 1, 7);
-        jira.add(flag("CHRONOS_AUTO_START",
-                "Começar a contar sozinho quando a task entrar numa dessas colunas"), 1, 8);
-        Label columnsHint = new Label("Sem começar sozinho, o tempo só conta depois do play. Nos dois casos, a task "
-                + "pausa quando sai dessas colunas.");
-        columnsHint.getStyleClass().add("muted");
-        columnsHint.setWrapText(true);
-        jira.add(columnsHint, 1, 9);
         Button test = new Button("Testar conexão");
         test.getStyleClass().add("secondary-button");
         test.setOnAction(e -> testConnection(test));
@@ -96,13 +86,27 @@ public final class SettingsPage {
         connection.setWrapText(true);
         HBox testRow = new HBox(12, test, connection);
         testRow.setAlignment(Pos.CENTER_LEFT);
-        VBox jiraCard = card("Jira", jira, testRow);
+        VBox jiraCard = card("Conexão com o Jira", jira, testRow);
+
+        GridPane columns = form();
+        row(columns, 0, "JIRA_IN_PROGRESS_STATUSES", "Colunas que contam tempo",
+                "Ex.: Test (escreva como aparece no quadro do Jira)", new TextField());
+        columns.add(flag("JIRA_USE_DEFAULT_STATUSES",
+                "Contar também as colunas padrão (Em andamento, Em progresso, In Progress)"), 1, 1);
+        columns.add(flag("CHRONOS_AUTO_START",
+                "Começar a contar sozinho quando a task entrar numa dessas colunas"), 1, 2);
+        Label columnsHint = new Label("Sem começar sozinho, o tempo só conta depois do play. Nos dois casos, a task "
+                + "pausa quando sai dessas colunas.");
+        columnsHint.getStyleClass().add("muted");
+        columnsHint.setWrapText(true);
+        columns.add(columnsHint, 1, 3);
+        VBox columnsCard = card("Colunas do quadro", columns);
 
         GridPane timing = form();
         row(timing, 0, "POLLING_INTERVAL_SECONDS", "Consultar o Jira a cada (segundos)", "5", new TextField());
         row(timing, 1, "POSSIBLY_IDLE_SECONDS", "Possivelmente ausente após (segundos)", "120", new TextField());
         row(timing, 2, "IDLE_THRESHOLD_SECONDS", "Pausar por inatividade após (segundos)", "300", new TextField());
-        VBox timingCard = card("Tempo", timing);
+        VBox timingCard = card("Tempo e inatividade", timing);
 
         GridPane alerts = form();
         row(alerts, 0, "CHRONOS_ALERT_ISSUE_TYPES", "Tipos de task que geram aviso",
@@ -123,6 +127,14 @@ public final class SettingsPage {
         startHint.setWrapText(true);
         VBox systemCard = card("Sistema", new VBox(8, startWithWindows, startHint));
 
+        tabs.getTabs().addAll(
+                BrowserTabs.tab("Jira", jiraCard),
+                BrowserTabs.tab("Colunas", columnsCard),
+                BrowserTabs.tab("Tempo", timingCard),
+                BrowserTabs.tab("Avisos", alertsCard),
+                BrowserTabs.tab("Histórico", storageCard),
+                BrowserTabs.tab("Sistema", systemCard));
+
         Button save = new Button("Salvar");
         save.getStyleClass().add("primary-button");
         save.setOnAction(e -> save());
@@ -133,13 +145,8 @@ public final class SettingsPage {
         HBox actions = new HBox(12, save, revert, feedback);
         actions.setAlignment(Pos.CENTER_LEFT);
 
-        VBox page = new VBox(18, heading, jiraCard, alertsCard, timingCard, storageCard, systemCard, actions);
-        page.getStyleClass().add("page");
-        page.setMaxWidth(900);
-
-        root = new ScrollPane(page);
-        root.setFitToWidth(true);
-        root.getStyleClass().add("page-scroll");
+        root = new VBox(14, heading, tabs, actions);
+        root.getStyleClass().add("page");
         load();
     }
 
