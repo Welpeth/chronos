@@ -123,6 +123,7 @@ public final class MainWindow {
         logoImage.setFitHeight(46);
         logoImage.setPreserveRatio(true);
         logoImage.setSmooth(true);
+        logoImage.getStyleClass().add("logo-image");
         HBox logo = new HBox(logoImage);
         logo.setAlignment(Pos.CENTER_LEFT);
         logo.setPrefWidth(250);
