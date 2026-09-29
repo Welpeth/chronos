@@ -6,16 +6,20 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
  * Busca as issues do usuário nos projetos configurados: tudo que ainda não foi concluído, mais o que
  * foi concluído hoje (para o resumo do dia).
  *
- * <p>Se o {@code .env} define {@code JIRA_JQL}, essa consulta é usada no lugar da padrão.
+ * <p>Se o {@code .env} define {@code JIRA_JQL}, essa consulta é usada no lugar da padrão. Com
+ * {@code JIRA_WATCH_WHOLE_COLUMNS}, vêm também as tasks de outros responsáveis (ou sem responsável) que estão nas
+ * colunas que contam tempo, como a coluna de teste para quem testa.
  */
 public final class RestJiraService implements JiraService {
 
@@ -24,11 +28,17 @@ public final class RestJiraService implements JiraService {
     private final JiraClient client;
     private final String jql;
     private final List<String> projectKeys;
+    private final Optional<String> columnJql;
 
     public RestJiraService(JiraClient client, String jql, List<String> projectKeys) {
+        this(client, jql, projectKeys, Optional.empty());
+    }
+
+    RestJiraService(JiraClient client, String jql, List<String> projectKeys, Optional<String> columnJql) {
         this.client = client;
         this.jql = jql;
         this.projectKeys = List.copyOf(projectKeys);
+        this.columnJql = columnJql;
     }
 
     public static JiraService from(AppConfig config) {
@@ -40,7 +50,16 @@ public final class RestJiraService implements JiraService {
                 config.jiraEmail().orElseThrow(),
                 config.jiraApiToken().orElseThrow());
         String jql = config.jiraJql().orElseGet(() -> defaultJql(config.jiraProjectKeys()));
-        return new RestJiraService(client, withOrdering(jql), config.jiraProjectKeys());
+        Optional<String> columnJql = config.watchWholeColumns() && !config.jiraProjectKeys().isEmpty()
+                ? Optional.of(columnJql(config.jiraProjectKeys(), config.workingStatuses()))
+                : Optional.empty();
+        return new RestJiraService(client, withOrdering(jql), config.jiraProjectKeys(), columnJql);
+    }
+
+    /** Tasks nas colunas que contam tempo que não são do usuário: de outra pessoa ou sem responsável. */
+    static String columnJql(List<String> projectKeys, List<String> statuses) {
+        return "project in (" + quoted(projectKeys) + ") AND status in (" + quoted(statuses) + ")"
+                + " AND (assignee is EMPTY OR assignee != currentUser()) ORDER BY updated DESC";
     }
 
     static String defaultJql(List<String> projectKeys) {
@@ -63,6 +82,10 @@ public final class RestJiraService implements JiraService {
         return jql;
     }
 
+    Optional<String> columnJql() {
+        return columnJql;
+    }
+
     @Override
     public boolean isConfigured() {
         return true;
@@ -70,7 +93,20 @@ public final class RestJiraService implements JiraService {
 
     @Override
     public List<JiraIssue> fetchMyIssues() throws JiraException {
-        return client.search(jql, MAX_ISSUES);
+        List<JiraIssue> mine = client.search(jql, MAX_ISSUES);
+        if (columnJql.isEmpty()) {
+            return mine;
+        }
+        return withOthers(mine, client.search(columnJql.get(), MAX_ISSUES));
+    }
+
+    /** As do usuário primeiro; depois as das colunas que ainda não apareceram, marcadas como de outros. */
+    static List<JiraIssue> withOthers(List<JiraIssue> mine, List<JiraIssue> column) {
+        Set<String> keys = new HashSet<>();
+        List<JiraIssue> all = new ArrayList<>(mine);
+        mine.forEach(issue -> keys.add(issue.key()));
+        column.stream().filter(issue -> keys.add(issue.key())).map(JiraIssue::asOthers).forEach(all::add);
+        return List.copyOf(all);
     }
 
     @Override

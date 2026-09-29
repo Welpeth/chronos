@@ -5,6 +5,11 @@ As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma vers
 
 ## [Não lançado]
 
+### Adicionado
+- Opção "Mostrar todas as tasks dessas colunas, de qualquer responsável" (aba Colunas): a lista traz também as
+  tasks das colunas que contam tempo que estão com outra pessoa ou sem responsável, por exemplo tudo em "Test"
+  para quem testa. Elas mostram o responsável e só contam tempo pelo play.
+
 ### Alterado
 - Configurações separadas em abas no topo (Jira, Colunas, Tempo, Avisos, Histórico, Sistema), no estilo das
   abas do navegador, sem fechar. O botão Salvar grava todas as abas.

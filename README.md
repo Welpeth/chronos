@@ -92,7 +92,9 @@ Conta tempo toda issue que está numa coluna que conta. As colunas padrão são 
 "Test", para quem testa). Com `JIRA_USE_DEFAULT_STATUSES=false`, só as digitadas contam. Com
 `CHRONOS_AUTO_START=false`, entrar numa dessas colunas não liga o tempo: ele só conta depois do play, e
 continua contando se a task passar para outra coluna que conta. As duas opções também ficam em
-Configurações e começam ligadas. Ao mudar de
+Configurações e começam ligadas. Com `JIRA_WATCH_WHOLE_COLUMNS=true` (desligada por padrão), a lista traz também
+as tasks dessas colunas de outros responsáveis ou sem responsável, como tudo que está em "Test" para quem testa;
+elas aparecem com o nome do responsável e só contam tempo pelo play. Ao mudar de
 coluna, por exemplo para "Em análise" ou "Concluído", a task pausa. Várias contam ao mesmo tempo: uma hora trabalhada com duas tasks em andamento soma uma hora em
 cada uma. O "tempo hoje" conta o relógio, então essa hora aparece como uma hora só.
 

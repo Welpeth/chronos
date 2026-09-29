@@ -55,6 +55,8 @@ public final class SettingsPage {
     private final Map<String, TextInputControl> fields = new LinkedHashMap<>();
     /** Opções liga/desliga gravadas como true/false; todas começam ligadas. */
     private final Map<String, CheckBox> flags = new LinkedHashMap<>();
+    /** Marcadas quando o .env não diz nada; as ausentes daqui começam ligadas. */
+    private final java.util.Set<String> flagsOffByDefault = new java.util.HashSet<>();
     private final CheckBox startWithWindows = new CheckBox("Abrir o Chronos quando eu entrar no Windows");
     private final Label startHint = new Label();
     private final Label feedback = new Label();
@@ -100,6 +102,13 @@ public final class SettingsPage {
         columnsHint.getStyleClass().add("muted");
         columnsHint.setWrapText(true);
         columns.add(columnsHint, 1, 3);
+        columns.add(flag("JIRA_WATCH_WHOLE_COLUMNS",
+                "Mostrar todas as tasks dessas colunas, de qualquer responsável", false), 1, 4);
+        Label wholeHint = new Label("Ex.: quem testa vê tudo que está na coluna Test. As tasks de outras pessoas "
+                + "aparecem na lista, mas só contam tempo com o play.");
+        wholeHint.getStyleClass().add("muted");
+        wholeHint.setWrapText(true);
+        columns.add(wholeHint, 1, 5);
         VBox columnsCard = card("Colunas do quadro", columns);
 
         GridPane timing = form();
@@ -158,7 +167,10 @@ public final class SettingsPage {
     public void load() {
         Map<String, String> values = handler.currentValues();
         fields.forEach((key, field) -> field.setText(value(values, key)));
-        flags.forEach((key, box) -> box.setSelected(!isOff(values.getOrDefault(key, ""))));
+        flags.forEach((key, box) -> {
+            String value = values.getOrDefault(key, "");
+            box.setSelected(value.isBlank() ? !flagsOffByDefault.contains(key) : !isOff(value));
+        });
         tokenExpires.setValue(TokenExpiry.from(values).orElse(null));
         showTokenExpiry();
         boolean available = handler.startWithWindowsAvailable();
@@ -267,6 +279,13 @@ public final class SettingsPage {
     }
 
     private CheckBox flag(String key, String label) {
+        return flag(key, label, true);
+    }
+
+    private CheckBox flag(String key, String label, boolean onByDefault) {
+        if (!onByDefault) {
+            flagsOffByDefault.add(key);
+        }
         CheckBox box = new CheckBox(label);
         box.setWrapText(true);
         flags.put(key, box);

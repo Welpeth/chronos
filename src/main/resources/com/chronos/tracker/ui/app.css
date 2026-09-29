@@ -275,6 +275,12 @@
     -fx-font-size: 12px;
 }
 
+.task-owner {
+    -fx-text-fill: #7a88a3;
+    -fx-font-size: 11px;
+    -fx-font-style: italic;
+}
+
 .task-time {
     -fx-text-fill: #52627f;
 }

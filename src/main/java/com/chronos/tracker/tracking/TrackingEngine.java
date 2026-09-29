@@ -437,7 +437,7 @@ public final class TrackingEngine {
     private Set<String> wantedRunning(List<JiraIssue> currentIssues) {
         Set<String> wanted = new LinkedHashSet<>();
         for (JiraIssue issue : currentIssues) {
-            if (overrides.getOrDefault(issue.key(), autoStart && working.test(issue))) {
+            if (overrides.getOrDefault(issue.key(), autoStart && issue.mine() && working.test(issue))) {
                 wanted.add(issue.key());
             }
         }
@@ -498,12 +498,13 @@ public final class TrackingEngine {
         List<TaskView> tasks = new ArrayList<>();
         Set<String> listed = new LinkedHashSet<>();
         for (JiraIssue issue : currentIssues) {
-            tasks.add(view(issue.key(), issue.summary(), issue.statusName(), issue.category()));
+            tasks.add(view(issue.key(), issue.summary(), issue.statusName(), issue.category(), issue.assignee(),
+                    issue.mine()));
             listed.add(issue.key());
         }
         // Tasks que contaram tempo mas não vêm mais do Jira (digitadas à mão ou fora da busca).
         tracker.trackedKeys().stream().filter(key -> !listed.contains(key)).sorted().forEach(key ->
-                tasks.add(view(key, "", "", StatusCategory.IN_PROGRESS)));
+                tasks.add(view(key, "", "", StatusCategory.IN_PROGRESS, "", true)));
 
         return new Snapshot(
                 activity,
@@ -524,13 +525,14 @@ public final class TrackingEngine {
                 history());
     }
 
-    private TaskView view(String key, String summary, String statusName, StatusCategory category) {
+    private TaskView view(String key, String summary, String statusName, StatusCategory category, String assignee,
+                          boolean mine) {
         return new TaskView(key, summary, statusName, category, tracker.totalFor(key), tracker.isRunning(key),
-                overrides.containsKey(key), tracker.runningSince(key));
+                overrides.containsKey(key), tracker.runningSince(key), assignee, mine);
     }
 
     /**
-     * Task em destaque no painel: a que começou a contar por último; senão, a primeira em andamento.
+     * Task em destaque no painel: a que começou a contar por último; senão, a primeira do usuário em andamento.
      * Tasks que começaram no mesmo segundo desempatam pela ordem do Jira.
      */
     private static Optional<TaskView> featured(List<TaskView> tasks) {
@@ -539,7 +541,7 @@ public final class TrackingEngine {
                 .max(Comparator.comparing(task ->
                         task.runningSince().orElse(Instant.MIN).truncatedTo(ChronoUnit.SECONDS)));
         return latestRunning.or(() -> tasks.stream()
-                .filter(task -> task.category() == StatusCategory.IN_PROGRESS)
+                .filter(task -> task.mine() && task.category() == StatusCategory.IN_PROGRESS)
                 .findFirst());
     }
 

@@ -422,6 +422,25 @@ class TrackingEngineTest {
     }
 
     @Test
+    void someoneElsesTaskInTheColumnOnlyCountsAfterPlay() {
+        engine.setWorkingStatuses(List.of("Test"));
+        JiraIssue others = new JiraIssue("PROJ-2", "Título de PROJ-2", "Test", StatusCategory.IN_PROGRESS, "",
+                "Ana", false);
+        jira.issues = List.of(new JiraIssue("PROJ-1", "Título de PROJ-1", "Test", StatusCategory.IN_PROGRESS), others);
+        engine.pollJira();
+        engine.tick();
+        TrackingEngine.Snapshot snapshot = advance(Duration.ofMinutes(5));
+        assertTrue(task(snapshot, "PROJ-1").running());
+        assertFalse(task(snapshot, "PROJ-2").running());
+        assertEquals("Ana", task(snapshot, "PROJ-2").assignee());
+        assertFalse(task(snapshot, "PROJ-2").mine());
+
+        engine.play("PROJ-2");
+        snapshot = advance(Duration.ofMinutes(5));
+        assertTrue(task(snapshot, "PROJ-2").running());
+    }
+
+    @Test
     void leavingTheColumnPausesATaskStartedByHand() {
         jira.issues = List.of(DOING_1);
         engine.pollJira();
