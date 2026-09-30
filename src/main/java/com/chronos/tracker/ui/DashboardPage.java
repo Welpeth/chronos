@@ -26,6 +26,7 @@ import javafx.scene.shape.Circle;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -46,7 +47,15 @@ public final class DashboardPage {
     /** Quadros de cada task, para mostrar na linha; vazio sem JIRA_BOARDS. */
     private Function<String, List<String>> boardsOf = key -> List.of();
     private final Runnable onAddManual;
+    /** Rolagem da visão geral. */
     private final ScrollPane root;
+    private final VBox view;
+    private final javafx.scene.control.ToggleGroup viewTabs = new javafx.scene.control.ToggleGroup();
+    private final javafx.scene.control.ToggleButton overviewTab = new javafx.scene.control.ToggleButton();
+    private final javafx.scene.control.ToggleButton kanbanTab = new javafx.scene.control.ToggleButton();
+    private final StackPane content = new StackPane();
+    private final KanbanBoard kanban;
+    private Set<String> selectedGroups = Set.of();
 
     // Task atual
     private final VBox currentCard = card("current-card");
@@ -59,6 +68,10 @@ public final class DashboardPage {
     private final VBox currentBody = new VBox(14);
     private final VBox currentEmpty = new VBox(6);
     private TaskView featured;
+    /** Task escolhida com um clique na lista; vazio segue a automática (a que começou a contar por último). */
+    private String focusedKey;
+    private final Button backToAuto = new Button();
+    private Snapshot last;
 
     // Cartões de status
     private final Circle activityDot = new Circle(5);
@@ -105,25 +118,66 @@ public final class DashboardPage {
         right.setMinWidth(380);
 
         HBox columns = new HBox(18, left, right);
-        VBox page = new VBox(18, boardChips.getView(), columns);
-        page.getStyleClass().add("page");
+        columns.getStyleClass().add("dashboard-overview");
 
-        root = new ScrollPane(page);
+        root = new ScrollPane(columns);
         root.setFitToWidth(true);
         root.getStyleClass().add("page-scroll");
+
+        kanban = new KanbanBoard(onToggle, task -> {
+            viewTabs.selectToggle(overviewTab);
+            focus(task.key());
+        });
+
+        overviewTab.setText(I18n.t("Visão geral"));
+        kanbanTab.setText(I18n.t("Visão kanban"));
+        for (javafx.scene.control.ToggleButton tab : List.of(overviewTab, kanbanTab)) {
+            tab.setToggleGroup(viewTabs);
+            tab.getStyleClass().add("view-tab");
+        }
+        viewTabs.selectToggle(overviewTab);
+        // Uma aba sempre fica marcada: clicar na já aberta não desmarca.
+        viewTabs.selectedToggleProperty().addListener((obs, before, now) -> {
+            if (now == null) {
+                viewTabs.selectToggle(before);
+                return;
+            }
+            showView();
+        });
+        HBox tabsBar = new HBox(4, overviewTab, kanbanTab);
+        tabsBar.getStyleClass().add("view-tabs");
+
+        content.getChildren().setAll(root);
+        VBox.setVgrow(content, Priority.ALWAYS);
+        view = new VBox(14, tabsBar, boardChips.getView(), content);
+        view.getStyleClass().add("dashboard");
+    }
+
+    private void showView() {
+        boolean kanbanOpen = viewTabs.getSelectedToggle() == kanbanTab;
+        content.getChildren().setAll(kanbanOpen ? kanban.getView() : root);
+        if (last != null) {
+            render(last);
+        }
     }
 
     public Node getView() {
-        return root;
+        return view;
     }
 
     /** Chips dos quadros (ou projetos) acima do painel; a escolha vale para todas as páginas. */
     public void setGroups(List<String> groups, Set<String> selected, boolean byBoard) {
+        selectedGroups = selected;
         boardChips.update(groups, selected, byBoard);
     }
 
     public void render(Snapshot snapshot) {
+        last = snapshot;
         boardsOf = snapshot.byBoard() ? snapshot::groupsOf : key -> List.of();
+        if (viewTabs.getSelectedToggle() == kanbanTab) {
+            kanban.render(snapshot.tasks(), snapshot.kanbanColumns(selectedGroups));
+            return;
+        }
         renderCurrent(snapshot);
         renderStatus(snapshot);
         renderProgress(snapshot);
@@ -134,6 +188,8 @@ public final class DashboardPage {
     // ---- Task atual ------------------------------------------------------------------------------
 
     private VBox buildCurrentCard() {
+        backToAuto.getStyleClass().add("link-chip");
+        backToAuto.setOnAction(e -> focus(null));
         currentKey.getStyleClass().add("current-key");
         currentSummary.getStyleClass().add("current-summary");
         currentSummary.setWrapText(true);
@@ -174,7 +230,14 @@ public final class DashboardPage {
     }
 
     private void renderCurrent(Snapshot snapshot) {
-        featured = snapshot.featuredTask().orElse(null);
+        Optional<TaskView> automatic = snapshot.featuredTask();
+        Optional<TaskView> focused = Optional.ofNullable(focusedKey)
+                .flatMap(key -> snapshot.tasks().stream().filter(task -> task.key().equals(key)).findFirst());
+        if (focused.isEmpty()) {
+            // A escolhida saiu da lista (outro quadro, saiu do Jira): volta para a automática.
+            focusedKey = null;
+        }
+        featured = focused.or(() -> automatic).orElse(null);
         Node body = featured == null ? currentEmpty : currentBody;
         if (currentCard.getChildren().get(1) != body) {
             currentCard.getChildren().set(1, body);
@@ -193,6 +256,10 @@ public final class DashboardPage {
                     : I18n.t("+{0} outras contando", othersRunning));
             others.getStyleClass().addAll("badge", "badge-neutral");
             currentChips.getChildren().add(others);
+        }
+        if (focused.isPresent() && automatic.isPresent() && !automatic.get().key().equals(featured.key())) {
+            backToAuto.setText(I18n.t("Voltar para {0}", automatic.get().key()));
+            currentChips.getChildren().add(backToAuto);
         }
 
         currentTime.setText(Formats.hms(featured.totalTime()));
@@ -409,13 +476,48 @@ public final class DashboardPage {
             taskList.getChildren().add(empty);
             return;
         }
-        tasks.stream().limit(VISIBLE_TASKS).forEach(task -> taskList.getChildren().add(TaskRows.row(task, onToggle, boardsOf.apply(task.key()))));
+        tasks.stream().limit(VISIBLE_TASKS).forEach(task -> taskList.getChildren().add(focusable(task)));
+    }
+
+    /** Linha da lista que, clicada fora do botão de play, traz a task para o cartão "Task atual". */
+    private Node focusable(TaskView task) {
+        HBox row = TaskRows.row(task, onToggle, boardsOf.apply(task.key()));
+        row.getStyleClass().add("task-row-clickable");
+        if (featured != null && task.key().equals(featured.key())) {
+            row.getStyleClass().add("task-row-focused");
+        }
+        Tooltip.install(row, new Tooltip(I18n.t("Clique para ver esta task em Task atual")));
+        row.setOnMousePressed(event -> {
+            // No aperto, não no clique: a lista é refeita a cada segundo e o clique se perderia entre as duas.
+            if (!event.isPrimaryButtonDown()) {
+                return;
+            }
+            for (Node node = (Node) event.getTarget(); node != null && node != row; node = node.getParent()) {
+                if (node instanceof Button) {
+                    return;
+                }
+            }
+            focus(task.key());
+        });
+        return row;
+    }
+
+    private void focus(String key) {
+        focusedKey = key;
+        if (tasksDialog != null && tasksDialog.isShowing()) {
+            tasksDialog.hide();
+        }
+        if (last != null) {
+            renderCurrent(last);
+            renderTasks(last.tasks());
+        }
+        root.setVvalue(0);
     }
 
     private void openTasks() {
         if (tasksDialog == null) {
             tasksDialog = new PagedListDialog<>(root.getScene().getWindow(), Icons.LIST, I18n.t("Tarefas do projeto"),
-                    I18n.t("Nenhuma task sua no Jira ainda."), task -> TaskRows.row(task, onToggle, boardsOf.apply(task.key())));
+                    I18n.t("Nenhuma task sua no Jira ainda."), this::focusable);
         }
         tasksDialog.show(allTasks);
     }

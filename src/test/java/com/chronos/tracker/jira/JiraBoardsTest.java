@@ -110,8 +110,12 @@ class JiraBoardsTest {
         RestJiraService service = new RestJiraService(new JiraClient(baseUrl, "e", "t"), "project = RP",
                 List.of("RP"), Optional.empty(), List.of("215", "514"));
 
-        Map<String, java.util.Set<String>> columns = service.fetchColumnStatuses();
+        Map<String, List<JiraService.KanbanColumn>> boards = service.fetchBoardColumns();
+        Map<String, java.util.Set<String>> columns = JiraService.columnStatuses(boards);
 
+        assertEquals(List.of("Quadro RP", "Suporte RP"), List.copyOf(boards.keySet()));
+        assertEquals(List.of(new JiraService.KanbanColumn("Test", List.of("QA")), new JiraService.KanbanColumn("Feito", List.of())),
+                boards.get("Suporte RP"));
         assertEquals(Map.of("Test", java.util.Set.of("Em teste", "Reteste", "QA"), "Feito", java.util.Set.of()), columns);
         assertTrue(queries.stream().noneMatch(q -> q.startsWith("boards")), queries.toString());
     }
@@ -120,7 +124,7 @@ class JiraBoardsTest {
     void withoutConfiguredBoardsTheProjectBoardsAreUsed() throws JiraException {
         RestJiraService service = new RestJiraService(new JiraClient(baseUrl, "e", "t"), "project = RP", List.of("RP"));
 
-        Map<String, java.util.Set<String>> columns = service.fetchColumnStatuses();
+        Map<String, java.util.Set<String>> columns = JiraService.columnStatuses(service.fetchBoardColumns());
 
         assertEquals(java.util.Set.of("Em teste", "Reteste", "QA"), columns.get("Test"));
         assertEquals(List.of("boards maxResults=50&projectKeyOrId=RP"), queries);
