@@ -295,6 +295,26 @@
     -fx-border-color: transparent transparent -c-line transparent;
 }
 
+.task-row-clickable {
+    -fx-cursor: hand;
+}
+
+.task-row-clickable:hover {
+    -fx-background-color: -c-surface-hover;
+}
+
+.task-row-focused {
+    -fx-background-color: -c-soft;
+}
+
+.link-chip {
+    -fx-background-color: transparent;
+    -fx-text-fill: -c-accent;
+    -fx-padding: 2 6;
+    -fx-cursor: hand;
+    -fx-underline: true;
+}
+
 .task-row-running .task-key {
     -fx-text-fill: -c-accent;
 }

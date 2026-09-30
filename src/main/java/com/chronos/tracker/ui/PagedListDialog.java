@@ -112,6 +112,10 @@ public final class PagedListDialog<T> {
         stage.show();
     }
 
+    public void hide() {
+        stage.hide();
+    }
+
     public boolean isShowing() {
         return stage.isShowing();
     }

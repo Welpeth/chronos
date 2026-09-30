@@ -26,6 +26,7 @@ import javafx.scene.shape.Circle;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -59,6 +60,10 @@ public final class DashboardPage {
     private final VBox currentBody = new VBox(14);
     private final VBox currentEmpty = new VBox(6);
     private TaskView featured;
+    /** Task escolhida com um clique na lista; vazio segue a automática (a que começou a contar por último). */
+    private String focusedKey;
+    private final Button backToAuto = new Button();
+    private Snapshot last;
 
     // Cartões de status
     private final Circle activityDot = new Circle(5);
@@ -123,6 +128,7 @@ public final class DashboardPage {
     }
 
     public void render(Snapshot snapshot) {
+        last = snapshot;
         boardsOf = snapshot.byBoard() ? snapshot::groupsOf : key -> List.of();
         renderCurrent(snapshot);
         renderStatus(snapshot);
@@ -134,6 +140,8 @@ public final class DashboardPage {
     // ---- Task atual ------------------------------------------------------------------------------
 
     private VBox buildCurrentCard() {
+        backToAuto.getStyleClass().add("link-chip");
+        backToAuto.setOnAction(e -> focus(null));
         currentKey.getStyleClass().add("current-key");
         currentSummary.getStyleClass().add("current-summary");
         currentSummary.setWrapText(true);
@@ -174,7 +182,14 @@ public final class DashboardPage {
     }
 
     private void renderCurrent(Snapshot snapshot) {
-        featured = snapshot.featuredTask().orElse(null);
+        Optional<TaskView> automatic = snapshot.featuredTask();
+        Optional<TaskView> focused = Optional.ofNullable(focusedKey)
+                .flatMap(key -> snapshot.tasks().stream().filter(task -> task.key().equals(key)).findFirst());
+        if (focused.isEmpty()) {
+            // A escolhida saiu da lista (outro quadro, saiu do Jira): volta para a automática.
+            focusedKey = null;
+        }
+        featured = focused.or(() -> automatic).orElse(null);
         Node body = featured == null ? currentEmpty : currentBody;
         if (currentCard.getChildren().get(1) != body) {
             currentCard.getChildren().set(1, body);
@@ -193,6 +208,10 @@ public final class DashboardPage {
                     : I18n.t("+{0} outras contando", othersRunning));
             others.getStyleClass().addAll("badge", "badge-neutral");
             currentChips.getChildren().add(others);
+        }
+        if (focused.isPresent() && automatic.isPresent() && !automatic.get().key().equals(featured.key())) {
+            backToAuto.setText(I18n.t("Voltar para {0}", automatic.get().key()));
+            currentChips.getChildren().add(backToAuto);
         }
 
         currentTime.setText(Formats.hms(featured.totalTime()));
@@ -409,13 +428,44 @@ public final class DashboardPage {
             taskList.getChildren().add(empty);
             return;
         }
-        tasks.stream().limit(VISIBLE_TASKS).forEach(task -> taskList.getChildren().add(TaskRows.row(task, onToggle, boardsOf.apply(task.key()))));
+        tasks.stream().limit(VISIBLE_TASKS).forEach(task -> taskList.getChildren().add(focusable(task)));
+    }
+
+    /** Linha da lista que, clicada fora do botão de play, traz a task para o cartão "Task atual". */
+    private Node focusable(TaskView task) {
+        HBox row = TaskRows.row(task, onToggle, boardsOf.apply(task.key()));
+        row.getStyleClass().add("task-row-clickable");
+        if (featured != null && task.key().equals(featured.key())) {
+            row.getStyleClass().add("task-row-focused");
+        }
+        Tooltip.install(row, new Tooltip(I18n.t("Clique para ver esta task em Task atual")));
+        row.setOnMouseClicked(event -> {
+            for (Node node = (Node) event.getTarget(); node != null && node != row; node = node.getParent()) {
+                if (node instanceof Button) {
+                    return;
+                }
+            }
+            focus(task.key());
+        });
+        return row;
+    }
+
+    private void focus(String key) {
+        focusedKey = key;
+        if (tasksDialog != null && tasksDialog.isShowing()) {
+            tasksDialog.hide();
+        }
+        if (last != null) {
+            renderCurrent(last);
+            renderTasks(last.tasks());
+        }
+        root.setVvalue(0);
     }
 
     private void openTasks() {
         if (tasksDialog == null) {
             tasksDialog = new PagedListDialog<>(root.getScene().getWindow(), Icons.LIST, I18n.t("Tarefas do projeto"),
-                    I18n.t("Nenhuma task sua no Jira ainda."), task -> TaskRows.row(task, onToggle, boardsOf.apply(task.key())));
+                    I18n.t("Nenhuma task sua no Jira ainda."), this::focusable);
         }
         tasksDialog.show(allTasks);
     }
