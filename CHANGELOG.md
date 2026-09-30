@@ -20,6 +20,9 @@ As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma vers
   task mostra na lista quando foi modificada.
 - Clicar numa task em "Tarefas do projeto" (ou no "Mostrar mais") traz ela para o cartão "Task atual", com o
   play dela. "Voltar para ..." devolve a task que está contando.
+- Abas "Visão geral" e "Visão kanban" no Painel. O kanban mostra as tasks nas colunas dos quadros do Jira (dos
+  quadros escolhidos nos chips), com o tempo e o play de cada uma; clicar num cartão abre a task em "Task
+  atual". Sem acesso às colunas do quadro, agrupa pelo status.
 
 ### Corrigido
 - As colunas digitadas em "Colunas que contam tempo" agora valem pelo nome da coluna no quadro, mesmo quando o

@@ -22,6 +22,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
@@ -83,6 +84,8 @@ public final class TrackingEngine {
     private volatile List<String> workingNames = List.of();
     /** Status de cada coluna dos quadros, lidos do Jira; vazio até a primeira leitura ou se ela falhar. */
     private volatile Map<String, Set<String>> columnStatuses = Map.of();
+    /** Colunas de cada quadro, na ordem do quadro, para o kanban do painel. */
+    private volatile Map<String, List<JiraService.KanbanColumn>> boardColumns = Map.of();
     private Instant columnsCheckedAt = Instant.MIN;
     /** Se o tempo começa sozinho quando a task entra numa coluna que conta; senão, só pelo play. */
     private volatile boolean autoStart = true;
@@ -220,19 +223,20 @@ public final class TrackingEngine {
     }
 
     /**
-     * Lê do Jira os status de cada coluna dos quadros, na primeira consulta e de tempos em tempos. Só importa com
-     * colunas digitadas; sem elas vale a categoria "em andamento" do Jira.
+     * Lê do Jira as colunas dos quadros, na primeira consulta e de tempos em tempos: servem para o kanban e para
+     * as colunas digitadas valerem pelo nome da coluna no quadro.
      */
     private void updateColumns(JiraService service) {
         Instant now = clock.instant();
-        if (workingNames.isEmpty() || Duration.between(columnsCheckedAt, now).compareTo(BOARDS_REFRESH) < 0) {
+        if (Duration.between(columnsCheckedAt, now).compareTo(BOARDS_REFRESH) < 0) {
             return;
         }
         columnsCheckedAt = now;
         try {
-            Map<String, Set<String>> found = service.fetchColumnStatuses();
-            if (!found.equals(columnStatuses)) {
-                columnStatuses = Map.copyOf(found);
+            Map<String, List<JiraService.KanbanColumn>> found = service.fetchBoardColumns();
+            if (!found.equals(boardColumns)) {
+                boardColumns = Collections.unmodifiableMap(new java.util.LinkedHashMap<>(found));
+                columnStatuses = JiraService.columnStatuses(found);
                 rebuildWorking();
             }
         } catch (JiraException e) {
@@ -718,7 +722,8 @@ public final class TrackingEngine {
                 recentEvents(),
                 history(),
                 boards,
-                jiraService.usesBoards());
+                jiraService.usesBoards(),
+                boardColumns);
     }
 
     private TaskView view(String key, String summary, String statusName, StatusCategory category, String assignee,
@@ -861,7 +866,36 @@ public final class TrackingEngine {
             List<ActivityEvent> recentEvents,
             List<TimeEntry> history,
             Map<String, String> boards,
-            boolean byBoard) {
+            boolean byBoard,
+            Map<String, List<JiraService.KanbanColumn>> boardColumns) {
+
+        public Snapshot(ActivityState activity, Duration idleTime, Optional<TaskView> featuredTask, List<TaskView> tasks,
+                        boolean pausedForInactivity, Duration activeToday, Duration inactiveToday, Duration manualToday,
+                        List<ManualEntry> manualEntries, JiraSyncStatus jiraStatus, Optional<String> jiraError,
+                        Optional<Instant> lastSync, Optional<JiraUser> user, Optional<String> projectLabel,
+                        List<ActivityEvent> recentEvents, List<TimeEntry> history, Map<String, String> boards,
+                        boolean byBoard) {
+            this(activity, idleTime, featuredTask, tasks, pausedForInactivity, activeToday, inactiveToday, manualToday,
+                    manualEntries, jiraStatus, jiraError, lastSync, user, projectLabel, recentEvents, history, boards,
+                    byBoard, Map.of());
+        }
+
+        /**
+         * Colunas do kanban para os quadros escolhidos (todos, sem escolha), na ordem do primeiro quadro que tem
+         * cada coluna. Colunas com o mesmo nome em quadros diferentes viram uma só.
+         */
+        public List<JiraService.KanbanColumn> kanbanColumns(Set<String> selected) {
+            Map<String, java.util.LinkedHashSet<String>> merged = new java.util.LinkedHashMap<>();
+            boardColumns.forEach((board, columns) -> {
+                if (selected.isEmpty() || !byBoard || selected.stream().anyMatch(board::equalsIgnoreCase)) {
+                    columns.forEach(column -> merged.computeIfAbsent(column.name(), name -> new java.util.LinkedHashSet<>())
+                            .addAll(column.statuses()));
+                }
+            });
+            List<JiraService.KanbanColumn> result = new ArrayList<>();
+            merged.forEach((name, statuses) -> result.add(new JiraService.KanbanColumn(name, List.copyOf(statuses))));
+            return result;
+        }
 
         /** Tempo do dia que conta para a meta: o relógio com tasks ligadas mais o inserido à mão. */
         public Duration workedToday() {
@@ -924,7 +958,7 @@ public final class TrackingEngine {
                     ownTasks, pausedForInactivity, Intervals.union(ownHistory), inactiveToday, sum(ownManual),
                     ownManual, jiraStatus, jiraError, lastSync, user,
                     Optional.of(String.join(", ", new java.util.TreeSet<>(selected))), recentEvents, ownHistory,
-                    boards, byBoard);
+                    boards, byBoard, boardColumns);
         }
     }
 }

@@ -650,8 +650,10 @@ class TrackingEngineTest {
         }
 
         @Override
-        public Map<String, Set<String>> fetchColumnStatuses() {
-            return columns;
+        public Map<String, List<KanbanColumn>> fetchBoardColumns() {
+            List<KanbanColumn> list = new ArrayList<>();
+            columns.forEach((name, statuses) -> list.add(new KanbanColumn(name, List.copyOf(statuses))));
+            return Map.of("Quadro", list);
         }
 
         @Override

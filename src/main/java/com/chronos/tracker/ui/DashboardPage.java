@@ -47,7 +47,15 @@ public final class DashboardPage {
     /** Quadros de cada task, para mostrar na linha; vazio sem JIRA_BOARDS. */
     private Function<String, List<String>> boardsOf = key -> List.of();
     private final Runnable onAddManual;
+    /** Rolagem da visão geral. */
     private final ScrollPane root;
+    private final VBox view;
+    private final javafx.scene.control.ToggleGroup viewTabs = new javafx.scene.control.ToggleGroup();
+    private final javafx.scene.control.ToggleButton overviewTab = new javafx.scene.control.ToggleButton();
+    private final javafx.scene.control.ToggleButton kanbanTab = new javafx.scene.control.ToggleButton();
+    private final StackPane content = new StackPane();
+    private final KanbanBoard kanban;
+    private Set<String> selectedGroups = Set.of();
 
     // Task atual
     private final VBox currentCard = card("current-card");
@@ -110,26 +118,66 @@ public final class DashboardPage {
         right.setMinWidth(380);
 
         HBox columns = new HBox(18, left, right);
-        VBox page = new VBox(18, boardChips.getView(), columns);
-        page.getStyleClass().add("page");
+        columns.getStyleClass().add("dashboard-overview");
 
-        root = new ScrollPane(page);
+        root = new ScrollPane(columns);
         root.setFitToWidth(true);
         root.getStyleClass().add("page-scroll");
+
+        kanban = new KanbanBoard(onToggle, task -> {
+            viewTabs.selectToggle(overviewTab);
+            focus(task.key());
+        });
+
+        overviewTab.setText(I18n.t("Visão geral"));
+        kanbanTab.setText(I18n.t("Visão kanban"));
+        for (javafx.scene.control.ToggleButton tab : List.of(overviewTab, kanbanTab)) {
+            tab.setToggleGroup(viewTabs);
+            tab.getStyleClass().add("view-tab");
+        }
+        viewTabs.selectToggle(overviewTab);
+        // Uma aba sempre fica marcada: clicar na já aberta não desmarca.
+        viewTabs.selectedToggleProperty().addListener((obs, before, now) -> {
+            if (now == null) {
+                viewTabs.selectToggle(before);
+                return;
+            }
+            showView();
+        });
+        HBox tabsBar = new HBox(4, overviewTab, kanbanTab);
+        tabsBar.getStyleClass().add("view-tabs");
+
+        content.getChildren().setAll(root);
+        VBox.setVgrow(content, Priority.ALWAYS);
+        view = new VBox(14, tabsBar, boardChips.getView(), content);
+        view.getStyleClass().add("dashboard");
+    }
+
+    private void showView() {
+        boolean kanbanOpen = viewTabs.getSelectedToggle() == kanbanTab;
+        content.getChildren().setAll(kanbanOpen ? kanban.getView() : root);
+        if (last != null) {
+            render(last);
+        }
     }
 
     public Node getView() {
-        return root;
+        return view;
     }
 
     /** Chips dos quadros (ou projetos) acima do painel; a escolha vale para todas as páginas. */
     public void setGroups(List<String> groups, Set<String> selected, boolean byBoard) {
+        selectedGroups = selected;
         boardChips.update(groups, selected, byBoard);
     }
 
     public void render(Snapshot snapshot) {
         last = snapshot;
         boardsOf = snapshot.byBoard() ? snapshot::groupsOf : key -> List.of();
+        if (viewTabs.getSelectedToggle() == kanbanTab) {
+            kanban.render(snapshot.tasks(), snapshot.kanbanColumns(selectedGroups));
+            return;
+        }
         renderCurrent(snapshot);
         renderStatus(snapshot);
         renderProgress(snapshot);
@@ -439,7 +487,11 @@ public final class DashboardPage {
             row.getStyleClass().add("task-row-focused");
         }
         Tooltip.install(row, new Tooltip(I18n.t("Clique para ver esta task em Task atual")));
-        row.setOnMouseClicked(event -> {
+        row.setOnMousePressed(event -> {
+            // No aperto, não no clique: a lista é refeita a cada segundo e o clique se perderia entre as duas.
+            if (!event.isPrimaryButtonDown()) {
+                return;
+            }
             for (Node node = (Node) event.getTarget(); node != null && node != row; node = node.getParent()) {
                 if (node instanceof Button) {
                     return;

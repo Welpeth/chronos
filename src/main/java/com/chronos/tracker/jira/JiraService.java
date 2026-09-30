@@ -89,11 +89,26 @@ public interface JiraService {
     }
 
     /**
-     * Nomes dos status que cada coluna dos quadros mostra, pelo nome da coluna. Serve para a coluna digitada nas
-     * Configurações (como aparece no quadro) valer mesmo quando o status tem outro nome.
+     * Colunas de cada quadro, na ordem do quadro, com os nomes dos status que cada uma mostra. A chave é o nome do
+     * quadro. Serve para o kanban do painel e para a coluna digitada nas Configurações valer pelo nome do quadro.
      */
-    default Map<String, Set<String>> fetchColumnStatuses() throws JiraException {
+    default Map<String, List<KanbanColumn>> fetchBoardColumns() throws JiraException {
         return Map.of();
+    }
+
+    /**
+     * Nomes dos status que cada coluna dos quadros mostra, pelo nome da coluna. Uma coluna com o mesmo nome em
+     * mais de um quadro junta os status de todos.
+     */
+    static Map<String, Set<String>> columnStatuses(Map<String, List<KanbanColumn>> boards) {
+        Map<String, Set<String>> columns = new java.util.LinkedHashMap<>();
+        boards.values().forEach(list -> list.forEach(column ->
+                columns.computeIfAbsent(column.name(), name -> new java.util.LinkedHashSet<>()).addAll(column.statuses())));
+        return columns;
+    }
+
+    /** Coluna de um quadro com os nomes dos status que ela mostra. */
+    record KanbanColumn(String name, List<String> statuses) {
     }
 
     /** Chave e nome dos projetos configurados, por exemplo "SCRUM · Minha equipe de software". */

@@ -1,6 +1,7 @@
 package com.chronos.tracker.tracking;
 
 import com.chronos.tracker.activity.ActivityState;
+import com.chronos.tracker.jira.JiraService.KanbanColumn;
 import com.chronos.tracker.jira.JiraSyncStatus;
 import com.chronos.tracker.jira.StatusCategory;
 import com.chronos.tracker.tracking.TrackingEngine.Snapshot;
@@ -108,6 +109,24 @@ class ProjectsTest {
         assertEquals(List.of(shared, support), all.forGroups(Set.of("Suporte RP")).tasks());
         assertEquals(List.of(shared, other), all.forGroups(Set.of("Quadro RP", "Outro")).tasks());
         assertEquals(all, all.forGroups(Set.of()));
+    }
+
+    @Test
+    void kanbanColumnsFollowTheChosenBoards() {
+        Snapshot all = new Snapshot(ActivityState.ACTIVE, Duration.ZERO, Optional.empty(), List.of(), false,
+                Duration.ZERO, Duration.ZERO, Duration.ZERO, List.of(), JiraSyncStatus.SYNCED, Optional.empty(),
+                Optional.empty(), Optional.empty(), Optional.empty(), List.of(), List.of(), Map.of(), true,
+                new java.util.LinkedHashMap<>(Map.of(
+                        "Quadro RP", List.of(new KanbanColumn("A fazer", List.of("A fazer")),
+                                new KanbanColumn("Test", List.of("Em teste"))),
+                        "Suporte RP", List.of(new KanbanColumn("A fazer", List.of("Backlog")),
+                                new KanbanColumn("Validação", List.of("Validando"))))));
+
+        assertEquals(List.of(new KanbanColumn("A fazer", List.of("A fazer")), new KanbanColumn("Test", List.of("Em teste"))),
+                all.kanbanColumns(Set.of("Quadro RP")));
+        List<String> names = all.kanbanColumns(Set.of()).stream().map(KanbanColumn::name).toList();
+        assertEquals(3, names.size());
+        assertEquals(java.util.Set.of("A fazer", "Test", "Validação"), java.util.Set.copyOf(names));
     }
 
     private static TaskView task(String key, boolean running) {

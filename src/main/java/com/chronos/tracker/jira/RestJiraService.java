@@ -167,29 +167,30 @@ public final class RestJiraService implements JiraService {
     }
 
     /**
-     * Colunas dos quadros de {@code JIRA_BOARDS} ou, sem eles, dos quadros dos projetos configurados. Uma coluna
-     * com o mesmo nome em mais de um quadro junta os status de todos.
+     * Colunas dos quadros de {@code JIRA_BOARDS} ou, sem eles, dos quadros dos projetos configurados (até
+     * {@link #MAX_COLUMN_BOARDS}), pelo nome de cada quadro.
      */
     @Override
-    public Map<String, Set<String>> fetchColumnStatuses() throws JiraException {
+    public Map<String, List<KanbanColumn>> fetchBoardColumns() throws JiraException {
         List<String> boards = new ArrayList<>(boardIds);
         if (boards.isEmpty()) {
             for (String projectKey : projectKeys) {
                 client.projectBoardIds(projectKey).stream().filter(id -> !boards.contains(id)).forEach(boards::add);
             }
         }
-        Map<String, Set<String>> columns = new LinkedHashMap<>();
+        Map<String, List<KanbanColumn>> byBoard = new LinkedHashMap<>();
         if (boards.isEmpty()) {
-            return columns;
+            return byBoard;
         }
         Map<String, String> statusNames = client.statusNames();
         for (String boardId : boards.subList(0, Math.min(boards.size(), MAX_COLUMN_BOARDS))) {
-            for (JiraClient.BoardColumn column : client.boardConfig(boardId).columns()) {
-                Set<String> names = columns.computeIfAbsent(column.name(), name -> new java.util.LinkedHashSet<>());
-                column.statusIds().stream().map(statusNames::get).filter(java.util.Objects::nonNull).forEach(names::add);
-            }
+            List<KanbanColumn> columns = client.boardConfig(boardId).columns().stream()
+                    .map(column -> new KanbanColumn(column.name(), column.statusIds().stream()
+                            .map(statusNames::get).filter(java.util.Objects::nonNull).toList()))
+                    .toList();
+            byBoard.put(boardName(boardId), columns);
         }
-        return columns;
+        return byBoard;
     }
 
     private String boardName(String boardId) throws JiraException {

@@ -905,3 +905,77 @@
     -fx-background-color: -c-surface;
     -fx-background-radius: 7;
 }
+
+/* Painel: abas Visão geral / Visão kanban */
+.dashboard {
+    -fx-padding: 20 24 0 24;
+}
+
+.dashboard-overview {
+    -fx-padding: 0 0 20 0;
+}
+
+.view-tabs {
+    -fx-border-color: transparent transparent -c-line-strong transparent;
+}
+
+.view-tab {
+    -fx-background-color: transparent;
+    -fx-background-radius: 0;
+    -fx-border-color: transparent transparent transparent transparent;
+    -fx-border-width: 0 0 3 0;
+    -fx-padding: 8 16;
+    -fx-text-fill: -c-text-2;
+    -fx-font-size: 14px;
+    -fx-cursor: hand;
+}
+
+.view-tab:hover {
+    -fx-text-fill: -c-text;
+}
+
+.view-tab:selected {
+    -fx-border-color: transparent transparent -c-accent transparent;
+    -fx-text-fill: -c-text;
+    -fx-font-weight: bold;
+}
+
+.kanban-scroll,
+.kanban-scroll > .viewport {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+}
+
+.kanban {
+    -fx-padding: 0 0 20 0;
+}
+
+.kanban-cards {
+    -fx-padding: 2 4 8 2;
+}
+
+.kanban-column {
+    -fx-background-color: -c-surface-2;
+    -fx-background-radius: 12;
+    -fx-padding: 14;
+}
+
+.kanban-title {
+    -fx-font-weight: bold;
+    -fx-text-fill: -c-text;
+    -fx-font-size: 13px;
+}
+
+.kanban-card {
+    -fx-background-color: -c-surface;
+    -fx-background-radius: 10;
+    -fx-padding: 12;
+    -fx-effect: dropshadow(gaussian, rgba(15, 42, 90, 0.08), 8, 0, 0, 1);
+    -fx-cursor: hand;
+}
+
+.kanban-card-running {
+    -fx-border-color: -c-accent;
+    -fx-border-radius: 10;
+    -fx-border-width: 0 0 0 3;
+}
