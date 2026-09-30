@@ -16,6 +16,8 @@ As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma vers
   para cada task sua que entra numa coluna monitorada e ela fica como "Template adicionado".
 - Chips de quadro no Painel, no lugar do seletor do topo: "Todos os quadros" e um chip por quadro, podendo
   marcar vários. A escolha vale para todas as páginas. Cada task mostra na lista os quadros em que está.
+- Filtro de Tarefas pela data de modificação no Jira (qualquer data, hoje, ontem, últimos 7 ou 30 dias). Cada
+  task mostra na lista quando foi modificada.
 
 ### Corrigido
 - As colunas digitadas em "Colunas que contam tempo" agora valem pelo nome da coluna no quadro, mesmo quando o

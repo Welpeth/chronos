@@ -11,9 +11,15 @@ package com.chronos.tracker.jira;
  * @param issueType  tipo da issue, por exemplo "Bug Cliente" (vazio se o Jira não informou)
  * @param assignee   nome do responsável (vazio se não tem ou o Jira não informou)
  * @param mine       se veio da busca das tasks do usuário; as de outros responsáveis não começam a contar sozinhas
+ * @param updated    última modificação da issue no Jira (vazio se o Jira não informou)
  */
 public record JiraIssue(String key, String summary, String statusName, StatusCategory category, String issueType,
-                        String assignee, boolean mine) {
+                        String assignee, boolean mine, java.util.Optional<java.time.Instant> updated) {
+
+    public JiraIssue(String key, String summary, String statusName, StatusCategory category, String issueType,
+                     String assignee, boolean mine) {
+        this(key, summary, statusName, category, issueType, assignee, mine, java.util.Optional.empty());
+    }
 
     public JiraIssue(String key, String summary, String statusName, StatusCategory category, String issueType) {
         this(key, summary, statusName, category, issueType, "", true);
@@ -33,6 +39,6 @@ public record JiraIssue(String key, String summary, String statusName, StatusCat
 
     /** A mesma issue marcada como de outro responsável. */
     public JiraIssue asOthers() {
-        return new JiraIssue(key, summary, statusName, category, issueType, assignee, false);
+        return new JiraIssue(key, summary, statusName, category, issueType, assignee, false, updated);
     }
 }

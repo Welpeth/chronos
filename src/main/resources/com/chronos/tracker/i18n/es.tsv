@@ -354,3 +354,9 @@ Template salvo.	Plantilla guardada.
 nada pendente	nada pendiente
 {0} tasks faltam comentar	{0} tareas necesitan un comentario
 Falha ao ler as colunas dos quadros do Jira	Error al leer las columnas de los tableros de Jira
+modificada {0}	modificada {0}
+Modificadas:	Modificadas:
+Qualquer data	Cualquier fecha
+Ontem	Ayer
+Últimos 7 dias	Últimos 7 días
+Últimos 30 dias	Últimos 30 días

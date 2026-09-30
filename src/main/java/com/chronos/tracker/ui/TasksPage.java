@@ -56,8 +56,42 @@ public final class TasksPage {
         }
     }
 
+    /** Filtro pela última modificação da task no Jira. */
+    enum Modified {
+        ANY, TODAY, YESTERDAY, LAST_7_DAYS, LAST_30_DAYS;
+
+        String label() {
+            return switch (this) {
+                case ANY -> I18n.t("Qualquer data");
+                case TODAY -> I18n.t("Hoje");
+                case YESTERDAY -> I18n.t("Ontem");
+                case LAST_7_DAYS -> I18n.t("Últimos 7 dias");
+                case LAST_30_DAYS -> I18n.t("Últimos 30 dias");
+            };
+        }
+
+        /** Se a task foi modificada no período; sem data (tasks fora do Jira), só entra em "qualquer data". */
+        boolean accepts(TaskView task, java.time.LocalDate today, java.time.ZoneId zone) {
+            if (this == ANY) {
+                return true;
+            }
+            if (task.updated().isEmpty()) {
+                return false;
+            }
+            java.time.LocalDate day = java.time.LocalDate.ofInstant(task.updated().get(), zone);
+            return switch (this) {
+                case ANY -> true;
+                case TODAY -> day.equals(today);
+                case YESTERDAY -> day.equals(today.minusDays(1));
+                case LAST_7_DAYS -> !day.isBefore(today.minusDays(6));
+                case LAST_30_DAYS -> !day.isBefore(today.minusDays(29));
+            };
+        }
+    }
+
     private final Consumer<TaskView> onToggle;
     private final VBox root;
+    private final javafx.scene.control.ComboBox<Modified> modified = new javafx.scene.control.ComboBox<>();
     private final TabPane tabs = BrowserTabs.create();
     private final Tab generalTab;
     private final Tab columnsTab;
@@ -65,7 +99,7 @@ public final class TasksPage {
     private final VBox columnsList = new VBox(0);
     private final VBox generalBody;
     private final VBox columnsBody;
-    private final HBox toolbar;
+    private final VBox toolbar;
     private final Label countLabel = new Label();
     private final TextField search = new TextField();
     private final ToggleGroup filters = new ToggleGroup();
@@ -101,10 +135,28 @@ public final class TasksPage {
         search.setPrefWidth(260);
         search.getStyleClass().add("search");
         search.textProperty().addListener((obs, before, now) -> refresh());
+        modified.getItems().setAll(Modified.values());
+        modified.setValue(Modified.ANY);
+        modified.getStyleClass().add("dialog-input");
+        modified.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(Modified value) {
+                return value == null ? "" : value.label();
+            }
+
+            @Override
+            public Modified fromString(String text) {
+                return Modified.ANY;
+            }
+        });
+        modified.valueProperty().addListener((obs, before, now) -> refresh());
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        toolbar = new HBox(12, filterBar, spacer, search);
-        toolbar.setAlignment(Pos.CENTER_LEFT);
+        Label modifiedLabel = new Label(I18n.t("Modificadas:"));
+        modifiedLabel.getStyleClass().add("muted");
+        HBox dateRow = new HBox(10, modifiedLabel, modified, spacer, search);
+        dateRow.setAlignment(Pos.CENTER_LEFT);
+        toolbar = new VBox(12, filterBar, dateRow);
 
         generalList.getStyleClass().add("list-card");
         columnsList.getStyleClass().add("list-card");
@@ -153,6 +205,9 @@ public final class TasksPage {
                 .orElse(Filter.ALL);
         String query = search.getText() == null ? "" : search.getText().strip().toLowerCase(Locale.ROOT);
 
+        Modified period = modified.getValue() == null ? Modified.ANY : modified.getValue();
+        java.time.ZoneId zone = java.time.ZoneId.systemDefault();
+        java.time.LocalDate today = java.time.LocalDate.now(zone);
         boolean columnsOnly = tabs.getSelectionModel().getSelectedItem() == columnsTab;
         VBox list = columnsOnly ? columnsList : generalList;
         long inColumns = last.tasks().stream().filter(TaskView::inWorkingColumn).count();
@@ -162,6 +217,7 @@ public final class TasksPage {
         List<TaskView> visible = last.tasks().stream()
                 .filter(task -> !columnsOnly || task.inWorkingColumn())
                 .filter(filter.predicate)
+                .filter(task -> period.accepts(task, today, zone))
                 .filter(task -> query.isEmpty()
                         || task.key().toLowerCase(Locale.ROOT).contains(query)
                         || task.summary().toLowerCase(Locale.ROOT).contains(query))
@@ -179,6 +235,6 @@ public final class TasksPage {
             list.getChildren().add(empty);
             return;
         }
-        visible.forEach(task -> list.getChildren().add(TaskRows.row(task, onToggle, boardsOf.apply(task.key()))));
+        visible.forEach(task -> list.getChildren().add(TaskRows.row(task, onToggle, boardsOf.apply(task.key()), true)));
     }
 }

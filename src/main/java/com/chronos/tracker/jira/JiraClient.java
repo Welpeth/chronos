@@ -53,7 +53,7 @@ public final class JiraClient {
         ObjectNode body = mapper.createObjectNode();
         body.put("jql", jql);
         body.put("maxResults", maxResults);
-        body.putArray("fields").add("summary").add("status").add("issuetype").add("assignee");
+        body.putArray("fields").add("summary").add("status").add("issuetype").add("assignee").add("updated");
 
         HttpRequest request = request("/rest/api/3/search/jql")
                 .header("Content-Type", "application/json")
@@ -306,10 +306,27 @@ public final class JiraClient {
                             StatusCategory.fromJiraKey(status.path("statusCategory").path("key").asText("")),
                             fields.path("issuetype").path("name").asText(""),
                             fields.path("assignee").path("displayName").asText(""),
-                            true);
+                            true,
+                            parseInstant(fields.path("updated").asText("")));
                 })
                 .filter(issue -> !issue.key().isEmpty())
                 .toList();
+    }
+
+    /** Data do Jira, como "2026-09-29T14:02:11.123-0300"; vazio se não veio ou não deu para ler. */
+    static java.util.Optional<java.time.Instant> parseInstant(String text) {
+        if (text.isEmpty()) {
+            return java.util.Optional.empty();
+        }
+        try {
+            return java.util.Optional.of(ZonedDateTime.parse(text, WORKLOG_STARTED).toInstant());
+        } catch (java.time.format.DateTimeParseException e) {
+            try {
+                return java.util.Optional.of(java.time.OffsetDateTime.parse(text).toInstant());
+            } catch (java.time.format.DateTimeParseException ignored) {
+                return java.util.Optional.empty();
+            }
+        }
     }
 
     /** Junta as mensagens de erro do Jira, que vêm como {@code {"errorMessages": [...]}}. */
