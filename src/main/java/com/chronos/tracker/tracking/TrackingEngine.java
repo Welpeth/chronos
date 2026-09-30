@@ -22,6 +22,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
@@ -33,6 +34,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 
 /**
@@ -50,6 +52,10 @@ public final class TrackingEngine {
     static final int MAX_EVENTS = 200;
     /** De quanto em quanto tempo os intervalos ainda abertos são gravados, para não perder tempo numa queda. */
     static final Duration CHECKPOINT_INTERVAL = Duration.ofSeconds(30);
+    /** De quanto em quanto tempo confere de novo o quadro das tasks (uma task pode mudar de quadro). */
+    static final Duration BOARDS_REFRESH = Duration.ofMinutes(5);
+    /** Separa os quadros de uma task que está em mais de um, como ficam gravados. */
+    static final String BOARD_SEPARATOR = "\n";
     /** Limite de um dia: tempo contado mais o inserido à mão não pode passar disto. */
     public static final Duration DAILY_LIMIT = Duration.ofHours(8);
     private static final DateTimeFormatter DAY_MONTH = DateTimeFormatter.ofPattern("dd/MM");
@@ -75,6 +81,12 @@ public final class TrackingEngine {
     private final Map<String, Boolean> overrides = new HashMap<>();
     private final Map<String, String> lastStatus = new HashMap<>();
     private volatile Predicate<JiraIssue> working = JiraIssue::isInProgress;
+    private volatile List<String> workingNames = List.of();
+    /** Status de cada coluna dos quadros, lidos do Jira; vazio até a primeira leitura ou se ela falhar. */
+    private volatile Map<String, Set<String>> columnStatuses = Map.of();
+    /** Colunas de cada quadro, na ordem do quadro, para o kanban do painel. */
+    private volatile Map<String, List<JiraService.KanbanColumn>> boardColumns = Map.of();
+    private Instant columnsCheckedAt = Instant.MIN;
     /** Se o tempo começa sozinho quando a task entra numa coluna que conta; senão, só pelo play. */
     private volatile boolean autoStart = true;
     private volatile boolean onlyWorkingColumns;
@@ -92,6 +104,13 @@ public final class TrackingEngine {
     private List<TimeEntry> storedToday = new ArrayList<>();
     private List<ManualEntry> manualToday = new ArrayList<>();
     private final Map<String, String> summaries = new HashMap<>();
+    /** Quadro de cada task (com {@code JIRA_BOARDS}), guardado no histórico para os dias anteriores. */
+    private volatile Map<String, String> boards = Map.of();
+    private Instant boardsCheckedAt = Instant.MIN;
+    /** Tasks do usuário que acabaram de entrar numa coluna monitorada, para o template de comentário. */
+    private final java.util.Queue<JiraIssue> enteredColumns = new java.util.concurrent.ConcurrentLinkedQueue<>();
+    /** Tasks cujo quadro já foi procurado, mesmo as que não estão em nenhum dos quadros. */
+    private final Set<String> boardsLookedUp = ConcurrentHashMap.newKeySet();
     private Instant lastCheckpoint;
     private boolean storageFailing;
 
@@ -132,6 +151,7 @@ public final class TrackingEngine {
                 }
             }
             activeToday = Intervals.union(storedToday);
+            boards = Map.copyOf(store.issueBoards());
             inactiveToday = store.idleOn(day);
             manualToday = new ArrayList<>(store.manualOn(day));
         } catch (HistoryStore.HistoryException e) {
@@ -182,6 +202,8 @@ public final class TrackingEngine {
             }
             issues = List.copyOf(fetched);
             issuesVersion++;
+            updateBoards(service, fetched);
+            updateColumns(service);
             jiraStatus = JiraSyncStatus.SYNCED;
             jiraError = Optional.empty();
             lastSync = Optional.of(clock.instant());
@@ -197,6 +219,69 @@ public final class TrackingEngine {
             if (previous != jiraStatus) {
                 addEvent(ActivityEvent.Kind.ERROR, I18n.t("Falha ao sincronizar com o Jira"), jiraError.orElse(""));
             }
+        }
+    }
+
+    /**
+     * Lê do Jira as colunas dos quadros, na primeira consulta e de tempos em tempos: servem para o kanban e para
+     * as colunas digitadas valerem pelo nome da coluna no quadro.
+     */
+    private void updateColumns(JiraService service) {
+        Instant now = clock.instant();
+        if (Duration.between(columnsCheckedAt, now).compareTo(BOARDS_REFRESH) < 0) {
+            return;
+        }
+        columnsCheckedAt = now;
+        try {
+            Map<String, List<JiraService.KanbanColumn>> found = service.fetchBoardColumns();
+            if (!found.equals(boardColumns)) {
+                boardColumns = Collections.unmodifiableMap(new java.util.LinkedHashMap<>(found));
+                columnStatuses = JiraService.columnStatuses(found);
+                rebuildWorking();
+            }
+        } catch (JiraException e) {
+            addEvent(ActivityEvent.Kind.ERROR, I18n.t("Falha ao ler as colunas dos quadros do Jira"), e.getMessage());
+        }
+    }
+
+    /**
+     * Descobre o quadro das tasks quando aparece uma task nova e, de tempos em tempos, para as que mudaram de
+     * quadro. Falhar aqui não derruba a sincronização: as tasks só ficam sem quadro até a próxima vez.
+     */
+    private void updateBoards(JiraService service, List<JiraIssue> fetched) {
+        if (!service.usesBoards()) {
+            return;
+        }
+        Instant now = clock.instant();
+        Map<String, String> known = boards;
+        boolean unknown = fetched.stream().anyMatch(issue -> !boardsLookedUp.contains(issue.key()));
+        if (!unknown && Duration.between(boardsCheckedAt, now).compareTo(BOARDS_REFRESH) < 0) {
+            return;
+        }
+        boardsCheckedAt = now;
+        try {
+            List<String> keys = fetched.stream().map(JiraIssue::key).toList();
+            Map<String, List<String>> found = service.fetchBoards(keys);
+            boardsLookedUp.addAll(keys);
+            Map<String, String> changed = new HashMap<>();
+            // Uma task que saiu de todos os quadros fica sem quadro (""), em vez de manter o antigo.
+            for (String key : keys) {
+                String board = String.join(BOARD_SEPARATOR, found.getOrDefault(key, List.of()));
+                if (!board.equals(known.getOrDefault(key, ""))) {
+                    changed.put(key, board);
+                }
+            }
+            if (changed.isEmpty()) {
+                return;
+            }
+            Map<String, String> merged = new HashMap<>(known);
+            merged.putAll(changed);
+            boards = Map.copyOf(merged);
+            store.saveIssueBoards(changed);
+        } catch (JiraException e) {
+            addEvent(ActivityEvent.Kind.ERROR, I18n.t("Falha ao ler os quadros do Jira"), e.getMessage());
+        } catch (HistoryStore.HistoryException e) {
+            reportStorageFailure(e);
         }
     }
 
@@ -364,6 +449,8 @@ public final class TrackingEngine {
         overrides.clear();
         lastStatus.clear();
         summaries.clear();
+        boardsLookedUp.clear();
+        boardsCheckedAt = Instant.MIN;
         storedToday = new ArrayList<>();
         manualToday = new ArrayList<>();
         issues = List.of();
@@ -386,6 +473,10 @@ public final class TrackingEngine {
      */
     public void setJiraService(JiraService service) {
         jiraService = Objects.requireNonNull(service, "jiraService");
+        // Os quadros podem ter mudado: procura de novo o quadro de cada task.
+        boardsLookedUp.clear();
+        boardsCheckedAt = Instant.MIN;
+        columnsCheckedAt = Instant.MIN;
         user = Optional.empty();
         projectLabel = Optional.empty();
         jiraError = Optional.empty();
@@ -402,11 +493,33 @@ public final class TrackingEngine {
      * vale a categoria do status: tudo que o Jira considera "em andamento" conta.
      */
     public void setWorkingStatuses(List<String> statusNames) {
+        workingNames = List.copyOf(statusNames);
+        rebuildWorking();
+    }
+
+    /**
+     * O nome digitado vale como nome de status e como nome de coluna do quadro: uma coluna "Test" que mostra o
+     * status "Em teste" conta para as tasks em "Em teste".
+     */
+    private void rebuildWorking() {
+        Map<String, Set<String>> byColumn = new HashMap<>();
+        columnStatuses.forEach((column, statuses) -> byColumn.computeIfAbsent(columnKey(column), c -> new HashSet<>())
+                .addAll(statuses.stream().map(TrackingEngine::columnKey).toList()));
         Set<String> names = new HashSet<>();
-        statusNames.forEach(name -> names.add(name.strip().toLowerCase(Locale.ROOT)));
-        working = names.isEmpty()
+        workingNames.forEach(name -> {
+            names.add(columnKey(name));
+            names.addAll(byColumn.getOrDefault(columnKey(name), Set.of()));
+        });
+        working = workingNames.isEmpty()
                 ? JiraIssue::isInProgress
-                : issue -> names.contains(issue.statusName().strip().toLowerCase(Locale.ROOT));
+                : issue -> names.contains(columnKey(issue.statusName()));
+    }
+
+    /** Compara nomes de coluna sem maiúsculas, acentos e espaços repetidos ("Em Análise" = "em analise"). */
+    static String columnKey(String name) {
+        String plain = java.text.Normalizer.normalize(name.strip(), java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "");
+        return plain.replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
     }
 
     /**
@@ -423,6 +536,24 @@ public final class TrackingEngine {
      */
     public synchronized void setOnlyWorkingColumns(boolean enabled) {
         onlyWorkingColumns = enabled;
+    }
+
+    /**
+     * Tasks do usuário que entraram numa coluna monitorada desde a última chamada (vinham de outra coluna do
+     * Jira). Não inclui as que já estavam na coluna quando o Chronos abriu.
+     */
+    public List<JiraIssue> drainEnteredColumns() {
+        List<JiraIssue> entered = new ArrayList<>();
+        JiraIssue issue;
+        while ((issue = enteredColumns.poll()) != null) {
+            entered.add(issue);
+        }
+        return entered;
+    }
+
+    /** Anota na Atividade recente (os comentários usam para contar o que fizeram no Jira). */
+    public void recordEvent(boolean error, String title, String detail) {
+        addEvent(error ? ActivityEvent.Kind.ERROR : ActivityEvent.Kind.TASK, title, detail);
     }
 
     /** Tags da validação: {@code playLabels} ao começar o tempo, {@code doneLabels} no lugar delas ao terminar. */
@@ -478,6 +609,9 @@ public final class TrackingEngine {
                 // Saiu da coluna no Jira (e não porque as colunas mudaram nas Configurações): validação acabou.
                 if (Boolean.TRUE.equals(wasInColumn) && !inColumn) {
                     labels.finished(issue.key());
+                }
+                if (Boolean.FALSE.equals(wasInColumn) && inColumn && issue.mine()) {
+                    enteredColumns.add(issue);
                 }
                 boolean keepPlaying = !autoStart && Boolean.TRUE.equals(overrides.get(issue.key()))
                         && working.test(issue);
@@ -563,12 +697,12 @@ public final class TrackingEngine {
         for (JiraIssue issue : currentIssues) {
             boolean inColumn = working.test(issue);
             tasks.add(view(issue.key(), issue.summary(), issue.statusName(), issue.category(), issue.assignee(),
-                    issue.mine(), inColumn, inColumn || !onlyWorkingColumns));
+                    issue.mine(), inColumn, inColumn || !onlyWorkingColumns, issue.updated()));
             listed.add(issue.key());
         }
         // Tasks que contaram tempo mas não vêm mais do Jira (digitadas à mão ou fora da busca).
         tracker.trackedKeys().stream().filter(key -> !listed.contains(key)).sorted().forEach(key ->
-                tasks.add(view(key, "", "", StatusCategory.IN_PROGRESS, "", true, false, true)));
+                tasks.add(view(key, "", "", StatusCategory.IN_PROGRESS, "", true, false, true, Optional.empty())));
 
         return new Snapshot(
                 activity,
@@ -586,13 +720,17 @@ public final class TrackingEngine {
                 user,
                 projectLabel,
                 recentEvents(),
-                history());
+                history(),
+                boards,
+                jiraService.usesBoards(),
+                boardColumns);
     }
 
     private TaskView view(String key, String summary, String statusName, StatusCategory category, String assignee,
-                          boolean mine, boolean inWorkingColumn, boolean timeAllowed) {
+                          boolean mine, boolean inWorkingColumn, boolean timeAllowed, Optional<Instant> updated) {
         return new TaskView(key, summary, statusName, category, tracker.totalFor(key), tracker.isRunning(key),
-                overrides.containsKey(key), tracker.runningSince(key), assignee, mine, inWorkingColumn, timeAllowed);
+                overrides.containsKey(key), tracker.runningSince(key), assignee, mine, inWorkingColumn, timeAllowed,
+                updated);
     }
 
     /**
@@ -726,7 +864,53 @@ public final class TrackingEngine {
             Optional<JiraUser> user,
             Optional<String> projectLabel,
             List<ActivityEvent> recentEvents,
-            List<TimeEntry> history) {
+            List<TimeEntry> history,
+            Map<String, String> boards,
+            boolean byBoard,
+            Map<String, List<JiraService.KanbanColumn>> boardColumns) {
+
+        public Snapshot(ActivityState activity, Duration idleTime, Optional<TaskView> featuredTask, List<TaskView> tasks,
+                        boolean pausedForInactivity, Duration activeToday, Duration inactiveToday, Duration manualToday,
+                        List<ManualEntry> manualEntries, JiraSyncStatus jiraStatus, Optional<String> jiraError,
+                        Optional<Instant> lastSync, Optional<JiraUser> user, Optional<String> projectLabel,
+                        List<ActivityEvent> recentEvents, List<TimeEntry> history, Map<String, String> boards,
+                        boolean byBoard) {
+            this(activity, idleTime, featuredTask, tasks, pausedForInactivity, activeToday, inactiveToday, manualToday,
+                    manualEntries, jiraStatus, jiraError, lastSync, user, projectLabel, recentEvents, history, boards,
+                    byBoard, Map.of());
+        }
+
+        /**
+         * Colunas do kanban para os quadros escolhidos (todos, sem escolha), na ordem dos quadros. Colunas com o
+         * mesmo nome em quadros diferentes (sem contar maiúsculas e acentos) viram uma só, e a coluna que só um
+         * quadro tem entra antes das colunas que vêm depois dela nesse quadro.
+         */
+        public List<JiraService.KanbanColumn> kanbanColumns(Set<String> selected) {
+            List<String> order = new ArrayList<>();
+            Map<String, String> names = new java.util.HashMap<>();
+            Map<String, java.util.LinkedHashSet<String>> merged = new java.util.HashMap<>();
+            boardColumns.forEach((board, columns) -> {
+                if (selected.isEmpty() || !byBoard || selected.stream().anyMatch(board::equalsIgnoreCase)) {
+                    List<String> keys = columns.stream().map(column -> columnKey(column.name())).toList();
+                    for (int i = 0; i < columns.size(); i++) {
+                        String key = keys.get(i);
+                        if (!merged.containsKey(key)) {
+                            order.add(insertAt(order, keys.subList(i + 1, keys.size())), key);
+                            names.put(key, columns.get(i).name());
+                        }
+                        merged.computeIfAbsent(key, k -> new java.util.LinkedHashSet<>()).addAll(columns.get(i).statuses());
+                    }
+                }
+            });
+            return order.stream()
+                    .map(key -> new JiraService.KanbanColumn(names.get(key), List.copyOf(merged.get(key))))
+                    .toList();
+        }
+
+        /** Posição de uma coluna nova: antes da primeira das colunas seguintes do mesmo quadro já na lista. */
+        private static int insertAt(List<String> order, List<String> following) {
+            return following.stream().mapToInt(order::indexOf).filter(index -> index >= 0).min().orElse(order.size());
+        }
 
         /** Tempo do dia que conta para a meta: o relógio com tasks ligadas mais o inserido à mão. */
         public Duration workedToday() {
@@ -741,32 +925,55 @@ public final class TrackingEngine {
             return tasks.stream().filter(TaskView::running).count();
         }
 
-        /** Projetos que aparecem nas tasks e nos registros de hoje. */
+        /**
+         * Grupos em que a task aparece nos filtros: os quadros dela, com {@code JIRA_BOARDS}, ou o projeto da
+         * chave. Vazio quando não se sabe (a task só aparece em "Todos").
+         */
+        public List<String> groupsOf(String issueKey) {
+            if (!byBoard) {
+                String project = Projects.of(issueKey);
+                return project.isEmpty() ? List.of() : List.of(project);
+            }
+            String joined = boards.getOrDefault(issueKey, "");
+            return joined.isEmpty() ? List.of() : List.of(joined.split(BOARD_SEPARATOR));
+        }
+
+        /** Grupos (quadros ou projetos) das tasks e dos registros de hoje, em ordem alfabética. */
         public List<String> projects() {
-            List<String> keys = new ArrayList<>();
-            tasks.forEach(task -> keys.add(task.key()));
-            history.forEach(entry -> keys.add(entry.issueKey()));
-            manualEntries.forEach(entry -> keys.add(entry.issueKey()));
-            return Projects.distinct(keys);
+            java.util.TreeSet<String> groups = new java.util.TreeSet<>();
+            tasks.forEach(task -> groups.addAll(groupsOf(task.key())));
+            history.forEach(entry -> groups.addAll(groupsOf(entry.issueKey())));
+            manualEntries.forEach(entry -> groups.addAll(groupsOf(entry.issueKey())));
+            return List.copyOf(groups);
+        }
+
+        private boolean inGroup(String issueKey, Set<String> selected) {
+            return Projects.matches(groupsOf(issueKey), selected);
+        }
+
+        /** O mesmo estado visto só de um projeto ou quadro; veja {@link #forGroups(Set)}. */
+        public Snapshot forProject(String project) {
+            return forGroups(project == null || project.isEmpty() ? Set.of() : Set.of(project));
         }
 
         /**
-         * O mesmo estado visto só de um projeto: tasks, registros e totais de hoje só dele. O tempo ocioso é do PC
-         * e não muda. {@link Projects#ALL} devolve tudo.
+         * O mesmo estado visto só dos grupos escolhidos: tasks, registros e totais de hoje só deles. O tempo ocioso
+         * é do PC e não muda. Sem grupos, devolve tudo.
          */
-        public Snapshot forProject(String project) {
-            if (project == null || project.isEmpty()) {
+        public Snapshot forGroups(Set<String> selected) {
+            if (selected == null || selected.isEmpty()) {
                 return this;
             }
-            List<TaskView> ownTasks = tasks.stream().filter(task -> Projects.matches(task.key(), project)).toList();
-            List<TimeEntry> ownHistory = history.stream()
-                    .filter(entry -> Projects.matches(entry.issueKey(), project)).toList();
+            List<TaskView> ownTasks = tasks.stream().filter(task -> inGroup(task.key(), selected)).toList();
+            List<TimeEntry> ownHistory = history.stream().filter(entry -> inGroup(entry.issueKey(), selected)).toList();
             List<ManualEntry> ownManual = manualEntries.stream()
-                    .filter(entry -> Projects.matches(entry.issueKey(), project)).toList();
+                    .filter(entry -> inGroup(entry.issueKey(), selected)).toList();
             return new Snapshot(activity, idleTime,
-                    featuredTask.filter(task -> Projects.matches(task.key(), project)).or(() -> featured(ownTasks)),
+                    featuredTask.filter(task -> inGroup(task.key(), selected)).or(() -> featured(ownTasks)),
                     ownTasks, pausedForInactivity, Intervals.union(ownHistory), inactiveToday, sum(ownManual),
-                    ownManual, jiraStatus, jiraError, lastSync, user, Optional.of(project), recentEvents, ownHistory);
+                    ownManual, jiraStatus, jiraError, lastSync, user,
+                    Optional.of(String.join(", ", new java.util.TreeSet<>(selected))), recentEvents, ownHistory,
+                    boards, byBoard, boardColumns);
         }
     }
 }

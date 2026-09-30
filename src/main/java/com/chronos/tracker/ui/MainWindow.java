@@ -20,25 +20,27 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.Circle;
 
-import javafx.util.StringConverter;
 
-import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.prefs.Preferences;
 
 /** Janela principal: barra superior, menu lateral e a página atual. */
 public final class MainWindow {
 
-    private enum Page { DASHBOARD, TASKS, HISTORY, WORKLOG, SETTINGS }
+    private enum Page { DASHBOARD, TASKS, HISTORY, WORKLOG, COMMENTS, SETTINGS }
 
     private final BorderPane root = new BorderPane();
     private final DashboardPage dashboard;
     private final TasksPage tasks;
     private final HistoryPage history;
     private final WorklogPage worklog;
+    private final CommentsPage comments;
+    private final Label commentsNavLabel = new Label();
+    private boolean commentsEnabled;
     private final SettingsPage settings;
     private final Map<Page, HBox> navItems = new EnumMap<>(Page.class);
     private Page page = Page.DASHBOARD;
@@ -50,20 +52,26 @@ public final class MainWindow {
     private final Label avatar = new Label();
     private final Label userName = new Label();
     private final Label userEmail = new Label();
-    /** Projeto do Jira mostrado nas páginas; vazio mostra todos. Só aparece com mais de um projeto. */
-    private final ComboBox<String> projectPicker = new ComboBox<>();
-    private String project = loadProject();
-    private boolean updatingProjects;
+    /** Quadros (ou projetos) mostrados nas páginas; vazio mostra todos. Escolhidos nos chips do painel. */
+    private Set<String> project = loadProject();
 
     public MainWindow(Consumer<TaskView> onToggle, Runnable onAddManual, HistoryStore store,
-                      WorklogPage.Handler worklogHandler, SettingsPage.Handler settingsHandler) {
-        this.dashboard = new DashboardPage(onToggle, onAddManual);
+                      WorklogPage.Handler worklogHandler, CommentsPage.Handler commentsHandler,
+                      SettingsPage.Handler settingsHandler) {
+        this.dashboard = new DashboardPage(onToggle, onAddManual, this::selectProject);
         this.tasks = new TasksPage(onToggle);
         this.history = new HistoryPage(store);
         this.worklog = new WorklogPage(worklogHandler);
+        this.comments = new CommentsPage(commentsHandler);
+        comments.setOnPendingCount(count -> commentsNavLabel.setText(count == 0 ? I18n.t("Comentários")
+                : I18n.t("Comentários ({0})", count)));
         this.settings = new SettingsPage(settingsHandler);
+        history.setGrouping(this::groupOf);
+        worklog.setGrouping(this::groupOf);
+        comments.setGrouping(this::groupOf);
         history.setProject(project);
         worklog.setProject(project);
+        comments.setProject(project);
         root.getStyleClass().add("app");
         root.setTop(buildTopBar());
         root.setLeft(buildSidebar());
@@ -92,50 +100,52 @@ public final class MainWindow {
         renderPage();
     }
 
-    /** Atualiza as opções do seletor de projetos quando aparece ou some um projeto. */
+    /** Tira da escolha os quadros que sumiram e atualiza os chips do painel. */
     private void updateProjects(List<String> projects) {
-        List<String> options = new ArrayList<>();
-        options.add(Projects.ALL);
-        options.addAll(projects);
-        if (!project.isEmpty() && !options.contains(project)) {
-            // O projeto escolhido continua na lista mesmo sem task hoje, para o histórico dele.
-            options.add(project);
+        Set<String> kept = BoardChips.stillPresent(project, projects);
+        if (!kept.equals(project)) {
+            // O escolhido não existe mais (outro quadro, outro Jira): mostra os que restaram, ou todos.
+            applyProject(kept);
         }
-        if (!projectPicker.getItems().equals(options)) {
-            // Trocar as opções mexe no valor; isso não é o usuário escolhendo.
-            updatingProjects = true;
-            projectPicker.getItems().setAll(options);
-            projectPicker.setValue(project);
-            updatingProjects = false;
-        }
-        boolean several = options.size() > 2;
-        projectPicker.setVisible(several);
-        projectPicker.setManaged(several);
+        dashboard.setGroups(projects, project, last != null && last.byBoard());
     }
 
-    private void selectProject(String selected) {
-        String next = selected == null ? Projects.ALL : selected;
-        if (updatingProjects || next.equals(project)) {
+    private List<String> groupOf(String issueKey) {
+        Snapshot snapshot = last;
+        return snapshot == null ? List.of(Projects.of(issueKey)) : snapshot.groupsOf(issueKey);
+    }
+
+    private void selectProject(Set<String> selected) {
+        if (selected.equals(project)) {
             return;
         }
-        project = next;
-        saveProject(next);
-        history.setProject(next);
-        worklog.setProject(next);
+        applyProject(selected);
+        if (last != null) {
+            dashboard.setGroups(last.projects(), project, last.byBoard());
+        }
         renderPage();
     }
 
-    private static String loadProject() {
+    private void applyProject(Set<String> selected) {
+        project = Set.copyOf(selected);
+        saveProject(project);
+        history.setProject(project);
+        worklog.setProject(project);
+        comments.setProject(project);
+    }
+
+    private static Set<String> loadProject() {
         try {
-            return Preferences.userNodeForPackage(MainWindow.class).get("project", Projects.ALL);
+            String saved = Preferences.userNodeForPackage(MainWindow.class).get("boards", "");
+            return saved.isEmpty() ? Set.of() : Set.of(saved.split("\n"));
         } catch (RuntimeException e) {
-            return Projects.ALL;
+            return Set.of();
         }
     }
 
-    private static void saveProject(String value) {
+    private static void saveProject(Set<String> value) {
         try {
-            Preferences.userNodeForPackage(MainWindow.class).put("project", value);
+            Preferences.userNodeForPackage(MainWindow.class).put("boards", String.join("\n", new java.util.TreeSet<>(value)));
         } catch (RuntimeException e) {
             // Sem onde guardar: na próxima vez volta a mostrar todos.
         }
@@ -157,6 +167,10 @@ public final class MainWindow {
                 worklog.reload();
                 yield worklog.getView();
             }
+            case COMMENTS -> {
+                comments.reload();
+                yield comments.getView();
+            }
             case SETTINGS -> {
                 settings.load();
                 yield settings.getView();
@@ -165,17 +179,35 @@ public final class MainWindow {
         renderPage();
     }
 
+    /** Mostra ou esconde a aba Comentários (Configurações > Comentários). */
+    public void setCommentsEnabled(boolean enabled) {
+        commentsEnabled = enabled;
+        HBox item = navItems.get(Page.COMMENTS);
+        if (item != null) {
+            item.setVisible(enabled);
+            item.setManaged(enabled);
+        }
+        if (!enabled && page == Page.COMMENTS) {
+            show(Page.DASHBOARD);
+        }
+    }
+
     /** Só a página visível é atualizada a cada segundo. */
     private void renderPage() {
         if (last == null) {
             return;
         }
-        Snapshot view = last.forProject(project);
+        Snapshot view = last.forGroups(project);
+        if (commentsEnabled && page != Page.COMMENTS) {
+            // O contador do menu lateral: as pendências de comentário contam mesmo com outra página aberta.
+            comments.countPending(view);
+        }
         switch (page) {
             case DASHBOARD -> dashboard.render(view);
             case TASKS -> tasks.render(view);
             case HISTORY -> history.render(view);
             case WORKLOG -> worklog.render(view);
+            case COMMENTS -> comments.render(view);
             case SETTINGS -> {
                 // Nada muda sozinho nas configurações.
             }
@@ -203,22 +235,7 @@ public final class MainWindow {
         status.setAlignment(Pos.CENTER);
         HBox.setHgrow(status, Priority.ALWAYS);
 
-        projectPicker.getStyleClass().addAll("dialog-input", "project-picker");
-        projectPicker.setConverter(new StringConverter<>() {
-            @Override
-            public String toString(String value) {
-                return value == null || value.isEmpty() ? I18n.t("Todos os projetos") : I18n.t("Projeto {0}", value);
-            }
-
-            @Override
-            public String fromString(String text) {
-                return text;
-            }
-        });
-        projectPicker.valueProperty().addListener((obs, was, now) -> selectProject(now));
-        projectPicker.setVisible(false);
-        projectPicker.setManaged(false);
-        HBox balance = new HBox(projectPicker);
+        HBox balance = new HBox();
         balance.setAlignment(Pos.CENTER_RIGHT);
         balance.setPrefWidth(250);
 
@@ -234,8 +251,10 @@ public final class MainWindow {
                 navItem(Page.TASKS, Icons.LIST, I18n.t("Tarefas")),
                 navItem(Page.HISTORY, Icons.CLOCK, I18n.t("Histórico")),
                 navItem(Page.WORKLOG, Icons.CLIPBOARD_CHECK, I18n.t("Apontamentos")),
+                navItem(Page.COMMENTS, Icons.COMMENT, I18n.t("Comentários")),
                 navItem(Page.SETTINGS, Icons.GEAR, I18n.t("Configurações")));
         navItems.get(Page.DASHBOARD).getStyleClass().add("nav-selected");
+        setCommentsEnabled(false);
 
         avatar.getStyleClass().add("avatar");
         avatar.setAlignment(Pos.CENTER);
@@ -255,7 +274,8 @@ public final class MainWindow {
     }
 
     private HBox navItem(Page target, String icon, String text) {
-        Label label = new Label(text);
+        Label label = target == Page.COMMENTS ? commentsNavLabel : new Label();
+        label.setText(text);
         label.getStyleClass().add("nav-label");
         HBox item = new HBox(14, Icons.of(icon, 20, "icon-nav"), label);
         item.setAlignment(Pos.CENTER_LEFT);

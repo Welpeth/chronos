@@ -20,6 +20,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -423,6 +425,46 @@ class TrackingEngineTest {
     }
 
     @Test
+    void typedBoardColumnCountsForTheStatusesItShows() {
+        // No quadro a coluna se chama "Test", mas o status das tasks nela é "Em Teste".
+        jira.columns = Map.of("Test", Set.of("Em Teste", "Reteste"));
+        engine.setWorkingStatuses(List.of("test"));
+        jira.issues = List.of(new JiraIssue("PROJ-1", "Título de PROJ-1", "Em Teste", StatusCategory.IN_PROGRESS),
+                new JiraIssue("PROJ-2", "Título de PROJ-2", "Em andamento", StatusCategory.IN_PROGRESS));
+        engine.pollJira();
+        engine.tick();
+        TrackingEngine.Snapshot snapshot = advance(Duration.ofMinutes(5));
+
+        assertTrue(task(snapshot, "PROJ-1").running());
+        assertTrue(task(snapshot, "PROJ-1").inWorkingColumn());
+        assertFalse(task(snapshot, "PROJ-2").running());
+    }
+
+    @Test
+    void aTaskThatLeavesEveryBoardLosesItsOldBoard() {
+        jira.boards = Map.of("PROJ-1", List.of("Quadro A", "Quadro B"));
+        jira.issues = List.of(DOING_1);
+        engine.pollJira();
+        assertEquals(List.of("Quadro A", "Quadro B"), advance(Duration.ofSeconds(1)).groupsOf("PROJ-1"));
+
+        // Saiu dos quadros no Jira: na próxima conferência some de todos, em vez de ficar no antigo.
+        jira.boards = Map.of();
+        advance(TrackingEngine.BOARDS_REFRESH);
+        engine.pollJira();
+        assertEquals(List.of(), advance(Duration.ofSeconds(1)).groupsOf("PROJ-1"));
+    }
+
+    @Test
+    void columnNamesIgnoreAccentsAndCase() {
+        engine.setWorkingStatuses(List.of("Em Análise"));
+        jira.issues = List.of(new JiraIssue("PROJ-1", "Título de PROJ-1", "EM ANALISE", StatusCategory.IN_PROGRESS));
+        engine.pollJira();
+        engine.tick();
+
+        assertTrue(task(advance(Duration.ofMinutes(5)), "PROJ-1").running());
+    }
+
+    @Test
     void someoneElsesTaskInTheColumnOnlyCountsAfterPlay() {
         engine.setWorkingStatuses(List.of("Test"));
         JiraIssue others = new JiraIssue("PROJ-2", "Título de PROJ-2", "Test", StatusCategory.IN_PROGRESS, "",
@@ -487,6 +529,22 @@ class TrackingEngineTest {
         engine.pollJira();
         assertEquals(List.of("PROJ-1 +[em-teste] -[]", "PROJ-3 +[em-teste] -[]", "PROJ-1 +[testado] -[em-teste]"),
                 jira.labelChanges);
+    }
+
+    @Test
+    void onlyTasksThatMoveIntoAColumnCountAsEntered() {
+        jira.issues = List.of(DOING_1, TODO_3);
+        engine.pollJira();
+        engine.tick();
+        // O que já estava na coluna ao abrir não conta como "entrou".
+        assertEquals(List.of(), engine.drainEnteredColumns());
+
+        jira.issues = List.of(DOING_1, new JiraIssue("PROJ-3", "Título de PROJ-3", "Em andamento",
+                StatusCategory.IN_PROGRESS));
+        engine.pollJira();
+        engine.tick();
+        assertEquals(List.of("PROJ-3"), engine.drainEnteredColumns().stream().map(JiraIssue::key).toList());
+        assertEquals(List.of(), engine.drainEnteredColumns());
     }
 
     @Test
@@ -567,6 +625,8 @@ class TrackingEngineTest {
 
     private static final class FakeJira implements JiraService {
         List<JiraIssue> issues = List.of();
+        Map<String, Set<String>> columns = Map.of();
+        Map<String, List<String>> boards;
         JiraException failure;
         JiraException labelFailure;
         final List<String> labelChanges = new ArrayList<>();
@@ -577,6 +637,23 @@ class TrackingEngineTest {
                 throw labelFailure;
             }
             labelChanges.add(issueKey + " +" + add + " -" + remove);
+        }
+
+        @Override
+        public boolean usesBoards() {
+            return boards != null;
+        }
+
+        @Override
+        public Map<String, List<String>> fetchBoards(List<String> issueKeys) {
+            return boards;
+        }
+
+        @Override
+        public Map<String, List<KanbanColumn>> fetchBoardColumns() {
+            List<KanbanColumn> list = new ArrayList<>();
+            columns.forEach((name, statuses) -> list.add(new KanbanColumn(name, List.copyOf(statuses))));
+            return Map.of("Quadro", list);
         }
 
         @Override

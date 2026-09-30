@@ -312,3 +312,56 @@ você	you
 ✗ erro de conexão	✗ connection error
 Todos os projetos	All projects
 Projeto {0}	Project {0}
+Todos os quadros	All boards
+Falha ao ler os quadros do Jira	Failed to read the Jira boards
+Falha ao ler os quadros das tasks	Failed to read the task boards
+Falha ao gravar os quadros das tasks	Failed to save the task boards
+Quadros (opcional)	Boards (optional)
+Números ou endereços dos quadros, separados por vírgula, ex.: 215, 514	Board numbers or addresses, separated by commas, e.g. 215, 514
+1 task falta comentar	1 task needs a comment
+:light_bulb_on: **O que foi feito**\n- \n\n:white_check_mark: **Como testar**\n- 	:light_bulb_on: **What was done**\n- \n\n:white_check_mark: **How to test**\n- 
+Com a primeira opção, aparece a aba Comentários no menu: cada task sua numa coluna monitorada precisa de um comentário, e ele é salvo direto no Jira. Com o template padrão, o texto da aba Comentários > Template vai sozinho para cada task que entra numa coluna monitorada; depois dá para editar e completar.	With the first option, the Comments tab shows up in the menu: each of your tasks in a monitored column needs a comment, saved straight to Jira. With the default template, the text in Comments > Template goes by itself to each task that enters a monitored column; you can edit and complete it later.
+Comentar	Comment
+Comentário adicionado	Comment added
+Comentário salvo no Jira	Comment saved to Jira
+Comentários	Comments
+Comentários ({0})	Comments ({0})
+Comentários das tasks	Task comments
+Editar	Edit
+Escreva em Markdown: # título, - lista, **negrito**, _itálico_, `código`. Emojis do Jira vão por extenso, como :light_bulb_on: ou :white_check_mark:. Com "Habilitar template padrão" ligado em Configurações, este texto vai sozinho para cada task sua que entra numa coluna monitorada.	Write in Markdown: # heading, - list, **bold**, _italic_, `code`. Jira emojis are spelled out, like :light_bulb_on: or :white_check_mark:. With "Enable default template" on in Settings, this text goes by itself to each of your tasks that enters a monitored column.
+Escreva o comentário antes de salvar.	Write the comment before saving.
+Falha ao gravar o comentário de {0}	Failed to save the comment of {0}
+Falha ao ler os comentários	Failed to read the comments
+Falta comentar	Needs a comment
+Gerenciar os comentários das tasks (task sem comentário vira pendência)	Manage task comments (a task without a comment becomes pending)
+Habilitar template padrão	Enable default template
+Histórico de comentários	Comment history
+Nenhum comentário feito pelo Chronos ainda.	No comments made by Chronos yet.
+Nenhuma task sua nas colunas monitoradas.	None of your tasks are in the monitored columns.
+Não deu para pôr o template em {0}	Could not add the template to {0}
+Não foi possível ler os comentários: {0}	Could not read the comments: {0}
+Não foi possível salvar o template: {0}	Could not save the template: {0}
+O Jira não aceitou o comentário: {0}	Jira did not accept the comment: {0}
+Pendências	Pending
+Salvando...	Saving...
+Salvar no Jira	Save to Jira
+Salvar template	Save template
+Tasks suas nas colunas monitoradas. Cada uma precisa de um comentário; "Salvar no Jira" publica o texto na task.	Your tasks in the monitored columns. Each one needs a comment; "Save to Jira" posts the text on the task.
+Template	Template
+Template adicionado	Template added
+Template de comentário adicionado	Comment template added
+Template salvo.	Template saved.
+nada pendente	nothing pending
+{0} tasks faltam comentar	{0} tasks need a comment
+Falha ao ler as colunas dos quadros do Jira	Failed to read the Jira board columns
+modificada {0}	modified {0}
+Modificadas:	Modified:
+Qualquer data	Any time
+Ontem	Yesterday
+Últimos 7 dias	Last 7 days
+Últimos 30 dias	Last 30 days
+Voltar para {0}	Back to {0}
+Clique para ver esta task em Task atual	Click to show this task in Current task
+Visão geral	Overview
+Visão kanban	Kanban view
+Outras	Others

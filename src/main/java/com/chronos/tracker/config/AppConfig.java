@@ -35,7 +35,10 @@ public record AppConfig(
         List<String> playLabels,
         List<String> doneLabels,
         boolean darkMode,
-        I18n.Language language) {
+        I18n.Language language,
+        List<String> jiraBoards,
+        boolean commentsEnabled,
+        boolean commentTemplateEnabled) {
 
     public static final Duration DEFAULT_POLLING_INTERVAL = Duration.ofSeconds(5);
     public static final Duration DEFAULT_POSSIBLY_IDLE_AFTER = Duration.ofMinutes(2);
@@ -85,7 +88,31 @@ public record AppConfig(
                 labels(nonBlank, "CHRONOS_PLAY_LABELS"),
                 labels(nonBlank, "CHRONOS_DONE_LABELS"),
                 flag(nonBlank, "CHRONOS_DARK_MODE", false),
-                I18n.Language.fromCode(nonBlank.apply("CHRONOS_LANGUAGE").orElse("pt")));
+                I18n.Language.fromCode(nonBlank.apply("CHRONOS_LANGUAGE").orElse("pt")),
+                nonBlank.apply("JIRA_BOARDS").map(AppConfig::boardIds).orElse(List.of()),
+                flag(nonBlank, "CHRONOS_COMMENTS", false),
+                flag(nonBlank, "CHRONOS_COMMENT_TEMPLATE", false));
+    }
+
+    /**
+     * Ids dos quadros em {@code JIRA_BOARDS}: o número ("215") ou o endereço do quadro colado inteiro
+     * (".../projects/RP/boards/215"). O que não tem número fica de fora.
+     */
+    static List<String> boardIds(String value) {
+        java.util.regex.Pattern inUrl = java.util.regex.Pattern.compile("boards/(\\d+)");
+        java.util.regex.Pattern plain = java.util.regex.Pattern.compile("(\\d+)");
+        return splitList(value).stream()
+                .map(item -> {
+                    java.util.regex.Matcher url = inUrl.matcher(item);
+                    if (url.find()) {
+                        return url.group(1);
+                    }
+                    java.util.regex.Matcher number = plain.matcher(item);
+                    return number.find() ? number.group(1) : "";
+                })
+                .filter(id -> !id.isEmpty())
+                .distinct()
+                .toList();
     }
 
     /**
@@ -171,6 +198,9 @@ public record AppConfig(
                 + ", playLabels=" + playLabels
                 + ", doneLabels=" + doneLabels
                 + ", darkMode=" + darkMode
-                + ", language=" + language.code + "]";
+                + ", language=" + language.code
+                + ", jiraBoards=" + jiraBoards
+                + ", commentsEnabled=" + commentsEnabled
+                + ", commentTemplateEnabled=" + commentTemplateEnabled + "]";
     }
 }

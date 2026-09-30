@@ -97,6 +97,8 @@ public final class SettingsPage {
         jira.add(tokenExpiryRow(), 1, 3);
         row(jira, 4, "JIRA_PROJECT_KEY", I18n.t("Projetos"), I18n.t("Chaves separadas por vírgula, ex.: SCRUM"), new TextField());
         row(jira, 5, "JIRA_JQL", I18n.t("JQL (opcional)"), I18n.t("Substitui a busca padrão pelos projetos"), new TextField());
+        row(jira, 6, "JIRA_BOARDS", I18n.t("Quadros (opcional)"),
+                I18n.t("Números ou endereços dos quadros, separados por vírgula, ex.: 215, 514"), new TextField());
         Button test = new Button(I18n.t("Testar conexão"));
         test.getStyleClass().add("secondary-button");
         test.setOnAction(e -> testConnection(test));
@@ -207,6 +209,7 @@ public final class SettingsPage {
                 BrowserTabs.tab(I18n.t("Categorias"), categoriesCard),
                 BrowserTabs.tab(I18n.t("Tempo"), timingCard),
                 BrowserTabs.tab(I18n.t("Avisos"), alertsCard),
+                BrowserTabs.tab(I18n.t("Comentários"), commentsCard()),
                 BrowserTabs.tab(I18n.t("Histórico"), storageCard),
                 BrowserTabs.tab(I18n.t("Sistema"), systemCard));
 
@@ -348,6 +351,18 @@ public final class SettingsPage {
             case SOON -> "token-expiry-soon";
             case EXPIRED -> "token-expiry-expired";
         });
+    }
+
+    /** Comentários das tasks: liga a aba Comentários e o template automático. */
+    private VBox commentsCard() {
+        CheckBox manage = flag("CHRONOS_COMMENTS",
+                I18n.t("Gerenciar os comentários das tasks (task sem comentário vira pendência)"), false);
+        CheckBox template = flag("CHRONOS_COMMENT_TEMPLATE", I18n.t("Habilitar template padrão"), false);
+        template.disableProperty().bind(manage.selectedProperty().not());
+        Label hint = new Label(I18n.t("Com a primeira opção, aparece a aba Comentários no menu: cada task sua numa coluna monitorada precisa de um comentário, e ele é salvo direto no Jira. Com o template padrão, o texto da aba Comentários > Template vai sozinho para cada task que entra numa coluna monitorada; depois dá para editar e completar."));
+        hint.getStyleClass().add("muted");
+        hint.setWrapText(true);
+        return card(I18n.t("Comentários das tasks"), new VBox(10, manage, template), hint);
     }
 
     private CheckBox flag(String key, String label) {

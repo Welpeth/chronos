@@ -66,6 +66,24 @@ public interface HistoryStore {
     /** Grava que {@code spent} da task foi apontado no Jira (registro {@code worklogId}). */
     void saveWorklog(String issueKey, Duration spent, Instant at, String worklogId) throws HistoryException;
 
+    /** Comentários que o Chronos fez nas tasks deste Jira, do mais recente para o mais antigo. */
+    default List<TaskComment> comments() throws HistoryException {
+        return List.of();
+    }
+
+    /** Grava ou troca o comentário da task. */
+    default void saveComment(TaskComment comment) throws HistoryException {
+    }
+
+    /** Quadro do Jira de cada task já vista, pelo nome do quadro. */
+    default java.util.Map<String, String> issueBoards() throws HistoryException {
+        return java.util.Map.of();
+    }
+
+    /** Grava ou atualiza o quadro de cada task. */
+    default void saveIssueBoards(java.util.Map<String, String> boards) throws HistoryException {
+    }
+
     /** Passa a ler e gravar o histórico de outro Jira (o mesmo banco guarda vários sem misturar). */
     default void useSite(String site) {
     }

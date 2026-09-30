@@ -53,7 +53,7 @@ public final class JiraClient {
         ObjectNode body = mapper.createObjectNode();
         body.put("jql", jql);
         body.put("maxResults", maxResults);
-        body.putArray("fields").add("summary").add("status").add("issuetype").add("assignee");
+        body.putArray("fields").add("summary").add("status").add("issuetype").add("assignee").add("updated");
 
         HttpRequest request = request("/rest/api/3/search/jql")
                 .header("Content-Type", "application/json")
@@ -72,6 +72,88 @@ public final class JiraClient {
     public String projectName(String projectKey) throws JiraException {
         String path = "/rest/api/3/project/" + URLEncoder.encode(projectKey, StandardCharsets.UTF_8);
         return readTree(send(request(path).GET().build())).path("name").asText(projectKey);
+    }
+
+    /** Nome do quadro (board) com o id informado, o número no fim do endereço do quadro. */
+    public String boardName(String boardId) throws JiraException {
+        String path = "/rest/agile/1.0/board/" + URLEncoder.encode(boardId, StandardCharsets.UTF_8);
+        return readTree(send(request(path).GET().build())).path("name").asText(boardId);
+    }
+
+    /**
+     * Colunas do quadro com os ids dos status de cada uma, na ordem do quadro, e o sub-filtro do quadro Kanban
+     * (vazio se não tem). Uma coluna pode juntar vários status, e o nome dela não precisa ser igual ao de nenhum.
+     */
+    public BoardConfig boardConfig(String boardId) throws JiraException {
+        String path = "/rest/agile/1.0/board/" + URLEncoder.encode(boardId, StandardCharsets.UTF_8) + "/configuration";
+        JsonNode config = readTree(send(request(path).GET().build()));
+        JsonNode columns = config.path("columnConfig").path("columns");
+        return new BoardConfig(StreamSupport.stream(columns.spliterator(), false)
+                .map(column -> new BoardColumn(column.path("name").asText(""),
+                        StreamSupport.stream(column.path("statuses").spliterator(), false)
+                                .map(status -> status.path("id").asText(""))
+                                .filter(id -> !id.isEmpty())
+                                .toList()))
+                .filter(column -> !column.name().isEmpty())
+                .toList(),
+                config.path("subQuery").path("query").asText("").strip());
+    }
+
+    /** Nome de cada status do Jira, pelo id. */
+    public java.util.Map<String, String> statusNames() throws JiraException {
+        JsonNode statuses = readTree(send(request("/rest/api/3/status").GET().build()));
+        java.util.Map<String, String> names = new java.util.HashMap<>();
+        statuses.forEach(status -> {
+            String id = status.path("id").asText("");
+            String name = status.path("name").asText("");
+            if (!id.isEmpty() && !name.isEmpty()) {
+                names.put(id, name);
+            }
+        });
+        return names;
+    }
+
+    /** Ids dos quadros do projeto, para quem não informou os quadros em JIRA_BOARDS. */
+    public List<String> projectBoardIds(String projectKey) throws JiraException {
+        String path = "/rest/agile/1.0/board?maxResults=50&projectKeyOrId="
+                + URLEncoder.encode(projectKey, StandardCharsets.UTF_8);
+        JsonNode boards = readTree(send(request(path).GET().build())).path("values");
+        return StreamSupport.stream(boards.spliterator(), false)
+                .map(board -> board.path("id").asText(""))
+                .filter(id -> !id.isEmpty())
+                .toList();
+    }
+
+    /** Coluna de um quadro do Jira e os ids dos status que ela mostra. */
+    public record BoardColumn(String name, List<String> statusIds) {
+    }
+
+    /** Colunas do quadro e o sub-filtro do Kanban (as tasks que ele esconde, como as entregues há tempo). */
+    public record BoardConfig(List<BoardColumn> columns, String subQuery) {
+
+        /** Ids de todos os status que aparecem em alguma coluna do quadro. */
+        public java.util.Set<String> shownStatusIds() {
+            java.util.Set<String> ids = new java.util.HashSet<>();
+            columns.forEach(column -> ids.addAll(column.statusIds()));
+            return ids;
+        }
+    }
+
+    /** Issues do quadro que também atendem ao JQL (o filtro do quadro vale junto), com o id do status. */
+    public List<BoardIssue> boardIssues(String boardId, String jql, int maxResults) throws JiraException {
+        String path = "/rest/agile/1.0/board/" + URLEncoder.encode(boardId, StandardCharsets.UTF_8)
+                + "/issue?fields=status&maxResults=" + maxResults
+                + "&jql=" + URLEncoder.encode(jql, StandardCharsets.UTF_8);
+        JsonNode issues = readTree(send(request(path).GET().build())).path("issues");
+        return StreamSupport.stream(issues.spliterator(), false)
+                .map(issue -> new BoardIssue(issue.path("key").asText(""),
+                        issue.path("fields").path("status").path("id").asText("")))
+                .filter(issue -> !issue.key().isEmpty())
+                .toList();
+    }
+
+    /** Issue devolvida pela API de quadros: a chave e o id do status em que ela está. */
+    public record BoardIssue(String key, String statusId) {
     }
 
     /**
@@ -119,6 +201,30 @@ public final class JiraClient {
                 .POST(HttpRequest.BodyPublishers.ofString(body.toString(), StandardCharsets.UTF_8))
                 .build());
         return readTree(response).path("id").asText("");
+    }
+
+    /** Adiciona um comentário (texto em Markdown) na issue e devolve o id dele no Jira. */
+    public String addComment(String issueKey, String markdown) throws JiraException {
+        String path = "/rest/api/3/issue/" + URLEncoder.encode(issueKey, StandardCharsets.UTF_8) + "/comment";
+        ObjectNode body = mapper.createObjectNode();
+        body.set("body", Adf.fromMarkdown(markdown));
+        String response = send(request(path)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body.toString(), StandardCharsets.UTF_8))
+                .build());
+        return readTree(response).path("id").asText("");
+    }
+
+    /** Troca o texto de um comentário que já está na issue. */
+    public void updateComment(String issueKey, String commentId, String markdown) throws JiraException {
+        String path = "/rest/api/3/issue/" + URLEncoder.encode(issueKey, StandardCharsets.UTF_8) + "/comment/"
+                + URLEncoder.encode(commentId, StandardCharsets.UTF_8);
+        ObjectNode body = mapper.createObjectNode();
+        body.set("body", Adf.fromMarkdown(markdown));
+        send(request(path)
+                .header("Content-Type", "application/json")
+                .PUT(HttpRequest.BodyPublishers.ofString(body.toString(), StandardCharsets.UTF_8))
+                .build());
     }
 
     /**
@@ -200,10 +306,27 @@ public final class JiraClient {
                             StatusCategory.fromJiraKey(status.path("statusCategory").path("key").asText("")),
                             fields.path("issuetype").path("name").asText(""),
                             fields.path("assignee").path("displayName").asText(""),
-                            true);
+                            true,
+                            parseInstant(fields.path("updated").asText("")));
                 })
                 .filter(issue -> !issue.key().isEmpty())
                 .toList();
+    }
+
+    /** Data do Jira, como "2026-09-29T14:02:11.123-0300"; vazio se não veio ou não deu para ler. */
+    static java.util.Optional<java.time.Instant> parseInstant(String text) {
+        if (text.isEmpty()) {
+            return java.util.Optional.empty();
+        }
+        try {
+            return java.util.Optional.of(ZonedDateTime.parse(text, WORKLOG_STARTED).toInstant());
+        } catch (java.time.format.DateTimeParseException e) {
+            try {
+                return java.util.Optional.of(java.time.OffsetDateTime.parse(text).toInstant());
+            } catch (java.time.format.DateTimeParseException ignored) {
+                return java.util.Optional.empty();
+            }
+        }
     }
 
     /** Junta as mensagens de erro do Jira, que vêm como {@code {"errorMessages": [...]}}. */

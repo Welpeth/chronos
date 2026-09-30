@@ -5,8 +5,10 @@ import com.chronos.tracker.config.AppConfig;
 import com.chronos.tracker.config.AppPaths;
 import com.chronos.tracker.jira.JiraIssue;
 import com.chronos.tracker.jira.RestJiraService;
+import com.chronos.tracker.tracking.CommentBook;
 import com.chronos.tracker.tracking.HistoryStore;
 import com.chronos.tracker.tracking.IssueAlertMonitor;
+import com.chronos.tracker.tracking.TaskComment;
 import com.chronos.tracker.tracking.TaskView;
 import com.chronos.tracker.tracking.TrackingEngine;
 import com.chronos.tracker.tracking.WorklogBook;
@@ -42,6 +44,9 @@ public final class AppController {
     private Duration pollingInterval;
     private volatile IssueAlertMonitor alerts;
     private volatile Consumer<List<JiraIssue>> alertListener = issues -> { };
+    private final CommentBook comments;
+    private volatile boolean commentsEnabled;
+    private volatile boolean commentTemplateEnabled;
 
     private ScheduledExecutorService scheduler;
     private ScheduledFuture<?> polling;
@@ -55,7 +60,11 @@ public final class AppController {
         Maintenance maintenance = new Maintenance(store, AppPaths.dataDir(), Platform::exit);
         SettingsController settings = new SettingsController(envFile, config, engine, this::applyConfig, maintenance);
         WorklogBook book = new WorklogBook(store, engine::jiraService, Clock.systemDefaultZone());
-        this.window = new MainWindow(this::toggle, this::addManual, store, worklogHandler(book), settings);
+        this.comments = new CommentBook(AppPaths.dataDir().resolve("comment-template.md"), store,
+                engine::jiraService, Clock.systemDefaultZone());
+        this.window = new MainWindow(this::toggle, this::addManual, store, worklogHandler(book), commentsHandler(),
+                settings);
+        useCommentSettings(config);
         window.render(engine.tick());
     }
 
@@ -90,6 +99,70 @@ public final class AppController {
                 });
             }
         };
+    }
+
+    private CommentsPage.Handler commentsHandler() {
+        return new CommentsPage.Handler() {
+            @Override
+            public List<CommentBook.Item> items(List<TaskView> live) throws Exception {
+                return comments.items(live);
+            }
+
+            @Override
+            public List<TaskComment> history() throws Exception {
+                return comments.history();
+            }
+
+            @Override
+            public String template() {
+                return comments.template();
+            }
+
+            @Override
+            public void saveTemplate(String markdown) throws Exception {
+                comments.saveTemplate(markdown);
+            }
+
+            @Override
+            public CompletableFuture<TaskComment> save(String issueKey, String summary, String markdown) {
+                return CompletableFuture.supplyAsync(() -> {
+                    try {
+                        TaskComment saved = comments.save(issueKey, summary, markdown);
+                        engine.recordEvent(false, I18n.t("Comentário salvo no Jira"), issueKey);
+                        return saved;
+                    } catch (Exception e) {
+                        throw new CompletionException(e);
+                    }
+                });
+            }
+        };
+    }
+
+    private void useCommentSettings(AppConfig config) {
+        commentsEnabled = config.commentsEnabled();
+        commentTemplateEnabled = config.commentTemplateEnabled();
+        if (Platform.isFxApplicationThread()) {
+            window.setCommentsEnabled(config.commentsEnabled());
+        } else {
+            Platform.runLater(() -> window.setCommentsEnabled(config.commentsEnabled()));
+        }
+    }
+
+    /** Põe o template nas tasks que acabaram de entrar numa coluna monitorada (com a opção ligada). */
+    private void addTemplates() {
+        List<JiraIssue> entered = engine.drainEnteredColumns();
+        if (!commentsEnabled || !commentTemplateEnabled) {
+            return;
+        }
+        for (JiraIssue issue : entered) {
+            try {
+                comments.addTemplate(issue.key(), issue.summary()).ifPresent(added ->
+                        engine.recordEvent(false, I18n.t("Template de comentário adicionado"), issue.key()));
+            } catch (Exception e) {
+                engine.recordEvent(true, I18n.t("Não deu para pôr o template em {0}", issue.key()),
+                        String.valueOf(e.getMessage()));
+            }
+        }
     }
 
     public Parent getView() {
@@ -155,6 +228,7 @@ public final class AppController {
     /** Configurações salvas: novo intervalo do Jira, o tema e, se mudou algo, novos avisos. */
     private void applyConfig(AppConfig previous, AppConfig next) {
         setPollingInterval(next.pollingInterval());
+        useCommentSettings(next);
         if (window.getView().getScene() != null) {
             Themes.apply(window.getView().getScene(), next.darkMode());
         }
@@ -224,6 +298,7 @@ public final class AppController {
     private void safePollJira() {
         try {
             engine.pollJira();
+            addTemplates();
         } catch (RuntimeException e) {
             // Uma falha inesperada não pode cancelar o agendamento.
             e.printStackTrace();

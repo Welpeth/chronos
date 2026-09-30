@@ -3,7 +3,37 @@
 As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma versão nova gera a release
 `v<versão>` no GitHub, com o instalador e a versão portátil, e usa a seção dessa versão abaixo como notas.
 
-## [Não lançado]
+## [0.5.0] - 2026-09-30
+
+### Adicionado
+- Separação por quadro (Configurações > Jira > Quadros, ou `JIRA_BOARDS` no `.env`): com os números ou endereços
+  dos quadros, por exemplo 215 e 514 do mesmo projeto, o seletor do topo passa a listar os quadros pelo nome, e
+  cada tela mostra só as tasks do quadro escolhido, inclusive nos dias anteriores do histórico.
+- Comentários das tasks (Configurações > Comentários, ou `CHRONOS_COMMENTS=true`): nova aba abaixo de
+  Apontamentos com as tasks suas nas colunas monitoradas que faltam comentar, um template em Markdown com emojis
+  do Jira por extenso (`:light_bulb_on:`) e o histórico dos comentários, que podem ser editados. Salvar publica
+  o comentário no Jira. Com "Habilitar template padrão" (`CHRONOS_COMMENT_TEMPLATE=true`), o template vai sozinho
+  para cada task sua que entra numa coluna monitorada e ela fica como "Template adicionado".
+- Chips de quadro no Painel, no lugar do seletor do topo: "Todos os quadros" e um chip por quadro, podendo
+  marcar vários. A escolha vale para todas as páginas. Cada task mostra na lista os quadros em que está.
+- Filtro de Tarefas pela data de modificação no Jira (qualquer data, hoje, ontem, últimos 7 ou 30 dias). Cada
+  task mostra na lista quando foi modificada.
+- Clicar numa task em "Tarefas do projeto" (ou no "Mostrar mais") traz ela para o cartão "Task atual", com o
+  play dela. "Voltar para ..." devolve a task que está contando.
+- Abas "Visão geral" e "Visão kanban" no Painel. O kanban mostra as tasks nas colunas dos quadros do Jira (dos
+  quadros escolhidos nos chips), com o tempo e o play de cada uma; clicar num cartão abre a task em "Task
+  atual". Sem acesso às colunas do quadro, agrupa pelo status.
+
+### Corrigido
+- As colunas digitadas em "Colunas que contam tempo" agora valem pelo nome da coluna no quadro, mesmo quando o
+  status das tasks nela tem outro nome (a coluna "Test" que mostra o status "Em teste", por exemplo). O Chronos
+  lê as colunas dos quadros de `JIRA_BOARDS` ou, sem eles, dos quadros dos projetos. Maiúsculas, acentos e
+  espaços repetidos não fazem mais diferença.
+- O filtro de quadros segue o que o quadro mostra: a task precisa estar num status de alguma coluna do quadro
+  e atender ao sub-filtro do Kanban. Uma task em dois quadros aparece nos dois, e uma task que saiu de todos
+  os quadros deixa de aparecer no quadro antigo.
+- As colunas da Visão kanban seguem a ordem do quadro no Jira. Com mais de um quadro, a coluna que só um deles
+  tem (como "Code Review") entra no lugar dela, antes de "Concluído", em vez de ir para o fim.
 
 ## [0.4.0] - 2026-09-29
 
@@ -78,6 +108,7 @@ Primeira versão instalável.
 - O histórico de um Jira antigo aparecia depois de trocar o Jira nas configurações. (#19)
 - O aviso de "controle de tempo" aparecia em projetos gerenciados pela equipe que tinham o campo. (#19)
 
+[0.5.0]: https://github.com/Welpeth/chronos/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Welpeth/chronos/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Welpeth/chronos/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Welpeth/chronos/compare/v0.1.2...v0.2.0

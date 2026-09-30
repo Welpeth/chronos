@@ -5,7 +5,9 @@ import com.chronos.tracker.config.I18n;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Busca no Jira as issues do usuário. Todos os métodos podem bloquear e devem ser chamados fora
@@ -61,6 +63,52 @@ public interface JiraService {
     /** Põe e tira labels da issue (as tags da validação). */
     default void updateLabels(String issueKey, List<String> add, List<String> remove) throws JiraException {
         throw new JiraException(I18n.t("O Jira não está configurado"));
+    }
+
+    /** Adiciona um comentário (Markdown) na issue e devolve o id dele. */
+    default String addComment(String issueKey, String markdown) throws JiraException {
+        throw new JiraException(I18n.t("O Jira não está configurado"));
+    }
+
+    /** Troca o texto de um comentário já feito. */
+    default void updateComment(String issueKey, String commentId, String markdown) throws JiraException {
+        throw new JiraException(I18n.t("O Jira não está configurado"));
+    }
+
+    /** Se o .env separa as tasks por quadro ({@code JIRA_BOARDS}). */
+    default boolean usesBoards() {
+        return false;
+    }
+
+    /**
+     * Quadros de cada issue, pelo nome do quadro no Jira, na ordem de {@code JIRA_BOARDS}. Issues fora de todos
+     * os quadros configurados não entram.
+     */
+    default Map<String, List<String>> fetchBoards(List<String> issueKeys) throws JiraException {
+        return Map.of();
+    }
+
+    /**
+     * Colunas de cada quadro, na ordem do quadro, com os nomes dos status que cada uma mostra. A chave é o nome do
+     * quadro. Serve para o kanban do painel e para a coluna digitada nas Configurações valer pelo nome do quadro.
+     */
+    default Map<String, List<KanbanColumn>> fetchBoardColumns() throws JiraException {
+        return Map.of();
+    }
+
+    /**
+     * Nomes dos status que cada coluna dos quadros mostra, pelo nome da coluna. Uma coluna com o mesmo nome em
+     * mais de um quadro junta os status de todos.
+     */
+    static Map<String, Set<String>> columnStatuses(Map<String, List<KanbanColumn>> boards) {
+        Map<String, Set<String>> columns = new java.util.LinkedHashMap<>();
+        boards.values().forEach(list -> list.forEach(column ->
+                columns.computeIfAbsent(column.name(), name -> new java.util.LinkedHashSet<>()).addAll(column.statuses())));
+        return columns;
+    }
+
+    /** Coluna de um quadro com os nomes dos status que ela mostra. */
+    record KanbanColumn(String name, List<String> statuses) {
     }
 
     /** Chave e nome dos projetos configurados, por exemplo "SCRUM · Minha equipe de software". */

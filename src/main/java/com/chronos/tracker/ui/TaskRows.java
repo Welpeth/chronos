@@ -12,6 +12,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 
+import java.util.List;
 import java.util.function.Consumer;
 
 /** Linhas da lista de tarefas: chave, título, status, tempo e o botão de play/pausa. */
@@ -21,6 +22,16 @@ public final class TaskRows {
     }
 
     public static HBox row(TaskView task, Consumer<TaskView> onToggle) {
+        return row(task, onToggle, List.of());
+    }
+
+    /** A linha com os quadros do Jira em que a task está, abaixo do título. */
+    public static HBox row(TaskView task, Consumer<TaskView> onToggle, List<String> boards) {
+        return row(task, onToggle, boards, false);
+    }
+
+    /** Com {@code showUpdated}, mostra também quando a task foi modificada no Jira. */
+    public static HBox row(TaskView task, Consumer<TaskView> onToggle, List<String> boards, boolean showUpdated) {
         Label key = new Label(task.key());
         key.getStyleClass().add("task-key");
         Label summary = new Label(task.summary().isEmpty() ? I18n.t("Task fora do Jira") : task.summary());
@@ -30,6 +41,15 @@ public final class TaskRows {
             Label owner = new Label(task.assignee().isEmpty() ? I18n.t("Sem responsável") : I18n.t("De {0}", task.assignee()));
             owner.getStyleClass().add("task-owner");
             text.getChildren().add(owner);
+        }
+        List<String> details = new java.util.ArrayList<>(boards);
+        if (showUpdated) {
+            task.updated().ifPresent(at -> details.add(I18n.t("modificada {0}", Formats.dateTime(at))));
+        }
+        if (!details.isEmpty()) {
+            Label board = new Label(String.join(" · ", details));
+            board.getStyleClass().add("task-board");
+            text.getChildren().add(board);
         }
         text.setMinWidth(0);
         HBox.setHgrow(text, Priority.ALWAYS);

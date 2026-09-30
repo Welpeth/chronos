@@ -16,6 +16,7 @@ import java.util.Optional;
  * @param mine         se é do usuário; falso para as de outros responsáveis que aparecem pela coluna
  * @param inWorkingColumn se a task do Jira está numa das colunas monitoradas (as que contam tempo)
  * @param timeAllowed  se aceita tempo; falso só com a trava das colunas ligada e a task fora delas
+ * @param updated      última modificação no Jira (vazio para tasks fora do Jira)
  */
 public record TaskView(
         String key,
@@ -29,7 +30,15 @@ public record TaskView(
         String assignee,
         boolean mine,
         boolean inWorkingColumn,
-        boolean timeAllowed) {
+        boolean timeAllowed,
+        Optional<Instant> updated) {
+
+    public TaskView(String key, String summary, String statusName, StatusCategory category, Duration totalTime,
+                    boolean running, boolean manual, Optional<Instant> runningSince, String assignee, boolean mine,
+                    boolean inWorkingColumn, boolean timeAllowed) {
+        this(key, summary, statusName, category, totalTime, running, manual, runningSince, assignee, mine,
+                inWorkingColumn, timeAllowed, Optional.empty());
+    }
 
     public TaskView(String key, String summary, String statusName, StatusCategory category, Duration totalTime,
                     boolean running, boolean manual, Optional<Instant> runningSince) {

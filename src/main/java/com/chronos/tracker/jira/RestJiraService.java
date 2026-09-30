@@ -7,10 +7,13 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
@@ -24,21 +27,28 @@ import java.util.stream.Collectors;
 public final class RestJiraService implements JiraService {
 
     static final int MAX_ISSUES = 50;
+    /** Sem JIRA_BOARDS, lê as colunas de no máximo tantos quadros dos projetos. */
+    static final int MAX_COLUMN_BOARDS = 10;
 
     private final JiraClient client;
     private final String jql;
     private final List<String> projectKeys;
     private final Optional<String> columnJql;
+    private final List<String> boardIds;
+    /** Nome de cada quadro, lido do Jira uma vez. */
+    private final Map<String, String> boardNames = new ConcurrentHashMap<>();
 
     public RestJiraService(JiraClient client, String jql, List<String> projectKeys) {
-        this(client, jql, projectKeys, Optional.empty());
+        this(client, jql, projectKeys, Optional.empty(), List.of());
     }
 
-    RestJiraService(JiraClient client, String jql, List<String> projectKeys, Optional<String> columnJql) {
+    RestJiraService(JiraClient client, String jql, List<String> projectKeys, Optional<String> columnJql,
+                    List<String> boardIds) {
         this.client = client;
         this.jql = jql;
         this.projectKeys = List.copyOf(projectKeys);
         this.columnJql = columnJql;
+        this.boardIds = List.copyOf(boardIds);
     }
 
     public static JiraService from(AppConfig config) {
@@ -53,7 +63,8 @@ public final class RestJiraService implements JiraService {
         Optional<String> columnJql = config.watchWholeColumns() && !config.jiraProjectKeys().isEmpty()
                 ? Optional.of(columnJql(config.jiraProjectKeys(), config.workingStatuses()))
                 : Optional.empty();
-        return new RestJiraService(client, withOrdering(jql), config.jiraProjectKeys(), columnJql);
+        return new RestJiraService(client, withOrdering(jql), config.jiraProjectKeys(), columnJql,
+                config.jiraBoards());
     }
 
     /** Tasks nas colunas que contam tempo que não são do usuário: de outra pessoa ou sem responsável. */
@@ -107,6 +118,93 @@ public final class RestJiraService implements JiraService {
         mine.forEach(issue -> keys.add(issue.key()));
         column.stream().filter(issue -> keys.add(issue.key())).map(JiraIssue::asOthers).forEach(all::add);
         return List.copyOf(all);
+    }
+
+    @Override
+    public String addComment(String issueKey, String markdown) throws JiraException {
+        return client.addComment(issueKey, markdown);
+    }
+
+    @Override
+    public void updateComment(String issueKey, String commentId, String markdown) throws JiraException {
+        client.updateComment(issueKey, commentId, markdown);
+    }
+
+    @Override
+    public boolean usesBoards() {
+        return !boardIds.isEmpty();
+    }
+
+    /**
+     * Quadros de cada issue, na ordem de {@code JIRA_BOARDS}. Conta como do quadro a issue que atende ao filtro
+     * dele (e ao sub-filtro do Kanban) e está num status que aparece em alguma coluna, como no próprio quadro.
+     */
+    @Override
+    public Map<String, List<String>> fetchBoards(List<String> issueKeys) throws JiraException {
+        Map<String, List<String>> boards = new LinkedHashMap<>();
+        if (boardIds.isEmpty() || issueKeys.isEmpty()) {
+            return boards;
+        }
+        for (String boardId : boardIds) {
+            String name = boardName(boardId);
+            JiraClient.BoardConfig config = client.boardConfig(boardId);
+            Set<String> shown = config.shownStatusIds();
+            for (int from = 0; from < issueKeys.size(); from += MAX_ISSUES) {
+                List<String> chunk = issueKeys.subList(from, Math.min(issueKeys.size(), from + MAX_ISSUES));
+                String jql = config.subQuery().isEmpty() ? keyJql(chunk)
+                        : "(" + keyJql(chunk) + ") AND (" + config.subQuery() + ")";
+                for (JiraClient.BoardIssue issue : client.boardIssues(boardId, jql, MAX_ISSUES)) {
+                    if (shown.isEmpty() || shown.contains(issue.statusId())) {
+                        List<String> of = boards.computeIfAbsent(issue.key(), key -> new ArrayList<>());
+                        if (!of.contains(name)) {
+                            of.add(name);
+                        }
+                    }
+                }
+            }
+        }
+        return boards;
+    }
+
+    /**
+     * Colunas dos quadros de {@code JIRA_BOARDS} ou, sem eles, dos quadros dos projetos configurados (até
+     * {@link #MAX_COLUMN_BOARDS}), pelo nome de cada quadro.
+     */
+    @Override
+    public Map<String, List<KanbanColumn>> fetchBoardColumns() throws JiraException {
+        List<String> boards = new ArrayList<>(boardIds);
+        if (boards.isEmpty()) {
+            for (String projectKey : projectKeys) {
+                client.projectBoardIds(projectKey).stream().filter(id -> !boards.contains(id)).forEach(boards::add);
+            }
+        }
+        Map<String, List<KanbanColumn>> byBoard = new LinkedHashMap<>();
+        if (boards.isEmpty()) {
+            return byBoard;
+        }
+        Map<String, String> statusNames = client.statusNames();
+        for (String boardId : boards.subList(0, Math.min(boards.size(), MAX_COLUMN_BOARDS))) {
+            List<KanbanColumn> columns = client.boardConfig(boardId).columns().stream()
+                    .map(column -> new KanbanColumn(column.name(), column.statusIds().stream()
+                            .map(statusNames::get).filter(java.util.Objects::nonNull).toList()))
+                    .toList();
+            byBoard.put(boardName(boardId), columns);
+        }
+        return byBoard;
+    }
+
+    private String boardName(String boardId) throws JiraException {
+        String cached = boardNames.get(boardId);
+        if (cached != null) {
+            return cached;
+        }
+        String name = client.boardName(boardId);
+        boardNames.put(boardId, name);
+        return name;
+    }
+
+    static String keyJql(List<String> issueKeys) {
+        return "key in (" + quoted(issueKeys) + ")";
     }
 
     @Override

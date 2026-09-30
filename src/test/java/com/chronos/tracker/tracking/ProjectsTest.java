@@ -1,6 +1,7 @@
 package com.chronos.tracker.tracking;
 
 import com.chronos.tracker.activity.ActivityState;
+import com.chronos.tracker.jira.JiraService.KanbanColumn;
 import com.chronos.tracker.jira.JiraSyncStatus;
 import com.chronos.tracker.jira.StatusCategory;
 import com.chronos.tracker.tracking.TrackingEngine.Snapshot;
@@ -10,7 +11,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -48,7 +51,7 @@ class ProjectsTest {
         Snapshot all = new Snapshot(ActivityState.ACTIVE, Duration.ZERO, Optional.of(scrum), List.of(scrum, ops),
                 false, Duration.ofMinutes(50), Duration.ofMinutes(5), Duration.ofMinutes(15), List.of(opsManual),
                 JiraSyncStatus.SYNCED, Optional.empty(), Optional.empty(), Optional.empty(), Optional.of("SCRUM, OPS"),
-                List.of(), List.of(opsTime, scrumTime));
+                List.of(), List.of(opsTime, scrumTime), Map.of(), false);
 
         assertEquals(List.of("OPS", "SCRUM"), all.projects());
         assertSame(all, all.forProject(Projects.ALL));
@@ -67,6 +70,81 @@ class ProjectsTest {
         assertEquals(Duration.ofMinutes(30), onlyScrum.activeToday());
         assertEquals(Duration.ZERO, onlyScrum.manualToday());
         assertEquals(Optional.of(scrum), onlyScrum.featuredTask());
+    }
+
+    @Test
+    void withBoardsTheGroupIsTheBoardNotTheProject() {
+        TaskView front = task("RP-1", true);
+        TaskView support = task("RP-2", false);
+        TaskView loose = task("RP-3", false);
+        Snapshot all = new Snapshot(ActivityState.ACTIVE, Duration.ZERO, Optional.of(front),
+                List.of(front, support, loose), false, Duration.ZERO, Duration.ZERO, Duration.ZERO, List.of(),
+                JiraSyncStatus.SYNCED, Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(),
+                List.of(), List.of(entry("RP-2", 0, 10)), Map.of("RP-1", "Quadro RP", "RP-2", "Suporte RP"), true);
+
+        assertEquals(List.of("Quadro RP", "Suporte RP"), all.projects());
+        assertEquals(List.of(), all.groupsOf("RP-3"));
+
+        Snapshot onlySupport = all.forProject("Suporte RP");
+        assertEquals(List.of(support), onlySupport.tasks());
+        assertEquals(Duration.ofMinutes(10), onlySupport.activeToday());
+        assertEquals(Optional.of(support), onlySupport.featuredTask());
+        assertEquals(List.of(front), all.forProject("Quadro RP").tasks());
+    }
+
+    @Test
+    void aTaskInTwoBoardsShowsInEitherAndSeveralBoardsCanBeChosen() {
+        TaskView shared = task("RP-1", false);
+        TaskView support = task("RP-2", false);
+        TaskView other = task("RP-3", false);
+        Snapshot all = new Snapshot(ActivityState.ACTIVE, Duration.ZERO, Optional.empty(),
+                List.of(shared, support, other), false, Duration.ZERO, Duration.ZERO, Duration.ZERO, List.of(),
+                JiraSyncStatus.SYNCED, Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(),
+                List.of(), List.of(), Map.of("RP-1", "Quadro RP\nSuporte RP", "RP-2", "Suporte RP", "RP-3", "Outro"),
+                true);
+
+        assertEquals(List.of("Quadro RP", "Suporte RP"), all.groupsOf("RP-1"));
+        assertEquals(List.of("Outro", "Quadro RP", "Suporte RP"), all.projects());
+        assertEquals(List.of(shared), all.forGroups(Set.of("Quadro RP")).tasks());
+        assertEquals(List.of(shared, support), all.forGroups(Set.of("Suporte RP")).tasks());
+        assertEquals(List.of(shared, other), all.forGroups(Set.of("Quadro RP", "Outro")).tasks());
+        assertEquals(all, all.forGroups(Set.of()));
+    }
+
+    @Test
+    void kanbanColumnsFollowTheChosenBoards() {
+        Snapshot all = new Snapshot(ActivityState.ACTIVE, Duration.ZERO, Optional.empty(), List.of(), false,
+                Duration.ZERO, Duration.ZERO, Duration.ZERO, List.of(), JiraSyncStatus.SYNCED, Optional.empty(),
+                Optional.empty(), Optional.empty(), Optional.empty(), List.of(), List.of(), Map.of(), true,
+                new java.util.LinkedHashMap<>(Map.of(
+                        "Quadro RP", List.of(new KanbanColumn("A fazer", List.of("A fazer")),
+                                new KanbanColumn("Test", List.of("Em teste"))),
+                        "Suporte RP", List.of(new KanbanColumn("A fazer", List.of("Backlog")),
+                                new KanbanColumn("Validação", List.of("Validando"))))));
+
+        assertEquals(List.of(new KanbanColumn("A fazer", List.of("A fazer")), new KanbanColumn("Test", List.of("Em teste"))),
+                all.kanbanColumns(Set.of("Quadro RP")));
+        List<String> names = all.kanbanColumns(Set.of()).stream().map(KanbanColumn::name).toList();
+        assertEquals(3, names.size());
+        assertEquals(java.util.Set.of("A fazer", "Test", "Validação"), java.util.Set.copyOf(names));
+    }
+
+    @Test
+    void kanbanColumnsKeepTheBoardOrder() {
+        Map<String, List<KanbanColumn>> boards = new java.util.LinkedHashMap<>();
+        boards.put("Quadro RP", List.of(new KanbanColumn("A fazer", List.of("A fazer")),
+                new KanbanColumn("Fazendo", List.of("Em andamento")), new KanbanColumn("Concluído", List.of("Feito"))));
+        boards.put("Suporte RP", List.of(new KanbanColumn("A fazer", List.of("Backlog")),
+                new KanbanColumn("Code Review", List.of("Em revisão")), new KanbanColumn("Concluido", List.of("Resolvido"))));
+        Snapshot all = new Snapshot(ActivityState.ACTIVE, Duration.ZERO, Optional.empty(), List.of(), false,
+                Duration.ZERO, Duration.ZERO, Duration.ZERO, List.of(), JiraSyncStatus.SYNCED, Optional.empty(),
+                Optional.empty(), Optional.empty(), Optional.empty(), List.of(), List.of(), Map.of(), false, boards);
+
+        List<KanbanColumn> columns = all.kanbanColumns(Set.of());
+
+        assertEquals(List.of("A fazer", "Fazendo", "Code Review", "Concluído"),
+                columns.stream().map(KanbanColumn::name).toList());
+        assertEquals(List.of("Feito", "Resolvido"), columns.get(3).statuses());
     }
 
     private static TaskView task(String key, boolean running) {

@@ -15,6 +15,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class AppConfigTest {
 
     @Test
+    void boardsAcceptNumbersOrPastedAddresses() {
+        assertEquals(List.of("215", "514"), AppConfig.boardIds(
+                "https://valesoft.atlassian.net/jira/software/c/projects/RP/boards/215, 514, 215, sem número"));
+        assertEquals(List.of("215"), AppConfig.fromMap(Map.of("JIRA_BOARDS", " 215 ")).jiraBoards());
+        assertEquals(List.of(), AppConfig.fromMap(Map.of()).jiraBoards());
+    }
+
+    @Test
     void parsesEnvFileLines() {
         Map<String, String> values = EnvFile.parse(List.of(
                 "# comentário",
