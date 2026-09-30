@@ -129,6 +129,24 @@ class ProjectsTest {
         assertEquals(java.util.Set.of("A fazer", "Test", "Validação"), java.util.Set.copyOf(names));
     }
 
+    @Test
+    void kanbanColumnsKeepTheBoardOrder() {
+        Map<String, List<KanbanColumn>> boards = new java.util.LinkedHashMap<>();
+        boards.put("Quadro RP", List.of(new KanbanColumn("A fazer", List.of("A fazer")),
+                new KanbanColumn("Fazendo", List.of("Em andamento")), new KanbanColumn("Concluído", List.of("Feito"))));
+        boards.put("Suporte RP", List.of(new KanbanColumn("A fazer", List.of("Backlog")),
+                new KanbanColumn("Code Review", List.of("Em revisão")), new KanbanColumn("Concluido", List.of("Resolvido"))));
+        Snapshot all = new Snapshot(ActivityState.ACTIVE, Duration.ZERO, Optional.empty(), List.of(), false,
+                Duration.ZERO, Duration.ZERO, Duration.ZERO, List.of(), JiraSyncStatus.SYNCED, Optional.empty(),
+                Optional.empty(), Optional.empty(), Optional.empty(), List.of(), List.of(), Map.of(), false, boards);
+
+        List<KanbanColumn> columns = all.kanbanColumns(Set.of());
+
+        assertEquals(List.of("A fazer", "Fazendo", "Code Review", "Concluído"),
+                columns.stream().map(KanbanColumn::name).toList());
+        assertEquals(List.of("Feito", "Resolvido"), columns.get(3).statuses());
+    }
+
     private static TaskView task(String key, boolean running) {
         return new TaskView(key, "", "Em andamento", StatusCategory.IN_PROGRESS, Duration.ZERO, running, false,
                 running ? Optional.of(T0) : Optional.empty(), "", true, true, true);

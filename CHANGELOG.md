@@ -32,6 +32,8 @@ As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma vers
 - O filtro de quadros segue o que o quadro mostra: a task precisa estar num status de alguma coluna do quadro
   e atender ao sub-filtro do Kanban. Uma task em dois quadros aparece nos dois, e uma task que saiu de todos
   os quadros deixa de aparecer no quadro antigo.
+- As colunas da Visão kanban seguem a ordem do quadro no Jira. Com mais de um quadro, a coluna que só um deles
+  tem (como "Code Review") entra no lugar dela, antes de "Concluído", em vez de ir para o fim.
 
 ## [0.4.0] - 2026-09-29
 
