@@ -693,12 +693,12 @@ public final class TrackingEngine {
         for (JiraIssue issue : currentIssues) {
             boolean inColumn = working.test(issue);
             tasks.add(view(issue.key(), issue.summary(), issue.statusName(), issue.category(), issue.assignee(),
-                    issue.mine(), inColumn, inColumn || !onlyWorkingColumns));
+                    issue.mine(), inColumn, inColumn || !onlyWorkingColumns, issue.updated()));
             listed.add(issue.key());
         }
         // Tasks que contaram tempo mas não vêm mais do Jira (digitadas à mão ou fora da busca).
         tracker.trackedKeys().stream().filter(key -> !listed.contains(key)).sorted().forEach(key ->
-                tasks.add(view(key, "", "", StatusCategory.IN_PROGRESS, "", true, false, true)));
+                tasks.add(view(key, "", "", StatusCategory.IN_PROGRESS, "", true, false, true, Optional.empty())));
 
         return new Snapshot(
                 activity,
@@ -722,9 +722,10 @@ public final class TrackingEngine {
     }
 
     private TaskView view(String key, String summary, String statusName, StatusCategory category, String assignee,
-                          boolean mine, boolean inWorkingColumn, boolean timeAllowed) {
+                          boolean mine, boolean inWorkingColumn, boolean timeAllowed, Optional<Instant> updated) {
         return new TaskView(key, summary, statusName, category, tracker.totalFor(key), tracker.isRunning(key),
-                overrides.containsKey(key), tracker.runningSince(key), assignee, mine, inWorkingColumn, timeAllowed);
+                overrides.containsKey(key), tracker.runningSince(key), assignee, mine, inWorkingColumn, timeAllowed,
+                updated);
     }
 
     /**

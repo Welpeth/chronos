@@ -27,6 +27,11 @@ public final class TaskRows {
 
     /** A linha com os quadros do Jira em que a task está, abaixo do título. */
     public static HBox row(TaskView task, Consumer<TaskView> onToggle, List<String> boards) {
+        return row(task, onToggle, boards, false);
+    }
+
+    /** Com {@code showUpdated}, mostra também quando a task foi modificada no Jira. */
+    public static HBox row(TaskView task, Consumer<TaskView> onToggle, List<String> boards, boolean showUpdated) {
         Label key = new Label(task.key());
         key.getStyleClass().add("task-key");
         Label summary = new Label(task.summary().isEmpty() ? I18n.t("Task fora do Jira") : task.summary());
@@ -37,8 +42,12 @@ public final class TaskRows {
             owner.getStyleClass().add("task-owner");
             text.getChildren().add(owner);
         }
-        if (!boards.isEmpty()) {
-            Label board = new Label(String.join(" · ", boards));
+        List<String> details = new java.util.ArrayList<>(boards);
+        if (showUpdated) {
+            task.updated().ifPresent(at -> details.add(I18n.t("modificada {0}", Formats.dateTime(at))));
+        }
+        if (!details.isEmpty()) {
+            Label board = new Label(String.join(" · ", details));
             board.getStyleClass().add("task-board");
             text.getChildren().add(board);
         }

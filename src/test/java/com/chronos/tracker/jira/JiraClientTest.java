@@ -55,7 +55,7 @@ class JiraClientTest {
                     "status":{"name":"Em andamento","statusCategory":{"key":"indeterminate"}}}},
                   {"id":"2","key":"PROJ-456","fields":{"summary":"Nova tela","assignee":{"displayName":"Ana"},
                     "status":{"name":"Em análise","statusCategory":{"key":"indeterminate"}}}},
-                  {"id":"3","key":"PROJ-789","fields":{"summary":"Deploy",
+                  {"id":"3","key":"PROJ-789","fields":{"summary":"Deploy","updated":"2026-09-29T14:02:11.123-0300",
                     "status":{"name":"Concluído","statusCategory":{"key":"done"}}}}
                 ]}""";
 
@@ -64,12 +64,14 @@ class JiraClientTest {
         assertEquals(List.of(
                 new JiraIssue("PROJ-123", "Corrigir login", "Em andamento", StatusCategory.IN_PROGRESS),
                 new JiraIssue("PROJ-456", "Nova tela", "Em análise", StatusCategory.IN_PROGRESS, "", "Ana", true),
-                new JiraIssue("PROJ-789", "Deploy", "Concluído", StatusCategory.DONE)), issues);
+                new JiraIssue("PROJ-789", "Deploy", "Concluído", StatusCategory.DONE, "", "", true,
+                        java.util.Optional.of(java.time.Instant.parse("2026-09-29T17:02:11.123Z")))), issues);
         // base64("eu@empresa.com:token")
         assertEquals("Basic ZXVAZW1wcmVzYS5jb206dG9rZW4=", receivedAuth.get());
         assertTrue(receivedBody.get().contains("\"jql\":\"project = PROJ\""));
         assertTrue(receivedBody.get().contains("\"maxResults\":2"));
         assertTrue(receivedBody.get().contains("\"assignee\""));
+        assertTrue(receivedBody.get().contains("\"updated\""));
     }
 
     @Test

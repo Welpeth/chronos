@@ -354,3 +354,9 @@ Template salvo.	Template saved.
 nada pendente	nothing pending
 {0} tasks faltam comentar	{0} tasks need a comment
 Falha ao ler as colunas dos quadros do Jira	Failed to read the Jira board columns
+modificada {0}	modified {0}
+Modificadas:	Modified:
+Qualquer data	Any time
+Ontem	Yesterday
+Últimos 7 dias	Last 7 days
+Últimos 30 dias	Last 30 days
