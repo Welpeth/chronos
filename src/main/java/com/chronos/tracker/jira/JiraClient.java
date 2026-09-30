@@ -80,6 +80,52 @@ public final class JiraClient {
         return readTree(send(request(path).GET().build())).path("name").asText(boardId);
     }
 
+    /**
+     * Colunas do quadro com os ids dos status de cada uma, na ordem do quadro. Uma coluna do quadro pode juntar
+     * vários status, e o nome dela não precisa ser igual ao de nenhum deles.
+     */
+    public List<BoardColumn> boardColumns(String boardId) throws JiraException {
+        String path = "/rest/agile/1.0/board/" + URLEncoder.encode(boardId, StandardCharsets.UTF_8) + "/configuration";
+        JsonNode columns = readTree(send(request(path).GET().build())).path("columnConfig").path("columns");
+        return StreamSupport.stream(columns.spliterator(), false)
+                .map(column -> new BoardColumn(column.path("name").asText(""),
+                        StreamSupport.stream(column.path("statuses").spliterator(), false)
+                                .map(status -> status.path("id").asText(""))
+                                .filter(id -> !id.isEmpty())
+                                .toList()))
+                .filter(column -> !column.name().isEmpty())
+                .toList();
+    }
+
+    /** Nome de cada status do Jira, pelo id. */
+    public java.util.Map<String, String> statusNames() throws JiraException {
+        JsonNode statuses = readTree(send(request("/rest/api/3/status").GET().build()));
+        java.util.Map<String, String> names = new java.util.HashMap<>();
+        statuses.forEach(status -> {
+            String id = status.path("id").asText("");
+            String name = status.path("name").asText("");
+            if (!id.isEmpty() && !name.isEmpty()) {
+                names.put(id, name);
+            }
+        });
+        return names;
+    }
+
+    /** Ids dos quadros do projeto, para quem não informou os quadros em JIRA_BOARDS. */
+    public List<String> projectBoardIds(String projectKey) throws JiraException {
+        String path = "/rest/agile/1.0/board?maxResults=50&projectKeyOrId="
+                + URLEncoder.encode(projectKey, StandardCharsets.UTF_8);
+        JsonNode boards = readTree(send(request(path).GET().build())).path("values");
+        return StreamSupport.stream(boards.spliterator(), false)
+                .map(board -> board.path("id").asText(""))
+                .filter(id -> !id.isEmpty())
+                .toList();
+    }
+
+    /** Coluna de um quadro do Jira e os ids dos status que ela mostra. */
+    public record BoardColumn(String name, List<String> statusIds) {
+    }
+
     /** Chaves das issues do quadro que também atendem ao JQL (o filtro do quadro vale junto). */
     public List<String> boardIssueKeys(String boardId, String jql, int maxResults) throws JiraException {
         String path = "/rest/agile/1.0/board/" + URLEncoder.encode(boardId, StandardCharsets.UTF_8)

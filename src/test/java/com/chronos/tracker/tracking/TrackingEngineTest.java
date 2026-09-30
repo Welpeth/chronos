@@ -20,6 +20,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -423,6 +425,32 @@ class TrackingEngineTest {
     }
 
     @Test
+    void typedBoardColumnCountsForTheStatusesItShows() {
+        // No quadro a coluna se chama "Test", mas o status das tasks nela é "Em Teste".
+        jira.columns = Map.of("Test", Set.of("Em Teste", "Reteste"));
+        engine.setWorkingStatuses(List.of("test"));
+        jira.issues = List.of(new JiraIssue("PROJ-1", "Título de PROJ-1", "Em Teste", StatusCategory.IN_PROGRESS),
+                new JiraIssue("PROJ-2", "Título de PROJ-2", "Em andamento", StatusCategory.IN_PROGRESS));
+        engine.pollJira();
+        engine.tick();
+        TrackingEngine.Snapshot snapshot = advance(Duration.ofMinutes(5));
+
+        assertTrue(task(snapshot, "PROJ-1").running());
+        assertTrue(task(snapshot, "PROJ-1").inWorkingColumn());
+        assertFalse(task(snapshot, "PROJ-2").running());
+    }
+
+    @Test
+    void columnNamesIgnoreAccentsAndCase() {
+        engine.setWorkingStatuses(List.of("Em Análise"));
+        jira.issues = List.of(new JiraIssue("PROJ-1", "Título de PROJ-1", "EM ANALISE", StatusCategory.IN_PROGRESS));
+        engine.pollJira();
+        engine.tick();
+
+        assertTrue(task(advance(Duration.ofMinutes(5)), "PROJ-1").running());
+    }
+
+    @Test
     void someoneElsesTaskInTheColumnOnlyCountsAfterPlay() {
         engine.setWorkingStatuses(List.of("Test"));
         JiraIssue others = new JiraIssue("PROJ-2", "Título de PROJ-2", "Test", StatusCategory.IN_PROGRESS, "",
@@ -583,6 +611,7 @@ class TrackingEngineTest {
 
     private static final class FakeJira implements JiraService {
         List<JiraIssue> issues = List.of();
+        Map<String, Set<String>> columns = Map.of();
         JiraException failure;
         JiraException labelFailure;
         final List<String> labelChanges = new ArrayList<>();
@@ -593,6 +622,11 @@ class TrackingEngineTest {
                 throw labelFailure;
             }
             labelChanges.add(issueKey + " +" + add + " -" + remove);
+        }
+
+        @Override
+        public Map<String, Set<String>> fetchColumnStatuses() {
+            return columns;
         }
 
         @Override

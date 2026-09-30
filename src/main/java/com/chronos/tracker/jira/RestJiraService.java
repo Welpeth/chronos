@@ -27,6 +27,8 @@ import java.util.stream.Collectors;
 public final class RestJiraService implements JiraService {
 
     static final int MAX_ISSUES = 50;
+    /** Sem JIRA_BOARDS, lê as colunas de no máximo tantos quadros dos projetos. */
+    static final int MAX_COLUMN_BOARDS = 10;
 
     private final JiraClient client;
     private final String jql;
@@ -149,6 +151,32 @@ public final class RestJiraService implements JiraService {
             }
         }
         return boards;
+    }
+
+    /**
+     * Colunas dos quadros de {@code JIRA_BOARDS} ou, sem eles, dos quadros dos projetos configurados. Uma coluna
+     * com o mesmo nome em mais de um quadro junta os status de todos.
+     */
+    @Override
+    public Map<String, Set<String>> fetchColumnStatuses() throws JiraException {
+        List<String> boards = new ArrayList<>(boardIds);
+        if (boards.isEmpty()) {
+            for (String projectKey : projectKeys) {
+                client.projectBoardIds(projectKey).stream().filter(id -> !boards.contains(id)).forEach(boards::add);
+            }
+        }
+        Map<String, Set<String>> columns = new LinkedHashMap<>();
+        if (boards.isEmpty()) {
+            return columns;
+        }
+        Map<String, String> statusNames = client.statusNames();
+        for (String boardId : boards.subList(0, Math.min(boards.size(), MAX_COLUMN_BOARDS))) {
+            for (JiraClient.BoardColumn column : client.boardColumns(boardId)) {
+                Set<String> names = columns.computeIfAbsent(column.name(), name -> new java.util.LinkedHashSet<>());
+                column.statusIds().stream().map(statusNames::get).filter(java.util.Objects::nonNull).forEach(names::add);
+            }
+        }
+        return columns;
     }
 
     private String boardName(String boardId) throws JiraException {
