@@ -135,18 +135,31 @@ public final class RestJiraService implements JiraService {
         return !boardIds.isEmpty();
     }
 
+    /**
+     * Quadros de cada issue, na ordem de {@code JIRA_BOARDS}. Conta como do quadro a issue que atende ao filtro
+     * dele (e ao sub-filtro do Kanban) e está num status que aparece em alguma coluna, como no próprio quadro.
+     */
     @Override
-    public Map<String, String> fetchBoards(List<String> issueKeys) throws JiraException {
-        Map<String, String> boards = new LinkedHashMap<>();
+    public Map<String, List<String>> fetchBoards(List<String> issueKeys) throws JiraException {
+        Map<String, List<String>> boards = new LinkedHashMap<>();
         if (boardIds.isEmpty() || issueKeys.isEmpty()) {
             return boards;
         }
         for (String boardId : boardIds) {
             String name = boardName(boardId);
+            JiraClient.BoardConfig config = client.boardConfig(boardId);
+            Set<String> shown = config.shownStatusIds();
             for (int from = 0; from < issueKeys.size(); from += MAX_ISSUES) {
                 List<String> chunk = issueKeys.subList(from, Math.min(issueKeys.size(), from + MAX_ISSUES));
-                for (String key : client.boardIssueKeys(boardId, keyJql(chunk), MAX_ISSUES)) {
-                    boards.putIfAbsent(key, name);
+                String jql = config.subQuery().isEmpty() ? keyJql(chunk)
+                        : "(" + keyJql(chunk) + ") AND (" + config.subQuery() + ")";
+                for (JiraClient.BoardIssue issue : client.boardIssues(boardId, jql, MAX_ISSUES)) {
+                    if (shown.isEmpty() || shown.contains(issue.statusId())) {
+                        List<String> of = boards.computeIfAbsent(issue.key(), key -> new ArrayList<>());
+                        if (!of.contains(name)) {
+                            of.add(name);
+                        }
+                    }
                 }
             }
         }
@@ -171,7 +184,7 @@ public final class RestJiraService implements JiraService {
         }
         Map<String, String> statusNames = client.statusNames();
         for (String boardId : boards.subList(0, Math.min(boards.size(), MAX_COLUMN_BOARDS))) {
-            for (JiraClient.BoardColumn column : client.boardColumns(boardId)) {
+            for (JiraClient.BoardColumn column : client.boardConfig(boardId).columns()) {
                 Set<String> names = columns.computeIfAbsent(column.name(), name -> new java.util.LinkedHashSet<>());
                 column.statusIds().stream().map(statusNames::get).filter(java.util.Objects::nonNull).forEach(names::add);
             }

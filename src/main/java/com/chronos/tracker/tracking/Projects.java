@@ -3,6 +3,7 @@ package com.chronos.tracker.tracking;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.TreeSet;
 
 /**
@@ -29,6 +30,14 @@ public final class Projects {
     /** Se a task entra no projeto escolhido; {@link #ALL} aceita todas. */
     public static boolean matches(String issueKey, String project) {
         return project == null || project.isEmpty() || of(issueKey).equalsIgnoreCase(project);
+    }
+
+    /** Se algum grupo da task (quadro ou projeto) está entre os escolhidos; sem escolhidos, aceita todas. */
+    public static boolean matches(Collection<String> groups, Set<String> selected) {
+        if (selected == null || selected.isEmpty()) {
+            return true;
+        }
+        return groups.stream().anyMatch(group -> selected.stream().anyMatch(group::equalsIgnoreCase));
     }
 
     /** Projetos distintos das chaves, em ordem alfabética, sem o vazio. */

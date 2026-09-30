@@ -441,6 +441,20 @@ class TrackingEngineTest {
     }
 
     @Test
+    void aTaskThatLeavesEveryBoardLosesItsOldBoard() {
+        jira.boards = Map.of("PROJ-1", List.of("Quadro A", "Quadro B"));
+        jira.issues = List.of(DOING_1);
+        engine.pollJira();
+        assertEquals(List.of("Quadro A", "Quadro B"), advance(Duration.ofSeconds(1)).groupsOf("PROJ-1"));
+
+        // Saiu dos quadros no Jira: na próxima conferência some de todos, em vez de ficar no antigo.
+        jira.boards = Map.of();
+        advance(TrackingEngine.BOARDS_REFRESH);
+        engine.pollJira();
+        assertEquals(List.of(), advance(Duration.ofSeconds(1)).groupsOf("PROJ-1"));
+    }
+
+    @Test
     void columnNamesIgnoreAccentsAndCase() {
         engine.setWorkingStatuses(List.of("Em Análise"));
         jira.issues = List.of(new JiraIssue("PROJ-1", "Título de PROJ-1", "EM ANALISE", StatusCategory.IN_PROGRESS));
@@ -612,6 +626,7 @@ class TrackingEngineTest {
     private static final class FakeJira implements JiraService {
         List<JiraIssue> issues = List.of();
         Map<String, Set<String>> columns = Map.of();
+        Map<String, List<String>> boards;
         JiraException failure;
         JiraException labelFailure;
         final List<String> labelChanges = new ArrayList<>();
@@ -622,6 +637,16 @@ class TrackingEngineTest {
                 throw labelFailure;
             }
             labelChanges.add(issueKey + " +" + add + " -" + remove);
+        }
+
+        @Override
+        public boolean usesBoards() {
+            return boards != null;
+        }
+
+        @Override
+        public Map<String, List<String>> fetchBoards(List<String> issueKeys) {
+            return boards;
         }
 
         @Override

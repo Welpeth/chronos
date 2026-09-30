@@ -63,9 +63,9 @@ public final class WorklogPage {
     private final Set<String> logging = new HashSet<>();
     private final Map<String, String> errors = new HashMap<>();
     private Snapshot last;
-    private String project = Projects.ALL;
-    /** Grupo de cada task no seletor do topo (quadro ou projeto). */
-    private java.util.function.Function<String, String> groupOf = Projects::of;
+    private java.util.Set<String> project = java.util.Set.of();
+    /** Grupos de cada task nos chips do painel (quadros ou projeto). */
+    private java.util.function.Function<String, java.util.List<String>> groupOf = key -> java.util.List.of(Projects.of(key));
     private Instant loadedAt = Instant.EPOCH;
 
     public WorklogPage(Handler handler) {
@@ -118,16 +118,16 @@ public final class WorklogPage {
 
     /** Página aberta: relê o banco na hora. */
     /** Como saber o grupo (quadro ou projeto) de uma task. */
-    public void setGrouping(java.util.function.Function<String, String> groupOf) {
+    public void setGrouping(java.util.function.Function<String, java.util.List<String>> groupOf) {
         this.groupOf = groupOf;
     }
 
     private boolean inProject(String issueKey) {
-        return project.isEmpty() || groupOf.apply(issueKey).equalsIgnoreCase(project);
+        return Projects.matches(groupOf.apply(issueKey), project);
     }
 
-    /** Mostra só o quadro ou projeto escolhido; {@link Projects#ALL} mostra todos. */
-    public void setProject(String project) {
+    /** Mostra só o quadro ou projeto escolhido; sem nenhum, mostra todos. */
+    public void setProject(java.util.Set<String> project) {
         if (!this.project.equals(project)) {
             this.project = project;
             reload();

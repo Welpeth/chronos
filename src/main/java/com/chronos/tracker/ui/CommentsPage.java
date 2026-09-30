@@ -61,8 +61,8 @@ public final class CommentsPage {
 
     private Snapshot last;
     private Instant loadedAt = Instant.EPOCH;
-    private String project = Projects.ALL;
-    private Function<String, String> groupOf = Projects::of;
+    private java.util.Set<String> project = java.util.Set.of();
+    private java.util.function.Function<String, java.util.List<String>> groupOf = key -> java.util.List.of(Projects.of(key));
     /** Task com o editor aberto; enquanto isso a lista não é refeita, para não perder o que foi digitado. */
     private String editing;
 
@@ -140,11 +140,11 @@ public final class CommentsPage {
         onPendingCount = listener;
     }
 
-    public void setGrouping(Function<String, String> groupOf) {
+    public void setGrouping(java.util.function.Function<String, java.util.List<String>> groupOf) {
         this.groupOf = groupOf;
     }
 
-    public void setProject(String project) {
+    public void setProject(java.util.Set<String> project) {
         if (!this.project.equals(project)) {
             this.project = project;
             reload();
@@ -152,7 +152,7 @@ public final class CommentsPage {
     }
 
     private boolean inProject(String issueKey) {
-        return project.isEmpty() || groupOf.apply(issueKey).equalsIgnoreCase(project);
+        return Projects.matches(groupOf.apply(issueKey), project);
     }
 
     /** Relê tudo na próxima atualização (ao abrir a página). */

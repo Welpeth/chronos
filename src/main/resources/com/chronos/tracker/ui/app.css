@@ -424,6 +424,11 @@
     -fx-cursor: hand;
 }
 
+.task-board {
+    -fx-text-fill: -c-text-2;
+    -fx-font-size: 11px;
+}
+
 .filter-chip:selected {
     -fx-background-color: -c-accent;
     -fx-border-color: -c-accent;
