@@ -3,7 +3,7 @@
 As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma versão nova gera a release
 `v<versão>` no GitHub, com o instalador e a versão portátil, e usa a seção dessa versão abaixo como notas.
 
-## [Não lançado]
+## [0.5.0] - 2026-09-30
 
 ### Adicionado
 - Separação por quadro (Configurações > Jira > Quadros, ou `JIRA_BOARDS` no `.env`): com os números ou endereços
@@ -108,6 +108,7 @@ Primeira versão instalável.
 - O histórico de um Jira antigo aparecia depois de trocar o Jira nas configurações. (#19)
 - O aviso de "controle de tempo" aparecia em projetos gerenciados pela equipe que tinham o campo. (#19)
 
+[0.5.0]: https://github.com/Welpeth/chronos/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Welpeth/chronos/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Welpeth/chronos/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Welpeth/chronos/compare/v0.1.2...v0.2.0
