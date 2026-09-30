@@ -78,6 +78,10 @@ public final class TrackingEngine {
     private final Map<String, Boolean> overrides = new HashMap<>();
     private final Map<String, String> lastStatus = new HashMap<>();
     private volatile Predicate<JiraIssue> working = JiraIssue::isInProgress;
+    private volatile List<String> workingNames = List.of();
+    /** Status de cada coluna dos quadros, lidos do Jira; vazio até a primeira leitura ou se ela falhar. */
+    private volatile Map<String, Set<String>> columnStatuses = Map.of();
+    private Instant columnsCheckedAt = Instant.MIN;
     /** Se o tempo começa sozinho quando a task entra numa coluna que conta; senão, só pelo play. */
     private volatile boolean autoStart = true;
     private volatile boolean onlyWorkingColumns;
@@ -194,6 +198,7 @@ public final class TrackingEngine {
             issues = List.copyOf(fetched);
             issuesVersion++;
             updateBoards(service, fetched);
+            updateColumns(service);
             jiraStatus = JiraSyncStatus.SYNCED;
             jiraError = Optional.empty();
             lastSync = Optional.of(clock.instant());
@@ -209,6 +214,27 @@ public final class TrackingEngine {
             if (previous != jiraStatus) {
                 addEvent(ActivityEvent.Kind.ERROR, I18n.t("Falha ao sincronizar com o Jira"), jiraError.orElse(""));
             }
+        }
+    }
+
+    /**
+     * Lê do Jira os status de cada coluna dos quadros, na primeira consulta e de tempos em tempos. Só importa com
+     * colunas digitadas; sem elas vale a categoria "em andamento" do Jira.
+     */
+    private void updateColumns(JiraService service) {
+        Instant now = clock.instant();
+        if (workingNames.isEmpty() || Duration.between(columnsCheckedAt, now).compareTo(BOARDS_REFRESH) < 0) {
+            return;
+        }
+        columnsCheckedAt = now;
+        try {
+            Map<String, Set<String>> found = service.fetchColumnStatuses();
+            if (!found.equals(columnStatuses)) {
+                columnStatuses = Map.copyOf(found);
+                rebuildWorking();
+            }
+        } catch (JiraException e) {
+            addEvent(ActivityEvent.Kind.ERROR, I18n.t("Falha ao ler as colunas dos quadros do Jira"), e.getMessage());
         }
     }
 
@@ -442,6 +468,7 @@ public final class TrackingEngine {
         // Os quadros podem ter mudado: procura de novo o quadro de cada task.
         boardsLookedUp.clear();
         boardsCheckedAt = Instant.MIN;
+        columnsCheckedAt = Instant.MIN;
         user = Optional.empty();
         projectLabel = Optional.empty();
         jiraError = Optional.empty();
@@ -458,11 +485,33 @@ public final class TrackingEngine {
      * vale a categoria do status: tudo que o Jira considera "em andamento" conta.
      */
     public void setWorkingStatuses(List<String> statusNames) {
+        workingNames = List.copyOf(statusNames);
+        rebuildWorking();
+    }
+
+    /**
+     * O nome digitado vale como nome de status e como nome de coluna do quadro: uma coluna "Test" que mostra o
+     * status "Em teste" conta para as tasks em "Em teste".
+     */
+    private void rebuildWorking() {
+        Map<String, Set<String>> byColumn = new HashMap<>();
+        columnStatuses.forEach((column, statuses) -> byColumn.computeIfAbsent(columnKey(column), c -> new HashSet<>())
+                .addAll(statuses.stream().map(TrackingEngine::columnKey).toList()));
         Set<String> names = new HashSet<>();
-        statusNames.forEach(name -> names.add(name.strip().toLowerCase(Locale.ROOT)));
-        working = names.isEmpty()
+        workingNames.forEach(name -> {
+            names.add(columnKey(name));
+            names.addAll(byColumn.getOrDefault(columnKey(name), Set.of()));
+        });
+        working = workingNames.isEmpty()
                 ? JiraIssue::isInProgress
-                : issue -> names.contains(issue.statusName().strip().toLowerCase(Locale.ROOT));
+                : issue -> names.contains(columnKey(issue.statusName()));
+    }
+
+    /** Compara nomes de coluna sem maiúsculas, acentos e espaços repetidos ("Em Análise" = "em analise"). */
+    static String columnKey(String name) {
+        String plain = java.text.Normalizer.normalize(name.strip(), java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "");
+        return plain.replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
     }
 
     /**

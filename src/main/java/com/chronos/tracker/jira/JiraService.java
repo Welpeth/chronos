@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Busca no Jira as issues do usuário. Todos os métodos podem bloquear e devem ser chamados fora
@@ -84,6 +85,14 @@ public interface JiraService {
      * uma issue em mais de um quadro fica com o primeiro da lista.
      */
     default Map<String, String> fetchBoards(List<String> issueKeys) throws JiraException {
+        return Map.of();
+    }
+
+    /**
+     * Nomes dos status que cada coluna dos quadros mostra, pelo nome da coluna. Serve para a coluna digitada nas
+     * Configurações (como aparece no quadro) valer mesmo quando o status tem outro nome.
+     */
+    default Map<String, Set<String>> fetchColumnStatuses() throws JiraException {
         return Map.of();
     }
 

@@ -32,7 +32,11 @@ class JiraBoardsTest {
         server.createContext("/rest/agile/1.0/board/", exchange -> {
             String path = exchange.getRequestURI().getPath();
             String body;
-            if (path.endsWith("/issue")) {
+            if (path.endsWith("/configuration")) {
+                body = path.contains("/215/")
+                        ? "{\"columnConfig\":{\"columns\":[{\"name\":\"Test\",\"statuses\":[{\"id\":\"10\"},{\"id\":\"11\"}]}]}}"
+                        : "{\"columnConfig\":{\"columns\":[{\"name\":\"Test\",\"statuses\":[{\"id\":\"12\"}]},{\"name\":\"Feito\",\"statuses\":[]}]}}";
+            } else if (path.endsWith("/issue")) {
                 queries.add(URLDecoder.decode(exchange.getRequestURI().getRawQuery(), StandardCharsets.UTF_8));
                 // RP-1 está nos dois quadros; RP-2 só no 514; RP-3 em nenhum.
                 body = path.contains("/215/")
@@ -47,8 +51,22 @@ class JiraBoardsTest {
                 out.write(bytes);
             }
         });
+        server.createContext("/rest/agile/1.0/board", exchange -> {
+            queries.add("boards " + exchange.getRequestURI().getRawQuery());
+            reply(exchange, "{\"values\":[{\"id\":215},{\"id\":514}]}");
+        });
+        server.createContext("/rest/api/3/status", exchange -> reply(exchange,
+                "[{\"id\":\"10\",\"name\":\"Em teste\"},{\"id\":\"11\",\"name\":\"Reteste\"},{\"id\":\"12\",\"name\":\"QA\"}]"));
         server.start();
         baseUrl = "http://127.0.0.1:" + server.getAddress().getPort();
+    }
+
+    private static void reply(com.sun.net.httpserver.HttpExchange exchange, String body) throws IOException {
+        byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+        exchange.sendResponseHeaders(200, bytes.length);
+        try (OutputStream out = exchange.getResponseBody()) {
+            out.write(bytes);
+        }
     }
 
     @AfterEach
@@ -76,5 +94,26 @@ class JiraBoardsTest {
         assertFalse(service.usesBoards());
         assertEquals(Map.of(), service.fetchBoards(List.of("RP-1")));
         assertTrue(queries.isEmpty());
+    }
+
+    @Test
+    void columnsOfTheConfiguredBoardsMapToStatusNames() throws JiraException {
+        RestJiraService service = new RestJiraService(new JiraClient(baseUrl, "e", "t"), "project = RP",
+                List.of("RP"), Optional.empty(), List.of("215", "514"));
+
+        Map<String, java.util.Set<String>> columns = service.fetchColumnStatuses();
+
+        assertEquals(Map.of("Test", java.util.Set.of("Em teste", "Reteste", "QA"), "Feito", java.util.Set.of()), columns);
+        assertTrue(queries.stream().noneMatch(q -> q.startsWith("boards")), queries.toString());
+    }
+
+    @Test
+    void withoutConfiguredBoardsTheProjectBoardsAreUsed() throws JiraException {
+        RestJiraService service = new RestJiraService(new JiraClient(baseUrl, "e", "t"), "project = RP", List.of("RP"));
+
+        Map<String, java.util.Set<String>> columns = service.fetchColumnStatuses();
+
+        assertEquals(java.util.Set.of("Em teste", "Reteste", "QA"), columns.get("Test"));
+        assertEquals(List.of("boards maxResults=50&projectKeyOrId=RP"), queries);
     }
 }
