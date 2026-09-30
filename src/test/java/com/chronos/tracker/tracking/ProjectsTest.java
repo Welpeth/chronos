@@ -12,6 +12,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -81,13 +82,32 @@ class ProjectsTest {
                 List.of(), List.of(entry("RP-2", 0, 10)), Map.of("RP-1", "Quadro RP", "RP-2", "Suporte RP"), true);
 
         assertEquals(List.of("Quadro RP", "Suporte RP"), all.projects());
-        assertEquals("", all.groupOf("RP-3"));
+        assertEquals(List.of(), all.groupsOf("RP-3"));
 
         Snapshot onlySupport = all.forProject("Suporte RP");
         assertEquals(List.of(support), onlySupport.tasks());
         assertEquals(Duration.ofMinutes(10), onlySupport.activeToday());
         assertEquals(Optional.of(support), onlySupport.featuredTask());
         assertEquals(List.of(front), all.forProject("Quadro RP").tasks());
+    }
+
+    @Test
+    void aTaskInTwoBoardsShowsInEitherAndSeveralBoardsCanBeChosen() {
+        TaskView shared = task("RP-1", false);
+        TaskView support = task("RP-2", false);
+        TaskView other = task("RP-3", false);
+        Snapshot all = new Snapshot(ActivityState.ACTIVE, Duration.ZERO, Optional.empty(),
+                List.of(shared, support, other), false, Duration.ZERO, Duration.ZERO, Duration.ZERO, List.of(),
+                JiraSyncStatus.SYNCED, Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(),
+                List.of(), List.of(), Map.of("RP-1", "Quadro RP\nSuporte RP", "RP-2", "Suporte RP", "RP-3", "Outro"),
+                true);
+
+        assertEquals(List.of("Quadro RP", "Suporte RP"), all.groupsOf("RP-1"));
+        assertEquals(List.of("Outro", "Quadro RP", "Suporte RP"), all.projects());
+        assertEquals(List.of(shared), all.forGroups(Set.of("Quadro RP")).tasks());
+        assertEquals(List.of(shared, support), all.forGroups(Set.of("Suporte RP")).tasks());
+        assertEquals(List.of(shared, other), all.forGroups(Set.of("Quadro RP", "Outro")).tasks());
+        assertEquals(all, all.forGroups(Set.of()));
     }
 
     private static TaskView task(String key, boolean running) {

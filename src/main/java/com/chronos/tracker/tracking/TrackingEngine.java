@@ -53,6 +53,8 @@ public final class TrackingEngine {
     static final Duration CHECKPOINT_INTERVAL = Duration.ofSeconds(30);
     /** De quanto em quanto tempo confere de novo o quadro das tasks (uma task pode mudar de quadro). */
     static final Duration BOARDS_REFRESH = Duration.ofMinutes(5);
+    /** Separa os quadros de uma task que está em mais de um, como ficam gravados. */
+    static final String BOARD_SEPARATOR = "\n";
     /** Limite de um dia: tempo contado mais o inserido à mão não pode passar disto. */
     public static final Duration DAILY_LIMIT = Duration.ofHours(8);
     private static final DateTimeFormatter DAY_MONTH = DateTimeFormatter.ofPattern("dd/MM");
@@ -255,14 +257,16 @@ public final class TrackingEngine {
         boardsCheckedAt = now;
         try {
             List<String> keys = fetched.stream().map(JiraIssue::key).toList();
-            Map<String, String> found = service.fetchBoards(keys);
+            Map<String, List<String>> found = service.fetchBoards(keys);
             boardsLookedUp.addAll(keys);
             Map<String, String> changed = new HashMap<>();
-            found.forEach((key, board) -> {
-                if (!board.equals(known.get(key))) {
+            // Uma task que saiu de todos os quadros fica sem quadro (""), em vez de manter o antigo.
+            for (String key : keys) {
+                String board = String.join(BOARD_SEPARATOR, found.getOrDefault(key, List.of()));
+                if (!board.equals(known.getOrDefault(key, ""))) {
                     changed.put(key, board);
                 }
-            });
+            }
             if (changed.isEmpty()) {
                 return;
             }
@@ -872,43 +876,53 @@ public final class TrackingEngine {
         }
 
         /**
-         * Grupo em que a task aparece no seletor do topo: o quadro dela, com {@code JIRA_BOARDS}, ou o projeto da
+         * Grupos em que a task aparece nos filtros: os quadros dela, com {@code JIRA_BOARDS}, ou o projeto da
          * chave. Vazio quando não se sabe (a task só aparece em "Todos").
          */
-        public String groupOf(String issueKey) {
-            return byBoard ? boards.getOrDefault(issueKey, "") : Projects.of(issueKey);
+        public List<String> groupsOf(String issueKey) {
+            if (!byBoard) {
+                String project = Projects.of(issueKey);
+                return project.isEmpty() ? List.of() : List.of(project);
+            }
+            String joined = boards.getOrDefault(issueKey, "");
+            return joined.isEmpty() ? List.of() : List.of(joined.split(BOARD_SEPARATOR));
         }
 
         /** Grupos (quadros ou projetos) das tasks e dos registros de hoje, em ordem alfabética. */
         public List<String> projects() {
             java.util.TreeSet<String> groups = new java.util.TreeSet<>();
-            tasks.forEach(task -> groups.add(groupOf(task.key())));
-            history.forEach(entry -> groups.add(groupOf(entry.issueKey())));
-            manualEntries.forEach(entry -> groups.add(groupOf(entry.issueKey())));
-            groups.remove("");
+            tasks.forEach(task -> groups.addAll(groupsOf(task.key())));
+            history.forEach(entry -> groups.addAll(groupsOf(entry.issueKey())));
+            manualEntries.forEach(entry -> groups.addAll(groupsOf(entry.issueKey())));
             return List.copyOf(groups);
         }
 
-        private boolean inGroup(String issueKey, String group) {
-            return groupOf(issueKey).equalsIgnoreCase(group);
+        private boolean inGroup(String issueKey, Set<String> selected) {
+            return Projects.matches(groupsOf(issueKey), selected);
+        }
+
+        /** O mesmo estado visto só de um projeto ou quadro; veja {@link #forGroups(Set)}. */
+        public Snapshot forProject(String project) {
+            return forGroups(project == null || project.isEmpty() ? Set.of() : Set.of(project));
         }
 
         /**
-         * O mesmo estado visto só de um projeto: tasks, registros e totais de hoje só dele. O tempo ocioso é do PC
-         * e não muda. {@link Projects#ALL} devolve tudo.
+         * O mesmo estado visto só dos grupos escolhidos: tasks, registros e totais de hoje só deles. O tempo ocioso
+         * é do PC e não muda. Sem grupos, devolve tudo.
          */
-        public Snapshot forProject(String project) {
-            if (project == null || project.isEmpty()) {
+        public Snapshot forGroups(Set<String> selected) {
+            if (selected == null || selected.isEmpty()) {
                 return this;
             }
-            List<TaskView> ownTasks = tasks.stream().filter(task -> inGroup(task.key(), project)).toList();
-            List<TimeEntry> ownHistory = history.stream().filter(entry -> inGroup(entry.issueKey(), project)).toList();
+            List<TaskView> ownTasks = tasks.stream().filter(task -> inGroup(task.key(), selected)).toList();
+            List<TimeEntry> ownHistory = history.stream().filter(entry -> inGroup(entry.issueKey(), selected)).toList();
             List<ManualEntry> ownManual = manualEntries.stream()
-                    .filter(entry -> inGroup(entry.issueKey(), project)).toList();
+                    .filter(entry -> inGroup(entry.issueKey(), selected)).toList();
             return new Snapshot(activity, idleTime,
-                    featuredTask.filter(task -> inGroup(task.key(), project)).or(() -> featured(ownTasks)),
+                    featuredTask.filter(task -> inGroup(task.key(), selected)).or(() -> featured(ownTasks)),
                     ownTasks, pausedForInactivity, Intervals.union(ownHistory), inactiveToday, sum(ownManual),
-                    ownManual, jiraStatus, jiraError, lastSync, user, Optional.of(project), recentEvents, ownHistory,
+                    ownManual, jiraStatus, jiraError, lastSync, user,
+                    Optional.of(String.join(", ", new java.util.TreeSet<>(selected))), recentEvents, ownHistory,
                     boards, byBoard);
         }
     }

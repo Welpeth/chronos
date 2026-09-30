@@ -64,9 +64,9 @@ public final class HistoryPage {
     private Set<LocalDate> daysWithEntries = Set.of();
     private Snapshot last;
     private boolean stale = true;
-    private String project = Projects.ALL;
-    /** Grupo de cada task no seletor do topo (quadro ou projeto). */
-    private java.util.function.Function<String, String> groupOf = Projects::of;
+    private java.util.Set<String> project = java.util.Set.of();
+    /** Grupos de cada task nos chips do painel (quadros ou projeto). */
+    private java.util.function.Function<String, java.util.List<String>> groupOf = key -> java.util.List.of(Projects.of(key));
 
     /** Uma linha da tabela: um intervalo contado ou uma inserção manual (sem início e fim). */
     private record Row(String key, String summary, LocalDate day, Instant start, Instant end, Duration duration,
@@ -146,16 +146,16 @@ public final class HistoryPage {
     }
 
     /** Como saber o grupo (quadro ou projeto) de uma task. */
-    public void setGrouping(java.util.function.Function<String, String> groupOf) {
+    public void setGrouping(java.util.function.Function<String, java.util.List<String>> groupOf) {
         this.groupOf = groupOf;
     }
 
     private boolean inProject(String issueKey) {
-        return project.isEmpty() || groupOf.apply(issueKey).equalsIgnoreCase(project);
+        return Projects.matches(groupOf.apply(issueKey), project);
     }
 
-    /** Mostra só o quadro ou projeto escolhido; {@link Projects#ALL} mostra todos. */
-    public void setProject(String project) {
+    /** Mostra só o quadro ou projeto escolhido; sem nenhum, mostra todos. */
+    public void setProject(java.util.Set<String> project) {
         if (!this.project.equals(project)) {
             this.project = project;
             invalidate();

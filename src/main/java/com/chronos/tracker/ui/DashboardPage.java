@@ -26,7 +26,9 @@ import javafx.scene.shape.Circle;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * Painel principal: task em destaque com o cronômetro grande, cartões de status, progresso do dia,
@@ -40,6 +42,9 @@ public final class DashboardPage {
     static final int VISIBLE_TASKS = 5;
 
     private final Consumer<TaskView> onToggle;
+    private final BoardChips boardChips;
+    /** Quadros de cada task, para mostrar na linha; vazio sem JIRA_BOARDS. */
+    private Function<String, List<String>> boardsOf = key -> List.of();
     private final Runnable onAddManual;
     private final ScrollPane root;
 
@@ -84,9 +89,10 @@ public final class DashboardPage {
     private PagedListDialog<TaskView> tasksDialog;
     private PagedListDialog<ActivityEvent> eventsDialog;
 
-    public DashboardPage(Consumer<TaskView> onToggle, Runnable onAddManual) {
+    public DashboardPage(Consumer<TaskView> onToggle, Runnable onAddManual, Consumer<Set<String>> onSelectBoards) {
         this.onToggle = onToggle;
         this.onAddManual = onAddManual;
+        this.boardChips = new BoardChips(onSelectBoards);
 
         VBox left = new VBox(18, buildCurrentCard(), buildStatusCards(), buildProgressCard());
         HBox.setHgrow(left, Priority.ALWAYS);
@@ -99,9 +105,10 @@ public final class DashboardPage {
         right.setMinWidth(380);
 
         HBox columns = new HBox(18, left, right);
-        columns.getStyleClass().add("page");
+        VBox page = new VBox(18, boardChips.getView(), columns);
+        page.getStyleClass().add("page");
 
-        root = new ScrollPane(columns);
+        root = new ScrollPane(page);
         root.setFitToWidth(true);
         root.getStyleClass().add("page-scroll");
     }
@@ -110,7 +117,13 @@ public final class DashboardPage {
         return root;
     }
 
+    /** Chips dos quadros (ou projetos) acima do painel; a escolha vale para todas as páginas. */
+    public void setGroups(List<String> groups, Set<String> selected, boolean byBoard) {
+        boardChips.update(groups, selected, byBoard);
+    }
+
     public void render(Snapshot snapshot) {
+        boardsOf = snapshot.byBoard() ? snapshot::groupsOf : key -> List.of();
         renderCurrent(snapshot);
         renderStatus(snapshot);
         renderProgress(snapshot);
@@ -396,13 +409,13 @@ public final class DashboardPage {
             taskList.getChildren().add(empty);
             return;
         }
-        tasks.stream().limit(VISIBLE_TASKS).forEach(task -> taskList.getChildren().add(TaskRows.row(task, onToggle)));
+        tasks.stream().limit(VISIBLE_TASKS).forEach(task -> taskList.getChildren().add(TaskRows.row(task, onToggle, boardsOf.apply(task.key()))));
     }
 
     private void openTasks() {
         if (tasksDialog == null) {
             tasksDialog = new PagedListDialog<>(root.getScene().getWindow(), Icons.LIST, I18n.t("Tarefas do projeto"),
-                    I18n.t("Nenhuma task sua no Jira ainda."), task -> TaskRows.row(task, onToggle));
+                    I18n.t("Nenhuma task sua no Jira ainda."), task -> TaskRows.row(task, onToggle, boardsOf.apply(task.key())));
         }
         tasksDialog.show(allTasks);
     }

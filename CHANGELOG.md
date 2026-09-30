@@ -14,12 +14,17 @@ As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma vers
   do Jira por extenso (`:light_bulb_on:`) e o histórico dos comentários, que podem ser editados. Salvar publica
   o comentário no Jira. Com "Habilitar template padrão" (`CHRONOS_COMMENT_TEMPLATE=true`), o template vai sozinho
   para cada task sua que entra numa coluna monitorada e ela fica como "Template adicionado".
+- Chips de quadro no Painel, no lugar do seletor do topo: "Todos os quadros" e um chip por quadro, podendo
+  marcar vários. A escolha vale para todas as páginas. Cada task mostra na lista os quadros em que está.
 
 ### Corrigido
 - As colunas digitadas em "Colunas que contam tempo" agora valem pelo nome da coluna no quadro, mesmo quando o
   status das tasks nela tem outro nome (a coluna "Test" que mostra o status "Em teste", por exemplo). O Chronos
   lê as colunas dos quadros de `JIRA_BOARDS` ou, sem eles, dos quadros dos projetos. Maiúsculas, acentos e
   espaços repetidos não fazem mais diferença.
+- O filtro de quadros segue o que o quadro mostra: a task precisa estar num status de alguma coluna do quadro
+  e atender ao sub-filtro do Kanban. Uma task em dois quadros aparece nos dois, e uma task que saiu de todos
+  os quadros deixa de aparecer no quadro antigo.
 
 ## [0.4.0] - 2026-09-29
 

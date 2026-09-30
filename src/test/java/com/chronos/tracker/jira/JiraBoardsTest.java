@@ -35,13 +35,15 @@ class JiraBoardsTest {
             if (path.endsWith("/configuration")) {
                 body = path.contains("/215/")
                         ? "{\"columnConfig\":{\"columns\":[{\"name\":\"Test\",\"statuses\":[{\"id\":\"10\"},{\"id\":\"11\"}]}]}}"
-                        : "{\"columnConfig\":{\"columns\":[{\"name\":\"Test\",\"statuses\":[{\"id\":\"12\"}]},{\"name\":\"Feito\",\"statuses\":[]}]}}";
+                        : "{\"columnConfig\":{\"columns\":[{\"name\":\"Test\",\"statuses\":[{\"id\":\"12\"}]},{\"name\":\"Feito\",\"statuses\":[]}]},"
+                        + "\"subQuery\":{\"query\":\"fixVersion is EMPTY\"}}";
             } else if (path.endsWith("/issue")) {
                 queries.add(URLDecoder.decode(exchange.getRequestURI().getRawQuery(), StandardCharsets.UTF_8));
-                // RP-1 está nos dois quadros; RP-2 só no 514; RP-3 em nenhum.
+                // RP-1 está nos dois quadros; RP-2 só no 514; RP-3 em nenhum. RP-4 atende ao filtro do 215, mas
+                // está num status que nenhuma coluna dele mostra, então não aparece no quadro.
                 body = path.contains("/215/")
-                        ? "{\"issues\":[{\"key\":\"RP-1\"}]}"
-                        : "{\"issues\":[{\"key\":\"RP-1\"},{\"key\":\"RP-2\"}]}";
+                        ? "{\"issues\":[" + issue("RP-1", "10") + "," + issue("RP-4", "99") + "]}"
+                        : "{\"issues\":[" + issue("RP-1", "12") + "," + issue("RP-2", "12") + "]}";
             } else {
                 body = path.endsWith("/215") ? "{\"id\":215,\"name\":\"Quadro RP\"}" : "{\"id\":514,\"name\":\"Suporte RP\"}";
             }
@@ -61,6 +63,10 @@ class JiraBoardsTest {
         baseUrl = "http://127.0.0.1:" + server.getAddress().getPort();
     }
 
+    private static String issue(String key, String statusId) {
+        return "{\"key\":\"" + key + "\",\"fields\":{\"status\":{\"id\":\"" + statusId + "\"}}}";
+    }
+
     private static void reply(com.sun.net.httpserver.HttpExchange exchange, String body) throws IOException {
         byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
         exchange.sendResponseHeaders(200, bytes.length);
@@ -75,16 +81,19 @@ class JiraBoardsTest {
     }
 
     @Test
-    void eachIssueGetsTheFirstBoardItIsIn() throws JiraException {
+    void eachIssueGetsEveryBoardThatShowsIt() throws JiraException {
         RestJiraService service = new RestJiraService(new JiraClient(baseUrl, "e", "t"), "project = RP",
                 List.of("RP"), Optional.empty(), List.of("215", "514"));
 
-        Map<String, String> boards = service.fetchBoards(List.of("RP-1", "RP-2", "RP-3"));
+        Map<String, List<String>> boards = service.fetchBoards(List.of("RP-1", "RP-2", "RP-3", "RP-4"));
 
         assertTrue(service.usesBoards());
-        assertEquals(Map.of("RP-1", "Quadro RP", "RP-2", "Suporte RP"), boards);
-        assertEquals(2, queries.size());
-        assertTrue(queries.get(0).contains("jql=key in (\"RP-1\", \"RP-2\", \"RP-3\")"), queries.get(0));
+        assertEquals(Map.of("RP-1", List.of("Quadro RP", "Suporte RP"), "RP-2", List.of("Suporte RP")), boards);
+        List<String> issueQueries = queries.stream().filter(q -> q.contains("jql=")).toList();
+        assertEquals(2, issueQueries.size());
+        assertTrue(issueQueries.get(0).contains("jql=key in (\"RP-1\", \"RP-2\", \"RP-3\", \"RP-4\")"), issueQueries.get(0));
+        // O sub-filtro do Kanban vale junto, como no próprio quadro.
+        assertTrue(issueQueries.get(1).endsWith(") AND (fixVersion is EMPTY)"), issueQueries.get(1));
     }
 
     @Test

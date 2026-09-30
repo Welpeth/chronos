@@ -20,12 +20,11 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.Circle;
 
-import javafx.util.StringConverter;
 
-import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.prefs.Preferences;
 
@@ -53,15 +52,13 @@ public final class MainWindow {
     private final Label avatar = new Label();
     private final Label userName = new Label();
     private final Label userEmail = new Label();
-    /** Projeto do Jira mostrado nas páginas; vazio mostra todos. Só aparece com mais de um projeto. */
-    private final ComboBox<String> projectPicker = new ComboBox<>();
-    private String project = loadProject();
-    private boolean updatingProjects;
+    /** Quadros (ou projetos) mostrados nas páginas; vazio mostra todos. Escolhidos nos chips do painel. */
+    private Set<String> project = loadProject();
 
     public MainWindow(Consumer<TaskView> onToggle, Runnable onAddManual, HistoryStore store,
                       WorklogPage.Handler worklogHandler, CommentsPage.Handler commentsHandler,
                       SettingsPage.Handler settingsHandler) {
-        this.dashboard = new DashboardPage(onToggle, onAddManual);
+        this.dashboard = new DashboardPage(onToggle, onAddManual, this::selectProject);
         this.tasks = new TasksPage(onToggle);
         this.history = new HistoryPage(store);
         this.worklog = new WorklogPage(worklogHandler);
@@ -103,60 +100,52 @@ public final class MainWindow {
         renderPage();
     }
 
-    /** Atualiza as opções do seletor de projetos quando aparece ou some um projeto. */
+    /** Tira da escolha os quadros que sumiram e atualiza os chips do painel. */
     private void updateProjects(List<String> projects) {
-        if (!project.isEmpty() && !projects.isEmpty() && !projects.contains(project)) {
-            // O escolhido não existe mais (outro quadro, outro Jira): volta a mostrar tudo.
-            project = Projects.ALL;
-            saveProject(project);
-            history.setProject(project);
-            worklog.setProject(project);
-            comments.setProject(project);
+        Set<String> kept = BoardChips.stillPresent(project, projects);
+        if (!kept.equals(project)) {
+            // O escolhido não existe mais (outro quadro, outro Jira): mostra os que restaram, ou todos.
+            applyProject(kept);
         }
-        List<String> options = new ArrayList<>();
-        options.add(Projects.ALL);
-        options.addAll(projects);
-        if (!projectPicker.getItems().equals(options)) {
-            // Trocar as opções mexe no valor; isso não é o usuário escolhendo.
-            updatingProjects = true;
-            projectPicker.getItems().setAll(options);
-            projectPicker.setValue(project);
-            updatingProjects = false;
-        }
-        boolean several = options.size() > 2;
-        projectPicker.setVisible(several);
-        projectPicker.setManaged(several);
+        dashboard.setGroups(projects, project, last != null && last.byBoard());
     }
 
-    private String groupOf(String issueKey) {
+    private List<String> groupOf(String issueKey) {
         Snapshot snapshot = last;
-        return snapshot == null ? Projects.of(issueKey) : snapshot.groupOf(issueKey);
+        return snapshot == null ? List.of(Projects.of(issueKey)) : snapshot.groupsOf(issueKey);
     }
 
-    private void selectProject(String selected) {
-        String next = selected == null ? Projects.ALL : selected;
-        if (updatingProjects || next.equals(project)) {
+    private void selectProject(Set<String> selected) {
+        if (selected.equals(project)) {
             return;
         }
-        project = next;
-        saveProject(next);
-        history.setProject(next);
-        worklog.setProject(next);
-        comments.setProject(next);
+        applyProject(selected);
+        if (last != null) {
+            dashboard.setGroups(last.projects(), project, last.byBoard());
+        }
         renderPage();
     }
 
-    private static String loadProject() {
+    private void applyProject(Set<String> selected) {
+        project = Set.copyOf(selected);
+        saveProject(project);
+        history.setProject(project);
+        worklog.setProject(project);
+        comments.setProject(project);
+    }
+
+    private static Set<String> loadProject() {
         try {
-            return Preferences.userNodeForPackage(MainWindow.class).get("project", Projects.ALL);
+            String saved = Preferences.userNodeForPackage(MainWindow.class).get("boards", "");
+            return saved.isEmpty() ? Set.of() : Set.of(saved.split("\n"));
         } catch (RuntimeException e) {
-            return Projects.ALL;
+            return Set.of();
         }
     }
 
-    private static void saveProject(String value) {
+    private static void saveProject(Set<String> value) {
         try {
-            Preferences.userNodeForPackage(MainWindow.class).put("project", value);
+            Preferences.userNodeForPackage(MainWindow.class).put("boards", String.join("\n", new java.util.TreeSet<>(value)));
         } catch (RuntimeException e) {
             // Sem onde guardar: na próxima vez volta a mostrar todos.
         }
@@ -208,7 +197,7 @@ public final class MainWindow {
         if (last == null) {
             return;
         }
-        Snapshot view = last.forProject(project);
+        Snapshot view = last.forGroups(project);
         if (commentsEnabled && page != Page.COMMENTS) {
             // O contador do menu lateral: as pendências de comentário contam mesmo com outra página aberta.
             comments.countPending(view);
@@ -246,26 +235,7 @@ public final class MainWindow {
         status.setAlignment(Pos.CENTER);
         HBox.setHgrow(status, Priority.ALWAYS);
 
-        projectPicker.getStyleClass().addAll("dialog-input", "project-picker");
-        projectPicker.setConverter(new StringConverter<>() {
-            @Override
-            public String toString(String value) {
-                if (value == null || value.isEmpty()) {
-                    return last != null && last.byBoard() ? I18n.t("Todos os quadros") : I18n.t("Todos os projetos");
-                }
-                // Com quadros, o nome do quadro já diz o que é (ex.: "Quadro RP").
-                return last != null && last.byBoard() ? value : I18n.t("Projeto {0}", value);
-            }
-
-            @Override
-            public String fromString(String text) {
-                return text;
-            }
-        });
-        projectPicker.valueProperty().addListener((obs, was, now) -> selectProject(now));
-        projectPicker.setVisible(false);
-        projectPicker.setManaged(false);
-        HBox balance = new HBox(projectPicker);
+        HBox balance = new HBox();
         balance.setAlignment(Pos.CENTER_RIGHT);
         balance.setPrefWidth(250);
 

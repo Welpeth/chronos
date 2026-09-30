@@ -81,20 +81,22 @@ public final class JiraClient {
     }
 
     /**
-     * Colunas do quadro com os ids dos status de cada uma, na ordem do quadro. Uma coluna do quadro pode juntar
-     * vários status, e o nome dela não precisa ser igual ao de nenhum deles.
+     * Colunas do quadro com os ids dos status de cada uma, na ordem do quadro, e o sub-filtro do quadro Kanban
+     * (vazio se não tem). Uma coluna pode juntar vários status, e o nome dela não precisa ser igual ao de nenhum.
      */
-    public List<BoardColumn> boardColumns(String boardId) throws JiraException {
+    public BoardConfig boardConfig(String boardId) throws JiraException {
         String path = "/rest/agile/1.0/board/" + URLEncoder.encode(boardId, StandardCharsets.UTF_8) + "/configuration";
-        JsonNode columns = readTree(send(request(path).GET().build())).path("columnConfig").path("columns");
-        return StreamSupport.stream(columns.spliterator(), false)
+        JsonNode config = readTree(send(request(path).GET().build()));
+        JsonNode columns = config.path("columnConfig").path("columns");
+        return new BoardConfig(StreamSupport.stream(columns.spliterator(), false)
                 .map(column -> new BoardColumn(column.path("name").asText(""),
                         StreamSupport.stream(column.path("statuses").spliterator(), false)
                                 .map(status -> status.path("id").asText(""))
                                 .filter(id -> !id.isEmpty())
                                 .toList()))
                 .filter(column -> !column.name().isEmpty())
-                .toList();
+                .toList(),
+                config.path("subQuery").path("query").asText("").strip());
     }
 
     /** Nome de cada status do Jira, pelo id. */
@@ -126,16 +128,32 @@ public final class JiraClient {
     public record BoardColumn(String name, List<String> statusIds) {
     }
 
-    /** Chaves das issues do quadro que também atendem ao JQL (o filtro do quadro vale junto). */
-    public List<String> boardIssueKeys(String boardId, String jql, int maxResults) throws JiraException {
+    /** Colunas do quadro e o sub-filtro do Kanban (as tasks que ele esconde, como as entregues há tempo). */
+    public record BoardConfig(List<BoardColumn> columns, String subQuery) {
+
+        /** Ids de todos os status que aparecem em alguma coluna do quadro. */
+        public java.util.Set<String> shownStatusIds() {
+            java.util.Set<String> ids = new java.util.HashSet<>();
+            columns.forEach(column -> ids.addAll(column.statusIds()));
+            return ids;
+        }
+    }
+
+    /** Issues do quadro que também atendem ao JQL (o filtro do quadro vale junto), com o id do status. */
+    public List<BoardIssue> boardIssues(String boardId, String jql, int maxResults) throws JiraException {
         String path = "/rest/agile/1.0/board/" + URLEncoder.encode(boardId, StandardCharsets.UTF_8)
-                + "/issue?fields=summary&maxResults=" + maxResults
+                + "/issue?fields=status&maxResults=" + maxResults
                 + "&jql=" + URLEncoder.encode(jql, StandardCharsets.UTF_8);
         JsonNode issues = readTree(send(request(path).GET().build())).path("issues");
         return StreamSupport.stream(issues.spliterator(), false)
-                .map(issue -> issue.path("key").asText(""))
-                .filter(key -> !key.isEmpty())
+                .map(issue -> new BoardIssue(issue.path("key").asText(""),
+                        issue.path("fields").path("status").path("id").asText("")))
+                .filter(issue -> !issue.key().isEmpty())
                 .toList();
+    }
+
+    /** Issue devolvida pela API de quadros: a chave e o id do status em que ela está. */
+    public record BoardIssue(String key, String statusId) {
     }
 
     /**

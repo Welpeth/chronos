@@ -81,10 +81,10 @@ public interface JiraService {
     }
 
     /**
-     * Quadro de cada issue, pelo nome do quadro no Jira. Issues fora de todos os quadros configurados não entram;
-     * uma issue em mais de um quadro fica com o primeiro da lista.
+     * Quadros de cada issue, pelo nome do quadro no Jira, na ordem de {@code JIRA_BOARDS}. Issues fora de todos
+     * os quadros configurados não entram.
      */
-    default Map<String, String> fetchBoards(List<String> issueKeys) throws JiraException {
+    default Map<String, List<String>> fetchBoards(List<String> issueKeys) throws JiraException {
         return Map.of();
     }
 

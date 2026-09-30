@@ -29,6 +29,9 @@ import java.util.function.Predicate;
  */
 public final class TasksPage {
 
+    /** Quadros de cada task, para mostrar na linha; vazio sem JIRA_BOARDS. */
+    private java.util.function.Function<String, List<String>> boardsOf = key -> List.of();
+
     private enum Filter {
         ALL(task -> true),
         RUNNING(TaskView::running),
@@ -136,6 +139,7 @@ public final class TasksPage {
     }
 
     public void render(Snapshot snapshot) {
+        boardsOf = snapshot.byBoard() ? snapshot::groupsOf : key -> List.of();
         last = snapshot;
         refresh();
     }
@@ -175,6 +179,6 @@ public final class TasksPage {
             list.getChildren().add(empty);
             return;
         }
-        visible.forEach(task -> list.getChildren().add(TaskRows.row(task, onToggle)));
+        visible.forEach(task -> list.getChildren().add(TaskRows.row(task, onToggle, boardsOf.apply(task.key()))));
     }
 }
