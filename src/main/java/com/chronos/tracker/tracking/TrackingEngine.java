@@ -881,20 +881,35 @@ public final class TrackingEngine {
         }
 
         /**
-         * Colunas do kanban para os quadros escolhidos (todos, sem escolha), na ordem do primeiro quadro que tem
-         * cada coluna. Colunas com o mesmo nome em quadros diferentes viram uma só.
+         * Colunas do kanban para os quadros escolhidos (todos, sem escolha), na ordem dos quadros. Colunas com o
+         * mesmo nome em quadros diferentes (sem contar maiúsculas e acentos) viram uma só, e a coluna que só um
+         * quadro tem entra antes das colunas que vêm depois dela nesse quadro.
          */
         public List<JiraService.KanbanColumn> kanbanColumns(Set<String> selected) {
-            Map<String, java.util.LinkedHashSet<String>> merged = new java.util.LinkedHashMap<>();
+            List<String> order = new ArrayList<>();
+            Map<String, String> names = new java.util.HashMap<>();
+            Map<String, java.util.LinkedHashSet<String>> merged = new java.util.HashMap<>();
             boardColumns.forEach((board, columns) -> {
                 if (selected.isEmpty() || !byBoard || selected.stream().anyMatch(board::equalsIgnoreCase)) {
-                    columns.forEach(column -> merged.computeIfAbsent(column.name(), name -> new java.util.LinkedHashSet<>())
-                            .addAll(column.statuses()));
+                    List<String> keys = columns.stream().map(column -> columnKey(column.name())).toList();
+                    for (int i = 0; i < columns.size(); i++) {
+                        String key = keys.get(i);
+                        if (!merged.containsKey(key)) {
+                            order.add(insertAt(order, keys.subList(i + 1, keys.size())), key);
+                            names.put(key, columns.get(i).name());
+                        }
+                        merged.computeIfAbsent(key, k -> new java.util.LinkedHashSet<>()).addAll(columns.get(i).statuses());
+                    }
                 }
             });
-            List<JiraService.KanbanColumn> result = new ArrayList<>();
-            merged.forEach((name, statuses) -> result.add(new JiraService.KanbanColumn(name, List.copyOf(statuses))));
-            return result;
+            return order.stream()
+                    .map(key -> new JiraService.KanbanColumn(names.get(key), List.copyOf(merged.get(key))))
+                    .toList();
+        }
+
+        /** Posição de uma coluna nova: antes da primeira das colunas seguintes do mesmo quadro já na lista. */
+        private static int insertAt(List<String> order, List<String> following) {
+            return following.stream().mapToInt(order::indexOf).filter(index -> index >= 0).min().orElse(order.size());
         }
 
         /** Tempo do dia que conta para a meta: o relógio com tasks ligadas mais o inserido à mão. */
