@@ -35,6 +35,8 @@ public final class RestJiraService implements JiraService {
     private final List<String> projectKeys;
     private final Optional<String> columnJql;
     private final List<String> boardIds;
+    /** JQL extra de cada quadro (JIRA_BOARD_FILTERS), somado ao filtro do próprio quadro. */
+    private final Map<String, String> boardFilters;
     /** Nome de cada quadro, lido do Jira uma vez. */
     private final Map<String, String> boardNames = new ConcurrentHashMap<>();
 
@@ -44,11 +46,17 @@ public final class RestJiraService implements JiraService {
 
     RestJiraService(JiraClient client, String jql, List<String> projectKeys, Optional<String> columnJql,
                     List<String> boardIds) {
+        this(client, jql, projectKeys, columnJql, boardIds, Map.of());
+    }
+
+    RestJiraService(JiraClient client, String jql, List<String> projectKeys, Optional<String> columnJql,
+                    List<String> boardIds, Map<String, String> boardFilters) {
         this.client = client;
         this.jql = jql;
         this.projectKeys = List.copyOf(projectKeys);
         this.columnJql = columnJql;
         this.boardIds = List.copyOf(boardIds);
+        this.boardFilters = Map.copyOf(boardFilters);
     }
 
     public static JiraService from(AppConfig config) {
@@ -64,7 +72,7 @@ public final class RestJiraService implements JiraService {
                 ? Optional.of(columnJql(config.jiraProjectKeys(), config.workingStatuses()))
                 : Optional.empty();
         return new RestJiraService(client, withOrdering(jql), config.jiraProjectKeys(), columnJql,
-                config.jiraBoards());
+                config.jiraBoards(), config.boardFilters());
     }
 
     /** Tasks nas colunas que contam tempo que não são do usuário: de outra pessoa ou sem responsável. */
@@ -152,8 +160,7 @@ public final class RestJiraService implements JiraService {
             Set<String> shown = config.shownStatusIds();
             for (int from = 0; from < issueKeys.size(); from += MAX_ISSUES) {
                 List<String> chunk = issueKeys.subList(from, Math.min(issueKeys.size(), from + MAX_ISSUES));
-                String jql = config.subQuery().isEmpty() ? keyJql(chunk)
-                        : "(" + keyJql(chunk) + ") AND (" + config.subQuery() + ")";
+                String jql = boardJql(keyJql(chunk), config.subQuery(), boardFilters.getOrDefault(boardId, ""));
                 for (JiraClient.BoardIssue issue : client.boardIssues(boardId, jql, MAX_ISSUES)) {
                     if (shown.isEmpty() || shown.contains(issue.statusId())) {
                         List<String> of = boards.computeIfAbsent(issue.key(), key -> new ArrayList<>());
@@ -221,6 +228,17 @@ public final class RestJiraService implements JiraService {
         String name = client.boardName(boardId);
         boardNames.put(boardId, name);
         return name;
+    }
+
+    /** As chaves, o sub-filtro do Kanban e o filtro extra do quadro, cada um entre parênteses. */
+    static String boardJql(String keys, String subQuery, String extra) {
+        StringBuilder jql = new StringBuilder(subQuery.isEmpty() && extra.isEmpty() ? keys : "(" + keys + ")");
+        for (String part : List.of(subQuery, extra)) {
+            if (!part.isEmpty()) {
+                jql.append(" AND (").append(part).append(")");
+            }
+        }
+        return jql.toString();
     }
 
     static String keyJql(List<String> issueKeys) {

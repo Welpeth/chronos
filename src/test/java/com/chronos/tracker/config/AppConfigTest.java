@@ -27,6 +27,18 @@ class AppConfigTest {
     }
 
     @Test
+    void boardFiltersPairEachBoardWithItsJql() {
+        assertEquals(Map.of("514", "Categoria = JONATHAN", "215", "Categoria is EMPTY OR Categoria != JONATHAN"),
+                AppConfig.boardFilters("514: Categoria = JONATHAN; 215 : Categoria is EMPTY OR Categoria != JONATHAN;"));
+        assertEquals(Map.of("514", "labels = \"suporte\""), AppConfig.boardFilters(
+                "https://valesoft.atlassian.net/jira/software/c/projects/RP/boards/514: labels = \"suporte\""));
+        assertEquals(Map.of(), AppConfig.boardFilters("sem quadro; 215:"));
+        assertEquals(Map.of("514", "Categoria = JONATHAN"),
+                AppConfig.fromMap(Map.of("JIRA_BOARD_FILTERS", "514: Categoria = JONATHAN")).boardFilters());
+        assertEquals(Map.of(), AppConfig.fromMap(Map.of()).boardFilters());
+    }
+
+    @Test
     void parsesEnvFileLines() {
         Map<String, String> values = EnvFile.parse(List.of(
                 "# comentário",
