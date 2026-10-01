@@ -33,6 +33,8 @@ public final class Icons {
             + " 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41"
             + "l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58z"
             + "M12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z";
+    /** Abrir em outra janela (link para o Jira). */
+    public static final String EXTERNAL = "M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2v-7h-2zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3z";
     public static final String PLUS = "M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z";
     /** Balão de comentário. */
     public static final String COMMENT = "M2 3h20v15H9l-5 4v-4H2zM4 5v11h2v1.8L8.3 16H20V5z";

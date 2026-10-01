@@ -3,6 +3,12 @@
 As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma versão nova gera a release
 `v<versão>` no GitHub, com o instalador e a versão portátil, e usa a seção dessa versão abaixo como notas.
 
+## [Não lançado]
+
+### Adicionado
+- Link da task no Jira ao lado do título "Task atual" no Painel, com a chave da task (como "RP-500"). Abre a
+  task no navegador.
+
 ## [0.5.3] - 2026-10-01
 
 ### Corrigido
