@@ -181,6 +181,11 @@ public final class MainWindow {
         renderPage();
     }
 
+    /** Endereço do Jira, para o link da task atual no Painel. */
+    public void setJiraBaseUrl(String url) {
+        dashboard.setJiraBaseUrl(url);
+    }
+
     /** Mostra ou esconde a aba Comentários (Configurações > Comentários). */
     public void setCommentsEnabled(boolean enabled) {
         commentsEnabled = enabled;

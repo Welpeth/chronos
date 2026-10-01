@@ -150,6 +150,22 @@
 }
 
 /* Task atual */
+.current-link {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -c-accent;
+    -fx-padding: 0;
+    -fx-border-color: transparent;
+}
+
+.current-link:hover {
+    -fx-underline: true;
+}
+
+.current-link:visited {
+    -fx-text-fill: -c-accent;
+}
+
 .current-key {
     -fx-font-size: 24px;
     -fx-font-weight: bold;
