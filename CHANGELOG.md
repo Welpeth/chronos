@@ -8,6 +8,9 @@ As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma vers
 ### Alterado
 - Instalador com a logo do Chronos no topo e nas telas de boas-vindas e de fim. Ao terminar de instalar ou
   atualizar, o Chronos abre sozinho.
+- O menu do botão direito no ícone da bandeja agora segue o visual do app, no tema claro ou escuro. Ele mostra
+  as tasks que estão contando, com o tempo e os botões Pausar e Finalizar, e as opções Abrir o Chronos, Pausar
+  todas e Sair.
 - Com "Abrir ao entrar no Windows", o Chronos abre a janela ao entrar, em vez de ficar só na bandeja.
 
 ### Corrigido
