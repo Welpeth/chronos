@@ -6,6 +6,8 @@ As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma vers
 ## [Não lançado]
 
 ### Alterado
+- Instalador com a logo do Chronos no topo e nas telas de boas-vindas e de fim. Ao terminar de instalar ou
+  atualizar, o Chronos abre sozinho.
 - Com "Abrir ao entrar no Windows", o Chronos abre a janela ao entrar, em vez de ficar só na bandeja.
 
 ### Corrigido
