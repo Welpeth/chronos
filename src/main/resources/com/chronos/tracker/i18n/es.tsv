@@ -377,3 +377,4 @@ As {0} tasks nas colunas monitoradas não são suas (outro responsável ou sem r
 Todas as suas {0} tasks nas colunas monitoradas já têm comentário do Chronos.	Tus {0} tareas en las columnas monitoreadas ya tienen comentario de Chronos.
 O Jira recusou o template em {0}: {1}	Jira rechazó la plantilla en {0}: {1}
 Template posto em {0} às {1}.	Plantilla puesta en {0} a las {1}.
+O Chronos não conseguiu abrir:\n{0}	Chronos no pudo abrir:\n{0}

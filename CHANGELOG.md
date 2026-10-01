@@ -9,6 +9,10 @@ As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma vers
 - Se a janela do Chronos travar por 8 segundos ou mais, ele grava um relatório em `travamentos`, na pasta de
   dados (`%APPDATA%\Chronos`), com o que estava fazendo na hora. Guarda os 5 últimos.
 
+### Corrigido
+- A animação de abertura travava e tinha fundo. Agora ela é desenhada pelo próprio app, roda lisa e tem fundo
+  transparente. Enquanto ela passa, o Chronos já prepara o banco e o resto, então a janela abre logo depois.
+
 ## [0.5.4] - 2026-10-01
 
 ### Adicionado
