@@ -3,7 +3,7 @@
 As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma versão nova gera a release
 `v<versão>` no GitHub, com o instalador e a versão portátil, e usa a seção dessa versão abaixo como notas.
 
-## [Não lançado]
+## [0.5.4] - 2026-10-01
 
 ### Adicionado
 - Tela de abertura com o logo animado do Chronos. Ela dura uns 4 segundos antes da janela principal, e um clique
@@ -171,6 +171,7 @@ Primeira versão instalável.
 - O histórico de um Jira antigo aparecia depois de trocar o Jira nas configurações. (#19)
 - O aviso de "controle de tempo" aparecia em projetos gerenciados pela equipe que tinham o campo. (#19)
 
+[0.5.4]: https://github.com/Welpeth/chronos/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/Welpeth/chronos/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/Welpeth/chronos/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/Welpeth/chronos/compare/v0.5.0...v0.5.1
