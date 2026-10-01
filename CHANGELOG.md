@@ -6,6 +6,8 @@ As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma vers
 ## [Não lançado]
 
 ### Corrigido
+- Salvar as Configurações com "Abrir ao entrar no Windows" dava "O Windows recusou a alteração (código 1)"
+  quando o caminho do Chronos tinha espaços. O Chronos agora grava a opção direto no registro, sem o `reg.exe`.
 - Apagar as horas ou os minutos em "Adicionar tempo" e salvar dava o erro "Cannot invoke
   java.lang.Integer.intValue()". O campo vazio agora vale 0, e um tempo zerado mostra "Informe um tempo maior
   que zero.".
