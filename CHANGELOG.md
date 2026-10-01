@@ -11,6 +11,12 @@ As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma vers
 - Apagar as horas ou os minutos em "Adicionar tempo" e salvar dava o erro "Cannot invoke
   java.lang.Integer.intValue()". O campo vazio agora vale 0, e um tempo zerado mostra "Informe um tempo maior
   que zero.".
+- Quadros com o mesmo nome no Jira (como dois "Quadro RP") viravam um só, e os chips do Painel não apareciam.
+  Agora cada um ganha o número no fim, "Quadro RP (215)" e "Quadro RP (514)".
+- O campo Quadros aceita "215 e 514", "215 514" ou "215; 514", além de "215, 514". Antes, só a vírgula
+  separava, e o segundo quadro ficava de fora.
+- Os chips mostram todos os quadros configurados, mesmo os que ainda não têm task sua.
+- "Testar conexão" mostra quantas das suas tasks cada quadro tem, para conferir se os quadros estão certos.
 
 ## [0.5.0] - 2026-09-30
 

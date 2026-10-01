@@ -145,8 +145,9 @@ public final class RestJiraService implements JiraService {
         if (boardIds.isEmpty() || issueKeys.isEmpty()) {
             return boards;
         }
+        Map<String, String> labels = boardLabels(boardIds);
         for (String boardId : boardIds) {
-            String name = boardName(boardId);
+            String name = labels.get(boardId);
             JiraClient.BoardConfig config = client.boardConfig(boardId);
             Set<String> shown = config.shownStatusIds();
             for (int from = 0; from < issueKeys.size(); from += MAX_ISSUES) {
@@ -183,14 +184,33 @@ public final class RestJiraService implements JiraService {
             return byBoard;
         }
         Map<String, String> statusNames = client.statusNames();
-        for (String boardId : boards.subList(0, Math.min(boards.size(), MAX_COLUMN_BOARDS))) {
+        List<String> read = boards.subList(0, Math.min(boards.size(), MAX_COLUMN_BOARDS));
+        Map<String, String> labels = boardLabels(read);
+        for (String boardId : read) {
             List<KanbanColumn> columns = client.boardConfig(boardId).columns().stream()
                     .map(column -> new KanbanColumn(column.name(), column.statusIds().stream()
                             .map(statusNames::get).filter(java.util.Objects::nonNull).toList()))
                     .toList();
-            byBoard.put(boardName(boardId), columns);
+            byBoard.put(labels.get(boardId), columns);
         }
         return byBoard;
+    }
+
+    /**
+     * Nome de cada quadro para mostrar e filtrar. Dois quadros com o mesmo nome no Jira (o padrão "Quadro RP",
+     * por exemplo) ganham o número no fim, "Quadro RP (215)", para não virarem um só.
+     */
+    Map<String, String> boardLabels(List<String> ids) throws JiraException {
+        Map<String, String> names = new LinkedHashMap<>();
+        for (String id : ids) {
+            names.put(id, boardName(id));
+        }
+        Map<String, Long> repeated = names.values().stream().collect(java.util.stream.Collectors.groupingBy(
+                name -> name.toLowerCase(java.util.Locale.ROOT), java.util.stream.Collectors.counting()));
+        Map<String, String> labels = new LinkedHashMap<>();
+        names.forEach((id, name) -> labels.put(id,
+                repeated.get(name.toLowerCase(java.util.Locale.ROOT)) > 1 ? name + " (" + id + ")" : name));
+        return labels;
     }
 
     private String boardName(String boardId) throws JiraException {
