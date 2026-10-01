@@ -40,10 +40,14 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public final class ChronosApp extends Application {
 
     private static final Path ENV_FILE = AppPaths.envFile();
+    /** Tempo máximo para fechar; depois disso o processo é encerrado à força. */
+    private static final Duration EXIT_GUARD = Duration.ofSeconds(10);
     /** Garante um Chronos só; o {@link Launcher} preenche antes de abrir o app. */
     static SingleInstance singleInstance;
 
@@ -187,7 +191,22 @@ public final class ChronosApp extends Application {
         if (singleInstance != null) {
             // Abriram o Chronos de novo com ele na bandeja: mostra esta janela.
             TrayIconController.Actions actions = trayActions(stage);
-            singleInstance.onShowRequested(actions::open);
+            singleInstance.onShowRequested(() -> {
+                // Confirma que a janela respondeu; se não responder, o novo Chronos encerra este e abre no lugar.
+                CountDownLatch shown = new CountDownLatch(1);
+                try {
+                    Platform.runLater(() -> {
+                        actions.open();
+                        shown.countDown();
+                    });
+                    return shown.await(10, TimeUnit.SECONDS);
+                } catch (IllegalStateException e) {
+                    return false;
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return false;
+                }
+            });
         }
 
         // Também quando o Windows abre o Chronos ao entrar: a janela aparece (antes ia direto para a bandeja).
@@ -284,9 +303,19 @@ public final class ChronosApp extends Application {
 
     @Override
     public void stop() {
-        if (tray != null) {
-            tray.remove();
-        }
+        // Se algo prender o encerramento, o processo não pode ficar vivo segurando a trava: a próxima abertura
+        // ficaria esperando por ele.
+        Thread guard = new Thread(() -> {
+            try {
+                Thread.sleep(EXIT_GUARD.toMillis());
+            } catch (InterruptedException e) {
+                return;
+            }
+            Runtime.getRuntime().halt(0);
+        }, "chronos-exit-guard");
+        guard.setDaemon(true);
+        guard.start();
+        // Primeiro grava o tempo e solta a trava; a bandeja (que depende da thread do AWT) fica por último.
         if (controller != null) {
             controller.stop();
         }
@@ -295,6 +324,9 @@ public final class ChronosApp extends Application {
         }
         if (singleInstance != null) {
             singleInstance.close();
+        }
+        if (tray != null) {
+            tray.remove();
         }
         if (tray != null && tray.wasInstalled()) {
             // A thread do AWT (bandeja) seguraria o processo aberto.

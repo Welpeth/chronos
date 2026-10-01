@@ -67,7 +67,11 @@ public final class FreezeWatch {
         if (!waiting) {
             waiting = true;
             sentAt = now;
-            ui.accept(() -> waiting = false);
+            try {
+                ui.accept(() -> waiting = false);
+            } catch (IllegalStateException e) {
+                // A thread da janela já encerrou (fechando): se o processo não terminar, vale como travado.
+            }
             reported = false;
             return;
         }
