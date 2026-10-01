@@ -8,6 +8,11 @@ As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma vers
 ### Alterado
 - Instalador com a logo do Chronos no topo e nas telas de boas-vindas e de fim. Ao terminar de instalar ou
   atualizar, o Chronos abre sozinho.
+- Com "Abrir ao entrar no Windows", o Chronos abre a janela ao entrar, em vez de ficar só na bandeja.
+
+### Corrigido
+- Em telas menores, como um notebook com zoom de 125% ou 150% no Windows, a janela abria maior que a tela e
+  escondia os botões de fechar e minimizar. Agora ela cabe na área livre da tela e abre maximizada.
 
 ## [0.5.1] - 2026-10-01
 
