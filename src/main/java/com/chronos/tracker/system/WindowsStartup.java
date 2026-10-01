@@ -19,7 +19,7 @@ public final class WindowsStartup {
 
     static final String RUN_PATH = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
     static final String VALUE_NAME = "Chronos";
-    /** Argumento passado quando o Windows abre o app: começa minimizado. */
+    /** Argumento passado quando o Windows abre o app (hoje ele abre a janela do mesmo jeito). */
     public static final String BACKGROUND_ARG = "--background";
 
     private WindowsStartup() {
@@ -80,7 +80,7 @@ public final class WindowsStartup {
         }
     }
 
-    /** O que fica gravado no registro: o executável entre aspas e o argumento de abrir minimizado. */
+    /** O que fica gravado no registro: o executável entre aspas e o argumento de aberto pelo Windows. */
     static String command(Path exe) {
         return "\"" + exe.toAbsolutePath() + "\" " + BACKGROUND_ARG;
     }

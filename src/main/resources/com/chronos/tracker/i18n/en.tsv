@@ -163,7 +163,7 @@ Não foi possível finalizar {0}: {1}	Couldn't finish {0}: {1}
 Não foi possível gravar {0}: {1}	Couldn't save {0}: {1}
 Não foi possível ler o arquivo .env:\n{0}	Couldn't read the .env file:\n{0}
 Não foi possível ler o histórico: {0}	Couldn't read the history: {0}
-O Chronos abre minimizado quando você entra no Windows.	Chronos opens minimized when you sign in to Windows.
+O Chronos abre quando você entra no Windows.	Chronos opens when you sign in to Windows.
 O Chronos continua rodando	Chronos is still running
 O GitHub respondeu HTTP {0} ao procurar atualização	GitHub responded HTTP {0} when checking for updates
 O Jira não está configurado	Jira is not configured

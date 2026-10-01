@@ -3,6 +3,15 @@
 As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma versão nova gera a release
 `v<versão>` no GitHub, com o instalador e a versão portátil, e usa a seção dessa versão abaixo como notas.
 
+## [Não lançado]
+
+### Alterado
+- Com "Abrir ao entrar no Windows", o Chronos abre a janela ao entrar, em vez de ficar só na bandeja.
+
+### Corrigido
+- Em telas menores, como um notebook com zoom de 125% ou 150% no Windows, a janela abria maior que a tela e
+  escondia os botões de fechar e minimizar. Agora ela cabe na área livre da tela e abre maximizada.
+
 ## [0.5.1] - 2026-10-01
 
 ### Adicionado

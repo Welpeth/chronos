@@ -11,13 +11,13 @@ import com.chronos.tracker.jira.JiraIssue;
 import com.chronos.tracker.jira.RestJiraService;
 import com.chronos.tracker.persistence.SqliteHistoryStore;
 import com.chronos.tracker.system.SingleInstance;
-import com.chronos.tracker.system.WindowsStartup;
 import com.chronos.tracker.tracking.HistoryStore;
 import com.chronos.tracker.tracking.MultiTaskTracker;
 import com.chronos.tracker.tracking.TrackingEngine;
 import com.chronos.tracker.ui.AppController;
 import com.chronos.tracker.ui.AppIcons;
 import com.chronos.tracker.ui.Themes;
+import com.chronos.tracker.ui.WindowSize;
 import com.chronos.tracker.ui.TrayIconController;
 import com.chronos.tracker.update.Backups;
 import javafx.application.Application;
@@ -93,13 +93,16 @@ public final class ChronosApp extends Application {
 
         controller = new AppController(engine, config, history, ENV_FILE);
 
-        Scene scene = new Scene(controller.getView(), 1320, 860);
+        javafx.geometry.Rectangle2D screen = javafx.stage.Screen.getPrimary().getVisualBounds();
+        WindowSize size = WindowSize.fit(screen.getWidth(), screen.getHeight());
+        Scene scene = new Scene(controller.getView(), size.width(), size.height());
         Themes.apply(scene, config.darkMode());
         stage.setTitle("Chronos");
         AppIcons.applyTo(stage);
-        stage.setMinWidth(1100);
-        stage.setMinHeight(700);
+        stage.setMinWidth(size.minWidth());
+        stage.setMinHeight(size.minHeight());
         stage.setScene(scene);
+        stage.setMaximized(size.maximized());
 
         tray = new TrayIconController(trayActions(stage));
         boolean inTray = tray.install();
@@ -131,13 +134,10 @@ public final class ChronosApp extends Application {
             singleInstance.onShowRequested(actions::open);
         }
 
-        boolean background = getParameters().getRaw().contains(WindowsStartup.BACKGROUND_ARG);
-        if (!background || !inTray) {
-            stage.show();
-        }
-        if (background && !inTray) {
-            // Aberto pelo Windows ao entrar, sem bandeja: fica minimizado.
-            stage.setIconified(true);
+        // Também quando o Windows abre o Chronos ao entrar: a janela aparece (antes ia direto para a bandeja).
+        stage.show();
+        if (!size.maximized()) {
+            stage.centerOnScreen();
         }
 
         controller.start();

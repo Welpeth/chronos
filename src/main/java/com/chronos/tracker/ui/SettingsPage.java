@@ -254,7 +254,7 @@ public final class SettingsPage {
         startWithWindows.setSelected(handler.startWithWindowsEnabled());
         startWithWindows.setDisable(!available);
         startHint.setText(available
-                ? I18n.t("O Chronos abre minimizado quando você entra no Windows.")
+                ? I18n.t("O Chronos abre quando você entra no Windows.")
                 : I18n.t("Disponível no Windows, abrindo o Chronos pelo executável instalado."));
         feedback.setText("");
         feedback.getStyleClass().removeAll("feedback-ok", "feedback-error");
