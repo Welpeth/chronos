@@ -3,6 +3,7 @@ package com.chronos.tracker.ui;
 import com.chronos.tracker.config.I18n;
 import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
+import javafx.geometry.Rectangle2D;
 import javafx.geometry.VPos;
 import javafx.scene.Group;
 import javafx.scene.Node;
@@ -29,6 +30,7 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import javafx.scene.transform.Rotate;
 import javafx.scene.transform.Scale;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 
@@ -61,6 +63,8 @@ public final class SplashScreen {
     private static final double TEXT_X = CX_FINAL + R_OUT - 4;
     private static final double TEXT_BASE = CY + 52;
     private static final double TEXT_WIDTH = 583;
+    /** Ponta esquerda da linha amarela mais comprida no logo pronto. */
+    private static final double LOGO_LEFT = CX_FINAL - R_OUT + 6 - 108;
 
     private static final Color BLUE = Color.web("#2f86ff");
 
@@ -136,7 +140,7 @@ public final class SplashScreen {
 
         face.setCenterY(CY);
         face.setFill(new RadialGradient(0, 0, 0.5, 0.5, 0.5, true, CycleMethod.NO_CYCLE,
-                new Stop(0, Color.web("#0d1d4a")), new Stop(1, Color.web("#081333"))));
+                new Stop(0, Color.WHITE), new Stop(0.75, Color.WHITE), new Stop(1, Color.web("#e3ecff"))));
         for (int i = 0; i < ticks.length; i++) {
             ticks[i] = hand(4);
         }
@@ -181,8 +185,13 @@ public final class SplashScreen {
         status.setEffect(new DropShadow(BlurType.GAUSSIAN, Color.rgb(4, 10, 31, 0.85), 6, 0.5, 0, 1));
         status.setTextOrigin(VPos.TOP);
         status.setY(H * SCALE + 4);
-        status.setX(TEXT_X * SCALE);
         status.setOpacity(0);
+
+        // O logo pronto (das linhas amarelas ao fim do "hronos") e o aviso ficam no meio da janela.
+        double shift = (W / 2 - (LOGO_LEFT + splash.textRight) / 2) * SCALE;
+        splash.content.setTranslateX(shift);
+        status.setText(I18n.t("Inicializando, aguarde") + "...");
+        status.setX((W * SCALE - status.getLayoutBounds().getWidth()) / 2);
 
         Pane root = new Pane(splash.content, status);
         // Quase invisível: só para o clique pegar também entre as letras.
@@ -235,8 +244,11 @@ public final class SplashScreen {
         };
         root.setOnMouseClicked(event -> timer.skip());
 
+        // centerOnScreen() deixa a janela no terço de cima; aqui fica no meio exato da tela.
+        Rectangle2D screen = Screen.getPrimary().getVisualBounds();
+        stage.setX(screen.getMinX() + (screen.getWidth() - scene.getWidth()) / 2);
+        stage.setY(screen.getMinY() + (screen.getHeight() - scene.getHeight()) / 2);
         stage.show();
-        stage.centerOnScreen();
         timer.start();
     }
 
@@ -296,7 +308,7 @@ public final class SplashScreen {
         double speed = 150 * 3 * (1 - tp) * (1 - tp) / 0.8 / 60;
         textBlur.setRadius(Math.min(63, speed * 1.5));
 
-        // Mostrador escuro e C azul.
+        // Mostrador branco e C azul.
         face.setCenterX(cx);
         face.setRadius(rIn);
         face.setOpacity(alpha);
