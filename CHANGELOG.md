@@ -12,6 +12,9 @@ As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma vers
   acaba, o logo fica na tela até ele estar pronto.
 
 ### Corrigido
+- Ao sair, o Chronos podia ficar travado e continuar aberto, e aí abrir de novo também travava. Agora ele grava o
+  tempo e solta a trava antes de tirar o ícone da bandeja, e se em 10 segundos não terminou de fechar, encerra à
+  força. E se um Chronos travado ainda estiver aberto, abrir de novo encerra o travado e abre no lugar dele.
 - A animação de abertura travava e tinha fundo. Agora ela é desenhada pelo próprio app, roda lisa e tem fundo
   transparente. Enquanto ela passa, o Chronos já prepara o banco e o resto, então a janela abre logo depois.
 
