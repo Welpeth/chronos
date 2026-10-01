@@ -4,6 +4,7 @@ import com.chronos.tracker.activity.ActivityClassifier;
 import com.chronos.tracker.config.AppConfig;
 import com.chronos.tracker.config.EnvFile;
 import com.chronos.tracker.config.I18n;
+import com.chronos.tracker.jira.JiraException;
 import com.chronos.tracker.jira.JiraIssue;
 import com.chronos.tracker.jira.JiraService;
 import com.chronos.tracker.jira.JiraUser;
@@ -92,6 +93,17 @@ final class SettingsController implements SettingsPage.Handler {
                 + (databaseChanged ? " " + I18n.t("O novo arquivo do histórico vale ao reabrir o app.") : "");
     }
 
+    /** Quantas das tasks cada quadro de JIRA_BOARDS mostra, para conferir se os quadros estão certos. */
+    static String boardSummary(JiraService service, List<JiraIssue> issues) throws JiraException {
+        Map<String, List<String>> boardsOf = service.fetchBoards(issues.stream().map(JiraIssue::key).toList());
+        List<String> parts = new java.util.ArrayList<>();
+        for (String board : service.fetchBoardColumns().keySet()) {
+            long count = boardsOf.values().stream().filter(boards -> boards.contains(board)).count();
+            parts.add(board + ": " + count);
+        }
+        return I18n.t("Tasks por quadro: {0}", String.join(" · ", parts));
+    }
+
     @Override
     public CompletableFuture<String> testConnection(Map<String, String> typed) {
         return CompletableFuture.supplyAsync(() -> {
@@ -103,9 +115,10 @@ final class SettingsController implements SettingsPage.Handler {
                 JiraService service = RestJiraService.from(config);
                 String name = service.fetchCurrentUser().map(JiraUser::displayName).orElse(I18n.t("você"));
                 List<JiraIssue> issues = service.fetchMyIssues();
-                return issues.size() == 1
+                String connected = issues.size() == 1
                         ? I18n.t("Conectado como {0} · 1 task encontrada", name)
                         : I18n.t("Conectado como {0} · {1} tasks encontradas", name, issues.size());
+                return service.usesBoards() ? connected + "\n" + boardSummary(service, issues) : connected;
             } catch (Exception e) {
                 throw new RuntimeException(e.getMessage(), e);
             }

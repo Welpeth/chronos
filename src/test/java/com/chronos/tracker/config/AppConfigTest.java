@@ -19,7 +19,23 @@ class AppConfigTest {
         assertEquals(List.of("215", "514"), AppConfig.boardIds(
                 "https://valesoft.atlassian.net/jira/software/c/projects/RP/boards/215, 514, 215, sem número"));
         assertEquals(List.of("215"), AppConfig.fromMap(Map.of("JIRA_BOARDS", " 215 ")).jiraBoards());
+        assertEquals(List.of("215", "514"), AppConfig.boardIds("215 e 514"));
+        assertEquals(List.of("215", "514"), AppConfig.boardIds("215; 514"));
+        assertEquals(List.of("215"), AppConfig.boardIds(
+                "https://valesoft.atlassian.net/jira/software/c/projects/RP/boards/215?selectedIssue=RP-12"));
         assertEquals(List.of(), AppConfig.fromMap(Map.of()).jiraBoards());
+    }
+
+    @Test
+    void boardFiltersPairEachBoardWithItsJql() {
+        assertEquals(Map.of("514", "Categoria = JONATHAN", "215", "Categoria is EMPTY OR Categoria != JONATHAN"),
+                AppConfig.boardFilters("514: Categoria = JONATHAN; 215 : Categoria is EMPTY OR Categoria != JONATHAN;"));
+        assertEquals(Map.of("514", "labels = \"suporte\""), AppConfig.boardFilters(
+                "https://valesoft.atlassian.net/jira/software/c/projects/RP/boards/514: labels = \"suporte\""));
+        assertEquals(Map.of(), AppConfig.boardFilters("sem quadro; 215:"));
+        assertEquals(Map.of("514", "Categoria = JONATHAN"),
+                AppConfig.fromMap(Map.of("JIRA_BOARD_FILTERS", "514: Categoria = JONATHAN")).boardFilters());
+        assertEquals(Map.of(), AppConfig.fromMap(Map.of()).boardFilters());
     }
 
     @Test

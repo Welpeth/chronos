@@ -171,7 +171,6 @@ O Jira recusou a consulta: {0}	Jira rejected the query: {0}
 O Jira recusou as credenciais (HTTP {0})	Jira rejected the credentials (HTTP {0})
 O Jira respondeu HTTP {0}: {1}	Jira responded HTTP {0}: {1}
 O Windows recusou a alteração (código {0}).	Windows rejected the change (code {0}).
-O comando do registro não respondeu.	The registry command didn't respond.
 O download do instalador falhou (HTTP {0})	The installer download failed (HTTP {0})
 O fluxo de {0} não tem como ir direto para um status concluído	The workflow of {0} can't go directly to a done status
 O histórico agora é a cópia {0}. O que estava em uso antes ficou guardado na pasta backup.	The history is now the copy {0}. The one in use before was kept in the backup folder.
@@ -365,3 +364,8 @@ Clique para ver esta task em Task atual	Click to show this task in Current task
 Visão geral	Overview
 Visão kanban	Kanban view
 Outras	Others
+Informe um tempo maior que zero.	Enter a time greater than zero.
+Tasks por quadro: {0}	Tasks per board: {0}
+Filtro por quadro (opcional)	Filter per board (optional)
+Quadro: JQL, separados por ponto e vírgula, ex.: 514: Categoria = JONATHAN; 215: Categoria is EMPTY	Board: JQL, separated by semicolons, e.g. 514: Category = JONATHAN; 215: Category is EMPTY
+Para quando os quadros pegam as mesmas tasks (os dois com project = RP, por exemplo): a task só entra no quadro se também atender ao filtro dele.	For boards that pick the same tasks (both with project = RP, for example): a task only joins the board if it also matches the board's filter.

@@ -171,7 +171,6 @@ O Jira recusou a consulta: {0}	Jira rechazó la consulta: {0}
 O Jira recusou as credenciais (HTTP {0})	Jira rechazó las credenciales (HTTP {0})
 O Jira respondeu HTTP {0}: {1}	Jira respondió HTTP {0}: {1}
 O Windows recusou a alteração (código {0}).	Windows rechazó el cambio (código {0}).
-O comando do registro não respondeu.	El comando del registro no respondió.
 O download do instalador falhou (HTTP {0})	La descarga del instalador falló (HTTP {0})
 O fluxo de {0} não tem como ir direto para um status concluído	El flujo de {0} no puede ir directamente a un estado finalizado
 O histórico agora é a cópia {0}. O que estava em uso antes ficou guardado na pasta backup.	El historial ahora es la copia {0}. El que estaba en uso antes quedó guardado en la carpeta backup.
@@ -365,3 +364,8 @@ Clique para ver esta task em Task atual	Haz clic para ver esta tarea en Tarea ac
 Visão geral	Vista general
 Visão kanban	Vista kanban
 Outras	Otras
+Informe um tempo maior que zero.	Ingresa un tiempo mayor que cero.
+Tasks por quadro: {0}	Tareas por tablero: {0}
+Filtro por quadro (opcional)	Filtro por tablero (opcional)
+Quadro: JQL, separados por ponto e vírgula, ex.: 514: Categoria = JONATHAN; 215: Categoria is EMPTY	Tablero: JQL, separados por punto y coma, ej.: 514: Categoria = JONATHAN; 215: Categoria is EMPTY
+Para quando os quadros pegam as mesmas tasks (os dois com project = RP, por exemplo): a task só entra no quadro se também atender ao filtro dele.	Para cuando los tableros toman las mismas tareas (los dos con project = RP, por ejemplo): la tarea solo entra en el tablero si también cumple su filtro.

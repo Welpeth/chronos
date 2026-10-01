@@ -3,6 +3,26 @@
 As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma versão nova gera a release
 `v<versão>` no GitHub, com o instalador e a versão portátil, e usa a seção dessa versão abaixo como notas.
 
+## [0.5.1] - 2026-10-01
+
+### Adicionado
+- Filtro por quadro (Configurações > Jira, ou `JIRA_BOARD_FILTERS` no `.env`): um JQL a mais para cada quadro,
+  para separar quadros que pegam as mesmas tasks, como dois quadros com `project = RP`. Por exemplo,
+  `514: Categoria = JONATHAN; 215: Categoria is EMPTY`. A task só entra no quadro se também atender ao filtro.
+
+### Corrigido
+- Salvar as Configurações com "Abrir ao entrar no Windows" dava "O Windows recusou a alteração (código 1)"
+  quando o caminho do Chronos tinha espaços. O Chronos agora grava a opção direto no registro, sem o `reg.exe`.
+- Apagar as horas ou os minutos em "Adicionar tempo" e salvar dava o erro "Cannot invoke
+  java.lang.Integer.intValue()". O campo vazio agora vale 0, e um tempo zerado mostra "Informe um tempo maior
+  que zero.".
+- Quadros com o mesmo nome no Jira (como dois "Quadro RP") viravam um só, e os chips do Painel não apareciam.
+  Agora cada um ganha o número no fim, "Quadro RP (215)" e "Quadro RP (514)".
+- O campo Quadros aceita "215 e 514", "215 514" ou "215; 514", além de "215, 514". Antes, só a vírgula
+  separava, e o segundo quadro ficava de fora.
+- Os chips mostram todos os quadros configurados, mesmo os que ainda não têm task sua.
+- "Testar conexão" mostra quantas das suas tasks cada quadro tem, para conferir se os quadros estão certos.
+
 ## [0.5.0] - 2026-09-30
 
 ### Adicionado
@@ -108,6 +128,7 @@ Primeira versão instalável.
 - O histórico de um Jira antigo aparecia depois de trocar o Jira nas configurações. (#19)
 - O aviso de "controle de tempo" aparecia em projetos gerenciados pela equipe que tinham o campo. (#19)
 
+[0.5.1]: https://github.com/Welpeth/chronos/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/Welpeth/chronos/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Welpeth/chronos/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Welpeth/chronos/compare/v0.2.0...v0.3.0

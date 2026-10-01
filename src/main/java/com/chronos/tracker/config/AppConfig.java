@@ -38,7 +38,8 @@ public record AppConfig(
         I18n.Language language,
         List<String> jiraBoards,
         boolean commentsEnabled,
-        boolean commentTemplateEnabled) {
+        boolean commentTemplateEnabled,
+        Map<String, String> boardFilters) {
 
     public static final Duration DEFAULT_POLLING_INTERVAL = Duration.ofSeconds(5);
     public static final Duration DEFAULT_POSSIBLY_IDLE_AFTER = Duration.ofMinutes(2);
@@ -91,24 +92,53 @@ public record AppConfig(
                 I18n.Language.fromCode(nonBlank.apply("CHRONOS_LANGUAGE").orElse("pt")),
                 nonBlank.apply("JIRA_BOARDS").map(AppConfig::boardIds).orElse(List.of()),
                 flag(nonBlank, "CHRONOS_COMMENTS", false),
-                flag(nonBlank, "CHRONOS_COMMENT_TEMPLATE", false));
+                flag(nonBlank, "CHRONOS_COMMENT_TEMPLATE", false),
+                nonBlank.apply("JIRA_BOARD_FILTERS").map(AppConfig::boardFilters).orElse(Map.of()));
+    }
+
+    /**
+     * Filtro extra de cada quadro em {@code JIRA_BOARD_FILTERS}, para separar quadros que pegam as mesmas tasks:
+     * "514: Categoria = JONATHAN; 215: Categoria is EMPTY". Cada parte é o número (ou endereço) do quadro, dois
+     * pontos e um JQL; as partes são separadas por ponto e vírgula.
+     */
+    static Map<String, String> boardFilters(String value) {
+        Map<String, String> filters = new java.util.LinkedHashMap<>();
+        for (String part : value.split(";")) {
+            int colon = part.indexOf(':');
+            // Endereço colado ("https://..."): os dois pontos do "https:" não separam o quadro do filtro.
+            java.util.regex.Matcher url = java.util.regex.Pattern.compile("boards/(\\d+)\\S*\\s*:").matcher(part);
+            String board;
+            String jql;
+            if (url.find()) {
+                board = url.group(1);
+                jql = part.substring(url.end());
+            } else if (colon > 0) {
+                board = part.substring(0, colon).strip();
+                jql = part.substring(colon + 1);
+            } else {
+                continue;
+            }
+            if (board.matches("\\d+") && !jql.isBlank()) {
+                filters.put(board, jql.strip());
+            }
+        }
+        return Map.copyOf(filters);
     }
 
     /**
      * Ids dos quadros em {@code JIRA_BOARDS}: o número ("215") ou o endereço do quadro colado inteiro
-     * (".../projects/RP/boards/215"). O que não tem número fica de fora.
+     * (".../projects/RP/boards/215"), separados por vírgula, ponto e vírgula, espaço ou "e" ("215 e 514").
+     * O que não é número nem endereço de quadro fica de fora.
      */
     static List<String> boardIds(String value) {
         java.util.regex.Pattern inUrl = java.util.regex.Pattern.compile("boards/(\\d+)");
-        java.util.regex.Pattern plain = java.util.regex.Pattern.compile("(\\d+)");
-        return splitList(value).stream()
+        return Arrays.stream(value.split("[,;\\s]+"))
                 .map(item -> {
                     java.util.regex.Matcher url = inUrl.matcher(item);
                     if (url.find()) {
                         return url.group(1);
                     }
-                    java.util.regex.Matcher number = plain.matcher(item);
-                    return number.find() ? number.group(1) : "";
+                    return item.matches("\\d+") ? item : "";
                 })
                 .filter(id -> !id.isEmpty())
                 .distinct()
@@ -200,6 +230,7 @@ public record AppConfig(
                 + ", darkMode=" + darkMode
                 + ", language=" + language.code
                 + ", jiraBoards=" + jiraBoards
+                + ", boardFilters=" + boardFilters
                 + ", commentsEnabled=" + commentsEnabled
                 + ", commentTemplateEnabled=" + commentTemplateEnabled + "]";
     }

@@ -140,6 +140,9 @@ public final class ManualEntryDialog {
                 commitSpinner(hours);
                 commitSpinner(minutes);
                 Duration chosen = Duration.ofHours(hours.getValue()).plusMinutes(minutes.getValue());
+                if (chosen.isZero()) {
+                    throw new IllegalArgumentException(I18n.t("Informe um tempo maior que zero."));
+                }
                 submitter.submit(keyOf(task), date.getValue(), chosen, note.getText());
                 stage.close();
             } catch (Exception e) {
@@ -229,6 +232,11 @@ public final class ManualEntryDialog {
         Spinner<Integer> spinner = new Spinner<>(min, max, initial, step);
         spinner.setEditable(true);
         spinner.setPrefWidth(170);
+        spinner.getValueFactory().valueProperty().addListener((obs, old, value) -> {
+            if (value == null) {
+                spinner.getValueFactory().setValue(old == null ? min : old);
+            }
+        });
         spinner.getStyleClass().add("dialog-input");
         return spinner;
     }
@@ -263,14 +271,23 @@ public final class ManualEntryDialog {
         return (separator < 0 ? text : text.substring(0, separator)).strip();
     }
 
-    /** Aceita o que foi digitado no campo do spinner, mesmo sem apertar Enter. */
+    /** Aceita o que foi digitado no campo do spinner, mesmo sem apertar Enter. Campo vazio vale 0. */
     private static void commitSpinner(Spinner<Integer> spinner) {
-        String text = spinner.getEditor().getText();
+        Integer current = spinner.getValue();
+        int value = typedValue(spinner.getEditor().getText(), current == null ? 0 : current);
+        spinner.getValueFactory().setValue(value);
+        spinner.getEditor().setText(String.valueOf(spinner.getValue()));
+    }
+
+    /** O número digitado; vazio vira 0 e texto que não é número mantém o valor anterior. */
+    static int typedValue(String text, int previous) {
+        if (text == null || text.isBlank()) {
+            return 0;
+        }
         try {
-            int value = Integer.parseInt(text.strip());
-            spinner.getValueFactory().setValue(value);
+            return Integer.parseInt(text.strip());
         } catch (NumberFormatException e) {
-            spinner.getEditor().setText(String.valueOf(spinner.getValue()));
+            return previous;
         }
     }
 }
