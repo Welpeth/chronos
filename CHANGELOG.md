@@ -8,6 +8,8 @@ As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma vers
 ### Adicionado
 - Se a janela do Chronos travar por 8 segundos ou mais, ele grava um relatório em `travamentos`, na pasta de
   dados (`%APPDATA%\Chronos`), com o que estava fazendo na hora. Guarda os 5 últimos.
+- "Inicializando, aguarde…" embaixo do logo na abertura. Se o Chronos ainda estiver carregando quando a animação
+  acaba, o logo fica na tela até ele estar pronto.
 
 ### Corrigido
 - Ao sair, o Chronos podia ficar travado e continuar aberto, e aí abrir de novo também travava. Agora ele grava o
