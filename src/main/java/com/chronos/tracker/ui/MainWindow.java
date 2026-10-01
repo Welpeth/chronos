@@ -72,6 +72,7 @@ public final class MainWindow {
         history.setProject(project);
         worklog.setProject(project);
         comments.setProject(project);
+        tasks.setScope(project);
         root.getStyleClass().add("app");
         root.setTop(buildTopBar());
         root.setLeft(buildSidebar());
@@ -132,6 +133,7 @@ public final class MainWindow {
         history.setProject(project);
         worklog.setProject(project);
         comments.setProject(project);
+        tasks.setScope(project);
     }
 
     private static Set<String> loadProject() {
@@ -177,6 +179,11 @@ public final class MainWindow {
             }
         });
         renderPage();
+    }
+
+    /** Endereço do Jira, para o link da task atual no Painel. */
+    public void setJiraBaseUrl(String url) {
+        dashboard.setJiraBaseUrl(url);
     }
 
     /** Mostra ou esconde a aba Comentários (Configurações > Comentários). */

@@ -20,6 +20,7 @@ import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -47,8 +48,10 @@ public final class AppController {
     private final CommentBook comments;
     private volatile boolean commentsEnabled;
     private volatile boolean commentTemplateEnabled;
-    /** Tasks em que o Jira recusou o template; não tenta de novo a cada busca. */
-    private final java.util.Set<String> templateFailed = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    /** Tasks em que o Jira recusou o template, com o erro; não tenta de novo a cada busca. */
+    private final Map<String, String> templateFailed = new java.util.concurrent.ConcurrentHashMap<>();
+    /** O que aconteceu na última vez que o template automático rodou. */
+    private volatile String templateStatus = "";
 
     private ScheduledExecutorService scheduler;
     private ScheduledFuture<?> polling;
@@ -126,6 +129,11 @@ public final class AppController {
             }
 
             @Override
+            public String templateStatus() {
+                return templateStatus;
+            }
+
+            @Override
             public CompletableFuture<TaskComment> save(String issueKey, String summary, String markdown) {
                 return CompletableFuture.supplyAsync(() -> {
                     try {
@@ -141,6 +149,12 @@ public final class AppController {
     }
 
     private void useCommentSettings(AppConfig config) {
+        String baseUrl = config.jiraBaseUrl().orElse("");
+        if (Platform.isFxApplicationThread()) {
+            window.setJiraBaseUrl(baseUrl);
+        } else {
+            Platform.runLater(() -> window.setJiraBaseUrl(baseUrl));
+        }
         commentsEnabled = config.commentsEnabled();
         commentTemplateEnabled = config.commentTemplateEnabled();
         if (Platform.isFxApplicationThread()) {
@@ -152,25 +166,44 @@ public final class AppController {
 
     /**
      * Põe o template nas tasks suas das colunas monitoradas que ainda não têm comentário do Chronos (com a opção
-     * ligada), inclusive as que já estavam na coluna. Se o Jira recusar, não tenta de novo até reabrir.
+     * ligada), inclusive as que já estavam na coluna. Se o Jira recusar, não tenta de novo até reabrir. Anota em
+     * {@link #templateStatus} o que aconteceu, para a aba Comentários > Template mostrar.
      */
     private void addTemplates() {
-        if (!commentsEnabled || !commentTemplateEnabled) {
+        if (!commentsEnabled) {
             return;
         }
-        for (JiraIssue issue : engine.mineInWorkingColumns()) {
-            if (templateFailed.contains(issue.key())) {
+        if (!commentTemplateEnabled) {
+            templateStatus = I18n.t("O template automático está desligado. Ligue \"Habilitar template padrão\" em Configurações.");
+            return;
+        }
+        List<JiraIssue> inColumns = engine.inWorkingColumns();
+        List<JiraIssue> mine = inColumns.stream().filter(JiraIssue::mine).toList();
+        if (mine.isEmpty()) {
+            templateStatus = inColumns.isEmpty()
+                    ? I18n.t("Nenhuma task nas colunas monitoradas agora.")
+                    : I18n.t("As {0} tasks nas colunas monitoradas não são suas (outro responsável ou sem responsável); o template só vai para as suas.", inColumns.size());
+            return;
+        }
+        String status = I18n.t("Todas as suas {0} tasks nas colunas monitoradas já têm comentário do Chronos.", mine.size());
+        for (JiraIssue issue : mine) {
+            if (templateFailed.containsKey(issue.key())) {
+                status = I18n.t("O Jira recusou o template em {0}: {1}", issue.key(), templateFailed.get(issue.key()));
                 continue;
             }
             try {
-                comments.addTemplate(issue.key(), issue.summary()).ifPresent(added ->
-                        engine.recordEvent(false, I18n.t("Template de comentário adicionado"), issue.key()));
+                if (comments.addTemplate(issue.key(), issue.summary()).isPresent()) {
+                    engine.recordEvent(false, I18n.t("Template de comentário adicionado"), issue.key());
+                    status = I18n.t("Template posto em {0} às {1}.", issue.key(), Formats.clock(java.time.Instant.now()));
+                }
             } catch (Exception e) {
-                templateFailed.add(issue.key());
-                engine.recordEvent(true, I18n.t("Não deu para pôr o template em {0}", issue.key()),
-                        String.valueOf(e.getMessage()));
+                String message = String.valueOf(e.getMessage());
+                templateFailed.put(issue.key(), message);
+                status = I18n.t("O Jira recusou o template em {0}: {1}", issue.key(), message);
+                engine.recordEvent(true, I18n.t("Não deu para pôr o template em {0}", issue.key()), message);
             }
         }
+        templateStatus = status;
     }
 
     public Parent getView() {
@@ -306,10 +339,15 @@ public final class AppController {
     private void safePollJira() {
         try {
             engine.pollJira();
-            addTemplates();
         } catch (RuntimeException e) {
             // Uma falha inesperada não pode cancelar o agendamento.
             e.printStackTrace();
+        }
+        try {
+            // À parte: um erro na busca não pode impedir o template das tasks que já se conhece.
+            addTemplates();
+        } catch (RuntimeException e) {
+            engine.recordEvent(true, I18n.t("Falha ao pôr o template de comentário"), String.valueOf(e.getMessage()));
         }
     }
 

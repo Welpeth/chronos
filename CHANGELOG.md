@@ -3,6 +3,26 @@
 As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma versão nova gera a release
 `v<versão>` no GitHub, com o instalador e a versão portátil, e usa a seção dessa versão abaixo como notas.
 
+## [0.5.4] - 2026-10-01
+
+### Adicionado
+- Tela de abertura com o logo animado do Chronos. Ela dura uns 4 segundos antes da janela principal, e um clique
+  nela pula a animação.
+- Link da task no Jira ao lado do título "Task atual" no Painel, com a chave da task (como "RP-500"). Abre a
+  task no navegador.
+
+### Corrigido
+- Com um template de comentário salvo em branco (por exemplo, clicando em "Salvar template" com o campo vazio),
+  nada ia para o Jira, sem aviso. Agora um template em branco vale como o padrão.
+- Um erro na busca do Jira não impede mais o template das tasks que o Chronos já conhece, e uma falha ao pôr o
+  template aparece na Atividade recente.
+- A aba Comentários > Template mostra o que o template automático fez por último: em qual task foi posto, por que
+  nada foi (opção desligada, nenhuma task sua nas colunas, todas já comentadas) ou o erro que o Jira devolveu.
+- Nos chips de quadro do Painel, clicar num quadro com outro já escolhido marcava os dois, e com todos marcados
+  voltava para "Todos os quadros". Agora um clique troca direto para o quadro clicado, e "Todos os quadros"
+  mostra todos.
+- A aba Tarefas mostra, junto da contagem, o quadro escolhido no Painel.
+
 ## [0.5.3] - 2026-10-01
 
 ### Corrigido
@@ -151,6 +171,7 @@ Primeira versão instalável.
 - O histórico de um Jira antigo aparecia depois de trocar o Jira nas configurações. (#19)
 - O aviso de "controle de tempo" aparecia em projetos gerenciados pela equipe que tinham o campo. (#19)
 
+[0.5.4]: https://github.com/Welpeth/chronos/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/Welpeth/chronos/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/Welpeth/chronos/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/Welpeth/chronos/compare/v0.5.0...v0.5.1

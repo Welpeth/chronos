@@ -43,6 +43,9 @@ public final class CommentsPage {
 
         void saveTemplate(String markdown) throws Exception;
 
+        /** O que o template automático fez por último, ou vazio se ainda não rodou. */
+        String templateStatus();
+
         CompletableFuture<TaskComment> save(String issueKey, String summary, String markdown);
     }
 
@@ -57,6 +60,7 @@ public final class CommentsPage {
     private final VBox historyList = new VBox(8);
     private final TextArea templateArea = new TextArea();
     private final Label templateFeedback = new Label();
+    private final Label templateStatus = new Label();
     private Consumer<Long> onPendingCount = count -> { };
 
     private Snapshot last;
@@ -126,7 +130,9 @@ public final class CommentsPage {
         actions.setAlignment(Pos.CENTER_LEFT);
         VBox card = new VBox(12, templateArea, actions);
         card.getStyleClass().add("card");
-        VBox tab = new VBox(14, hint, card);
+        templateStatus.getStyleClass().add("muted");
+        templateStatus.setWrapText(true);
+        VBox tab = new VBox(14, hint, templateStatus, card);
         tab.getStyleClass().add("browser-tab-body");
         return tab;
     }
@@ -166,6 +172,10 @@ public final class CommentsPage {
 
     public void render(Snapshot snapshot) {
         last = snapshot;
+        String status = handler.templateStatus();
+        templateStatus.setText(status);
+        templateStatus.setVisible(!status.isEmpty());
+        templateStatus.setManaged(!status.isEmpty());
         Instant now = Instant.now();
         if (editing != null || Duration.between(loadedAt, now).compareTo(RELOAD_EVERY) < 0) {
             return;

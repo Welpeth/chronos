@@ -371,3 +371,9 @@ Quadro: JQL, separados por ponto e vírgula, ex.: 514: Categoria = JONATHAN; 215
 Para quando os quadros pegam as mesmas tasks (os dois com project = RP, por exemplo): a task só entra no quadro se também atender ao filtro dele.	For boards that pick the same tasks (both with project = RP, for example): a task only joins the board if it also matches the board's filter.
 1 task contando	1 task running
 {0} tasks contando	{0} tasks running
+Falha ao pôr o template de comentário	Could not add the comment template
+O template automático está desligado. Ligue "Habilitar template padrão" em Configurações.	The automatic template is off. Turn on "Enable default template" in Settings.
+As {0} tasks nas colunas monitoradas não são suas (outro responsável ou sem responsável); o template só vai para as suas.	The {0} tasks in the monitored columns are not yours (another assignee or unassigned); the template only goes to yours.
+Todas as suas {0} tasks nas colunas monitoradas já têm comentário do Chronos.	All {0} of your tasks in the monitored columns already have a Chronos comment.
+O Jira recusou o template em {0}: {1}	Jira rejected the template on {0}: {1}
+Template posto em {0} às {1}.	Template added to {0} at {1}.
