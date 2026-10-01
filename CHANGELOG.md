@@ -3,6 +3,12 @@
 As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma versão nova gera a release
 `v<versão>` no GitHub, com o instalador e a versão portátil, e usa a seção dessa versão abaixo como notas.
 
+## [Não lançado]
+
+### Corrigido
+- A animação de abertura travava e tinha fundo. Agora ela é desenhada pelo próprio app, roda lisa e tem fundo
+  transparente. Enquanto ela passa, o Chronos já prepara o banco e o resto, então a janela abre logo depois.
+
 ## [0.5.4] - 2026-10-01
 
 ### Adicionado
