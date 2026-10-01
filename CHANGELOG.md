@@ -3,6 +3,12 @@
 As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma versão nova gera a release
 `v<versão>` no GitHub, com o instalador e a versão portátil, e usa a seção dessa versão abaixo como notas.
 
+## [Não lançado]
+
+### Adicionado
+- Tela de abertura com o logo animado do Chronos. Ela dura uns 4 segundos antes da janela principal, e um clique
+  nela pula a animação.
+
 ## [0.5.3] - 2026-10-01
 
 ### Corrigido

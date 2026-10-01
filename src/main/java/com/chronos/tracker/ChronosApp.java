@@ -16,6 +16,7 @@ import com.chronos.tracker.tracking.MultiTaskTracker;
 import com.chronos.tracker.tracking.TrackingEngine;
 import com.chronos.tracker.ui.AppController;
 import com.chronos.tracker.ui.AppIcons;
+import com.chronos.tracker.ui.SplashScreen;
 import com.chronos.tracker.ui.Themes;
 import com.chronos.tracker.ui.WindowSize;
 import com.chronos.tracker.ui.TrayIconController;
@@ -50,6 +51,10 @@ public final class ChronosApp extends Application {
 
     @Override
     public void start(Stage stage) {
+        SplashScreen.show(() -> open(stage));
+    }
+
+    private void open(Stage stage) {
         AppConfig config;
         try {
             config = AppConfig.load(ENV_FILE);
