@@ -54,6 +54,8 @@ jobs:
         shell: bash
         env:
           VERSION: ${{ steps.version.outputs.number }}
+          # Imagens do instalador, lidas pelo packaging/installer/main.wxs.
+          CHRONOS_INSTALLER_DIR: ${{ github.workspace }}\packaging\installer
         run: |
           cp target/chronos-tracker-*.jar target/libs/chronos.jar
           jpackage --type app-image --name Chronos --dest target/dist \
@@ -64,7 +66,7 @@ jobs:
             --app-version "$VERSION" --vendor Chronos \
             --description "Chronos: controle de tempo das tasks do Jira" \
             --win-per-user-install --win-menu --win-menu-group Chronos --win-shortcut \
-            --win-upgrade-uuid "$UPGRADE_UUID"
+            --win-upgrade-uuid "$UPGRADE_UUID" --resource-dir packaging/installer
           cd target/dist
           7z a "Chronos-$VERSION-portatil.zip" Chronos > /dev/null
           ls -la
