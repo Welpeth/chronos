@@ -3,6 +3,15 @@
 As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma versão nova gera a release
 `v<versão>` no GitHub, com o instalador e a versão portátil, e usa a seção dessa versão abaixo como notas.
 
+## [0.5.3] - 2026-10-01
+
+### Corrigido
+- O template padrão de comentário só ia para a task que mudava de coluna com o Chronos aberto. Agora ele vai para
+  todas as suas tasks nas colunas monitoradas que ainda não têm comentário do Chronos, inclusive as que já
+  estavam lá.
+- Sem um template salvo, o Chronos usa um padrão ("O que foi feito" e "Como testar"), que já aparece na aba
+  Comentários > Template para editar.
+
 ## [0.5.2] - 2026-10-01
 
 ### Alterado
@@ -142,6 +151,7 @@ Primeira versão instalável.
 - O histórico de um Jira antigo aparecia depois de trocar o Jira nas configurações. (#19)
 - O aviso de "controle de tempo" aparecia em projetos gerenciados pela equipe que tinham o campo. (#19)
 
+[0.5.3]: https://github.com/Welpeth/chronos/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/Welpeth/chronos/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/Welpeth/chronos/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/Welpeth/chronos/compare/v0.4.0...v0.5.0

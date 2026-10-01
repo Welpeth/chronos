@@ -105,7 +105,7 @@ public final class CommentsPage {
     }
 
     private Node templateTab() {
-        Label hint = new Label(I18n.t("Escreva em Markdown: # título, - lista, **negrito**, _itálico_, `código`. Emojis do Jira vão por extenso, como :light_bulb_on: ou :white_check_mark:. Com \"Habilitar template padrão\" ligado em Configurações, este texto vai sozinho para cada task sua que entra numa coluna monitorada."));
+        Label hint = new Label(I18n.t("Escreva em Markdown: # título, - lista, **negrito**, _itálico_, `código`. Emojis do Jira vão por extenso, como :light_bulb_on: ou :white_check_mark:. Com \"Habilitar template padrão\" ligado em Configurações, este texto vai sozinho para cada task sua numa coluna monitorada que ainda não tem comentário."));
         hint.getStyleClass().add("muted");
         hint.setWrapText(true);
         templateArea.getStyleClass().add("comment-editor");
