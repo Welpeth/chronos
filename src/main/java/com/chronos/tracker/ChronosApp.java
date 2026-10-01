@@ -60,7 +60,7 @@ public final class ChronosApp extends Application {
                 .start();
         // Arquivos, banco e motor ficam prontos durante a animação de abertura; a janela é montada no fim dela.
         CompletableFuture<Prepared> prepared = CompletableFuture.supplyAsync(ChronosApp::prepare);
-        SplashScreen.show(() -> {
+        SplashScreen.show(prepared, () -> {
             Prepared ready;
             try {
                 ready = prepared.join();

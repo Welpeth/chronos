@@ -1,5 +1,6 @@
 package com.chronos.tracker.ui;
 
+import com.chronos.tracker.config.I18n;
 import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
 import javafx.geometry.VPos;
@@ -33,6 +34,7 @@ import javafx.stage.StageStyle;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Tela de abertura: o logo do Chronos animado, desenhado em vetor com fundo transparente. O relógio aparece com
@@ -48,6 +50,8 @@ public final class SplashScreen {
     private static final double W = 900;
     private static final double H = 260;
     private static final double SCALE = 0.8;
+    /** Espaço do "Inicializando, aguarde…" embaixo do logo. */
+    private static final double STATUS_HEIGHT = 30;
     private static final double R_OUT = 80;
     private static final double R_IN = 54;
     private static final double CY = 130;
@@ -156,6 +160,14 @@ public final class SplashScreen {
 
     /** Mostra a abertura e chama {@code then} quando ela termina ou quando clicam nela. */
     public static void show(Runnable then) {
+        show(CompletableFuture.completedFuture(null), then);
+    }
+
+    /**
+     * Mostra a abertura com "Inicializando, aguarde…" e chama {@code then} quando a animação terminou (ou
+     * clicaram) e {@code ready} concluiu. Enquanto {@code ready} não conclui, o logo fica pronto na tela.
+     */
+    public static void show(CompletableFuture<?> ready, Runnable then) {
         SplashScreen splash;
         try {
             splash = new SplashScreen();
@@ -163,11 +175,20 @@ public final class SplashScreen {
             then.run();
             return;
         }
-        Pane root = new Pane(splash.content);
+        Text status = new Text();
+        status.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 15));
+        status.setFill(Color.web("#dce6ff"));
+        status.setEffect(new DropShadow(BlurType.GAUSSIAN, Color.rgb(4, 10, 31, 0.85), 6, 0.5, 0, 1));
+        status.setTextOrigin(VPos.TOP);
+        status.setY(H * SCALE + 4);
+        status.setX(TEXT_X * SCALE);
+        status.setOpacity(0);
+
+        Pane root = new Pane(splash.content, status);
         // Quase invisível: só para o clique pegar também entre as letras.
         root.setStyle("-fx-background-color: rgba(0,0,0,0.004);");
         splash.content.getTransforms().add(new Scale(SCALE, SCALE));
-        Scene scene = new Scene(root, W * SCALE, H * SCALE, Color.TRANSPARENT);
+        Scene scene = new Scene(root, W * SCALE, H * SCALE + STATUS_HEIGHT, Color.TRANSPARENT);
 
         Stage stage = new Stage(StageStyle.TRANSPARENT);
         stage.setScene(scene);
@@ -175,24 +196,28 @@ public final class SplashScreen {
         AppIcons.applyTo(stage);
         stage.setAlwaysOnTop(true);
 
-        AnimationTimer timer = new AnimationTimer() {
+        String waiting = I18n.t("Inicializando, aguarde");
+        var timer = new AnimationTimer() {
             private long start = -1;
+            private boolean skipped;
             private boolean done;
 
             @Override
             public void handle(long now) {
-                if (now == Long.MAX_VALUE) {
-                    finish();
-                    return;
-                }
                 if (start < 0) {
                     start = now;
                 }
                 double t = (now - start) / 1e9;
-                splash.update(Math.min(t, 3.6));
-                if (t >= LENGTH) {
+                splash.update(skipped ? 3.6 : Math.min(t, 3.6));
+                status.setOpacity(seg(t, 0.3, 0.8));
+                status.setText(waiting + ".".repeat(1 + (int) (t * 2.5) % 3));
+                if ((skipped || t >= LENGTH) && ready.isDone()) {
                     finish();
                 }
+            }
+
+            void skip() {
+                skipped = true;
             }
 
             void finish() {
@@ -208,10 +233,7 @@ public final class SplashScreen {
                 });
             }
         };
-        root.setOnMouseClicked(event -> {
-            splash.update(3.6);
-            timer.handle(Long.MAX_VALUE);
-        });
+        root.setOnMouseClicked(event -> timer.skip());
 
         stage.show();
         stage.centerOnScreen();
