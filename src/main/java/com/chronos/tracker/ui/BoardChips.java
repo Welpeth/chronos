@@ -7,14 +7,13 @@ import javafx.scene.control.ToggleButton;
 import javafx.scene.layout.FlowPane;
 
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * Chips para escolher quais quadros (ou projetos) aparecem: "Todos" e um por quadro. Dá para marcar vários; sem
- * nenhum marcado, vale "Todos". Some quando só existe um grupo.
+ * Chips para escolher qual quadro (ou projeto) aparece: "Todos" e um por quadro. Um clique troca direto para o quadro
+ * clicado. Some quando só existe um grupo.
  */
 public final class BoardChips {
 
@@ -45,17 +44,17 @@ public final class BoardChips {
         byBoard = boards;
         root.getChildren().clear();
         ToggleButton all = chip(boards ? I18n.t("Todos os quadros") : I18n.t("Todos os projetos"), selected.isEmpty());
-        all.setOnAction(e -> onChange.accept(Set.of()));
+        all.setOnAction(e -> {
+            all.setSelected(true);
+            onChange.accept(Set.of());
+        });
         root.getChildren().add(all);
         for (String group : options) {
             ToggleButton chip = chip(boards ? group : I18n.t("Projeto {0}", group), selected.contains(group));
             chip.setOnAction(e -> {
-                Set<String> next = new LinkedHashSet<>(selected);
-                if (!next.remove(group)) {
-                    next.add(group);
-                }
-                // Marcar todos é o mesmo que "Todos".
-                onChange.accept(next.containsAll(options) ? Set.of() : next);
+                // Clicar de novo no quadro escolhido não desmarca: ele continua escolhido.
+                chip.setSelected(true);
+                onChange.accept(Set.of(group));
             });
             root.getChildren().add(chip);
         }

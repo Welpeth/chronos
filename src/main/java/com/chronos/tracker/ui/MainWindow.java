@@ -72,6 +72,7 @@ public final class MainWindow {
         history.setProject(project);
         worklog.setProject(project);
         comments.setProject(project);
+        tasks.setScope(project);
         root.getStyleClass().add("app");
         root.setTop(buildTopBar());
         root.setLeft(buildSidebar());
@@ -132,6 +133,7 @@ public final class MainWindow {
         history.setProject(project);
         worklog.setProject(project);
         comments.setProject(project);
+        tasks.setScope(project);
     }
 
     private static Set<String> loadProject() {
