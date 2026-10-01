@@ -145,4 +145,18 @@ class JiraBoardsTest {
                 boards);
         assertEquals(List.of("Quadro RP (215)", "Quadro RP (514)"), List.copyOf(service.fetchBoardColumns().keySet()));
     }
+
+    @Test
+    void theBoardFilterJoinsTheBoardQuery() throws JiraException {
+        RestJiraService service = new RestJiraService(new JiraClient(baseUrl, "e", "t"), "project = RP",
+                List.of("RP"), Optional.empty(), List.of("215", "514"), Map.of("215", "Categoria = JONATHAN"));
+
+        service.fetchBoards(List.of("RP-1"));
+
+        List<String> issueQueries = queries.stream().filter(q -> q.contains("jql=")).toList();
+        assertTrue(issueQueries.get(0).endsWith("jql=(key in (\"RP-1\")) AND (Categoria = JONATHAN)"), issueQueries.get(0));
+        assertTrue(issueQueries.get(1).endsWith("jql=(key in (\"RP-1\")) AND (fixVersion is EMPTY)"), issueQueries.get(1));
+        assertEquals("(k) AND (s) AND (f)", RestJiraService.boardJql("k", "s", "f"));
+        assertEquals("k", RestJiraService.boardJql("k", "", ""));
+    }
 }

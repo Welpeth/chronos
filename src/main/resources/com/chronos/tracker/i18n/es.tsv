@@ -366,3 +366,6 @@ Visão geral	Vista general
 Visão kanban	Vista kanban
 Outras	Otras
 Tasks por quadro: {0}	Tareas por tablero: {0}
+Filtro por quadro (opcional)	Filtro por tablero (opcional)
+Quadro: JQL, separados por ponto e vírgula, ex.: 514: Categoria = JONATHAN; 215: Categoria is EMPTY	Tablero: JQL, separados por punto y coma, ej.: 514: Categoria = JONATHAN; 215: Categoria is EMPTY
+Para quando os quadros pegam as mesmas tasks (os dois com project = RP, por exemplo): a task só entra no quadro se também atender ao filtro dele.	Para cuando los tableros toman las mismas tareas (los dos con project = RP, por ejemplo): la tarea solo entra en el tablero si también cumple su filtro.

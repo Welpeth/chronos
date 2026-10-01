@@ -99,6 +99,13 @@ public final class SettingsPage {
         row(jira, 5, "JIRA_JQL", I18n.t("JQL (opcional)"), I18n.t("Substitui a busca padrão pelos projetos"), new TextField());
         row(jira, 6, "JIRA_BOARDS", I18n.t("Quadros (opcional)"),
                 I18n.t("Números ou endereços dos quadros, separados por vírgula, ex.: 215, 514"), new TextField());
+        row(jira, 7, "JIRA_BOARD_FILTERS", I18n.t("Filtro por quadro (opcional)"),
+                I18n.t("Quadro: JQL, separados por ponto e vírgula, ex.: 514: Categoria = JONATHAN; 215: Categoria is EMPTY"),
+                new TextField());
+        Label boardFiltersHint = new Label(I18n.t("Para quando os quadros pegam as mesmas tasks (os dois com project = RP, por exemplo): a task só entra no quadro se também atender ao filtro dele."));
+        boardFiltersHint.getStyleClass().add("muted");
+        boardFiltersHint.setWrapText(true);
+        jira.add(boardFiltersHint, 1, 8);
         Button test = new Button(I18n.t("Testar conexão"));
         test.getStyleClass().add("secondary-button");
         test.setOnAction(e -> testConnection(test));

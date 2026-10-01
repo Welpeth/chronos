@@ -5,6 +5,11 @@ As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma vers
 
 ## [Não lançado]
 
+### Adicionado
+- Filtro por quadro (Configurações > Jira, ou `JIRA_BOARD_FILTERS` no `.env`): um JQL a mais para cada quadro,
+  para separar quadros que pegam as mesmas tasks, como dois quadros com `project = RP`. Por exemplo,
+  `514: Categoria = JONATHAN; 215: Categoria is EMPTY`. A task só entra no quadro se também atender ao filtro.
+
 ### Corrigido
 - Quadros com o mesmo nome no Jira (como dois "Quadro RP") viravam um só, e os chips do Painel não apareciam.
   Agora cada um ganha o número no fim, "Quadro RP (215)" e "Quadro RP (514)".
