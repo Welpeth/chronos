@@ -10,6 +10,8 @@ As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma vers
   nada ia para o Jira, sem aviso. Agora um template em branco vale como o padrão.
 - Um erro na busca do Jira não impede mais o template das tasks que o Chronos já conhece, e uma falha ao pôr o
   template aparece na Atividade recente.
+- A aba Comentários > Template mostra o que o template automático fez por último: em qual task foi posto, por que
+  nada foi (opção desligada, nenhuma task sua nas colunas, todas já comentadas) ou o erro que o Jira devolveu.
 
 ## [0.5.3] - 2026-10-01
 
