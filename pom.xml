@@ -6,7 +6,7 @@
 
     <groupId>com.chronos</groupId>
     <artifactId>chronos-tracker</artifactId>
-    <version>0.5.0</version>
+    <version>0.5.1</version>
     <name>Chronos Work Tracker</name>
 
     <properties>
