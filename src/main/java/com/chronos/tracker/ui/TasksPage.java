@@ -105,6 +105,8 @@ public final class TasksPage {
     private final ToggleGroup filters = new ToggleGroup();
     private Snapshot last;
 
+    private java.util.Set<String> scope = java.util.Set.of();
+
     public TasksPage(Consumer<TaskView> onToggle) {
         this.onToggle = onToggle;
 
@@ -190,6 +192,11 @@ public final class TasksPage {
         return root;
     }
 
+    /** Quadros (ou projetos) escolhidos nos chips do Painel; aparecem junto da contagem. Vazio é "todos". */
+    public void setScope(java.util.Set<String> selected) {
+        scope = java.util.Set.copyOf(selected);
+    }
+
     public void render(Snapshot snapshot) {
         boardsOf = snapshot.byBoard() ? snapshot::groupsOf : key -> List.of();
         last = snapshot;
@@ -223,9 +230,10 @@ public final class TasksPage {
                         || task.summary().toLowerCase(Locale.ROOT).contains(query))
                 .toList();
 
-        countLabel.setText(last.tasks().size() == 1
+        String count = last.tasks().size() == 1
                 ? I18n.t("{0} task · {1} contando", last.tasks().size(), last.runningCount())
-                : I18n.t("{0} tasks · {1} contando", last.tasks().size(), last.runningCount()));
+                : I18n.t("{0} tasks · {1} contando", last.tasks().size(), last.runningCount());
+        countLabel.setText(scope.isEmpty() ? count : count + " · " + String.join(", ", new java.util.TreeSet<>(scope)));
         list.getChildren().clear();
         if (visible.isEmpty()) {
             Label empty = new Label(columnsOnly && inColumns == 0

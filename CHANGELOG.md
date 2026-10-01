@@ -3,6 +3,14 @@
 As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma versão nova gera a release
 `v<versão>` no GitHub, com o instalador e a versão portátil, e usa a seção dessa versão abaixo como notas.
 
+## [Não lançado]
+
+### Corrigido
+- Nos chips de quadro do Painel, clicar num quadro com outro já escolhido marcava os dois, e com todos marcados
+  voltava para "Todos os quadros". Agora um clique troca direto para o quadro clicado, e "Todos os quadros"
+  mostra todos.
+- A aba Tarefas mostra, junto da contagem, o quadro escolhido no Painel.
+
 ## [0.5.3] - 2026-10-01
 
 ### Corrigido
