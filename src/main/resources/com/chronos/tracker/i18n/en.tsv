@@ -366,3 +366,6 @@ Visão kanban	Kanban view
 Outras	Others
 Informe um tempo maior que zero.	Enter a time greater than zero.
 Tasks por quadro: {0}	Tasks per board: {0}
+Filtro por quadro (opcional)	Filter per board (optional)
+Quadro: JQL, separados por ponto e vírgula, ex.: 514: Categoria = JONATHAN; 215: Categoria is EMPTY	Board: JQL, separated by semicolons, e.g. 514: Category = JONATHAN; 215: Category is EMPTY
+Para quando os quadros pegam as mesmas tasks (os dois com project = RP, por exemplo): a task só entra no quadro se também atender ao filtro dele.	For boards that pick the same tasks (both with project = RP, for example): a task only joins the board if it also matches the board's filter.
