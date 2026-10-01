@@ -11,6 +11,10 @@ As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma vers
 - "Inicializando, aguarde…" embaixo do logo na abertura. Se o Chronos ainda estiver carregando quando a animação
   acaba, o logo fica na tela até ele estar pronto.
 
+### Alterado
+- A abertura fica no meio exato da tela, com o logo e o "Inicializando, aguarde" centralizados, e o fundo do
+  relógio agora é branco.
+
 ### Corrigido
 - O menu da bandeja dava o erro "this.platformWindow is null" ao fechar, e o "Sair" podia não fechar o Chronos.
 - Ao sair, o Chronos podia ficar travado e continuar aberto, e aí abrir de novo também travava. Agora ele grava o
