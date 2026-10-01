@@ -938,9 +938,15 @@ public final class TrackingEngine {
             return joined.isEmpty() ? List.of() : List.of(joined.split(BOARD_SEPARATOR));
         }
 
-        /** Grupos (quadros ou projetos) das tasks e dos registros de hoje, em ordem alfabética. */
+        /**
+         * Grupos (quadros ou projetos) das tasks e dos registros de hoje, em ordem alfabética. Com
+         * {@code JIRA_BOARDS}, entram também os quadros configurados sem nenhuma task, para dar para escolher.
+         */
         public List<String> projects() {
             java.util.TreeSet<String> groups = new java.util.TreeSet<>();
+            if (byBoard) {
+                groups.addAll(boardColumns.keySet());
+            }
             tasks.forEach(task -> groups.addAll(groupsOf(task.key())));
             history.forEach(entry -> groups.addAll(groupsOf(entry.issueKey())));
             manualEntries.forEach(entry -> groups.addAll(groupsOf(entry.issueKey())));

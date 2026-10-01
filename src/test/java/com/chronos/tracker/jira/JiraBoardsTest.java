@@ -25,6 +25,8 @@ class JiraBoardsTest {
     private HttpServer server;
     private String baseUrl;
     private final List<String> queries = new CopyOnWriteArrayList<>();
+    /** Os dois quadros com o mesmo nome, como os criados com o nome padrão do Jira. */
+    private volatile boolean sameNames;
 
     @BeforeEach
     void startServer() throws IOException {
@@ -45,7 +47,8 @@ class JiraBoardsTest {
                         ? "{\"issues\":[" + issue("RP-1", "10") + "," + issue("RP-4", "99") + "]}"
                         : "{\"issues\":[" + issue("RP-1", "12") + "," + issue("RP-2", "12") + "]}";
             } else {
-                body = path.endsWith("/215") ? "{\"id\":215,\"name\":\"Quadro RP\"}" : "{\"id\":514,\"name\":\"Suporte RP\"}";
+                body = path.endsWith("/215") || sameNames
+                        ? "{\"id\":215,\"name\":\"Quadro RP\"}" : "{\"id\":514,\"name\":\"Suporte RP\"}";
             }
             byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
             exchange.sendResponseHeaders(200, bytes.length);
@@ -128,5 +131,18 @@ class JiraBoardsTest {
 
         assertEquals(java.util.Set.of("Em teste", "Reteste", "QA"), columns.get("Test"));
         assertEquals(List.of("boards maxResults=50&projectKeyOrId=RP"), queries);
+    }
+
+    @Test
+    void boardsWithTheSameNameStaySeparate() throws JiraException {
+        sameNames = true;
+        RestJiraService service = new RestJiraService(new JiraClient(baseUrl, "e", "t"), "project = RP",
+                List.of("RP"), Optional.empty(), List.of("215", "514"));
+
+        Map<String, List<String>> boards = service.fetchBoards(List.of("RP-1", "RP-2"));
+
+        assertEquals(Map.of("RP-1", List.of("Quadro RP (215)", "Quadro RP (514)"), "RP-2", List.of("Quadro RP (514)")),
+                boards);
+        assertEquals(List.of("Quadro RP (215)", "Quadro RP (514)"), List.copyOf(service.fetchBoardColumns().keySet()));
     }
 }

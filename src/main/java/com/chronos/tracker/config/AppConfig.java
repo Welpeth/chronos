@@ -96,19 +96,18 @@ public record AppConfig(
 
     /**
      * Ids dos quadros em {@code JIRA_BOARDS}: o número ("215") ou o endereço do quadro colado inteiro
-     * (".../projects/RP/boards/215"). O que não tem número fica de fora.
+     * (".../projects/RP/boards/215"), separados por vírgula, ponto e vírgula, espaço ou "e" ("215 e 514").
+     * O que não é número nem endereço de quadro fica de fora.
      */
     static List<String> boardIds(String value) {
         java.util.regex.Pattern inUrl = java.util.regex.Pattern.compile("boards/(\\d+)");
-        java.util.regex.Pattern plain = java.util.regex.Pattern.compile("(\\d+)");
-        return splitList(value).stream()
+        return Arrays.stream(value.split("[,;\\s]+"))
                 .map(item -> {
                     java.util.regex.Matcher url = inUrl.matcher(item);
                     if (url.find()) {
                         return url.group(1);
                     }
-                    java.util.regex.Matcher number = plain.matcher(item);
-                    return number.find() ? number.group(1) : "";
+                    return item.matches("\\d+") ? item : "";
                 })
                 .filter(id -> !id.isEmpty())
                 .distinct()
