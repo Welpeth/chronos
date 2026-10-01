@@ -371,3 +371,4 @@ Quadro: JQL, separados por ponto e vírgula, ex.: 514: Categoria = JONATHAN; 215
 Para quando os quadros pegam as mesmas tasks (os dois com project = RP, por exemplo): a task só entra no quadro se também atender ao filtro dele.	Para cuando los tableros toman las mismas tareas (los dos con project = RP, por ejemplo): la tarea solo entra en el tablero si también cumple su filtro.
 1 task contando	1 tarea en curso
 {0} tasks contando	{0} tareas en curso
+Falha ao pôr o template de comentário	No se pudo poner la plantilla de comentario

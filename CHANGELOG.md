@@ -3,6 +3,14 @@
 As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma versão nova gera a release
 `v<versão>` no GitHub, com o instalador e a versão portátil, e usa a seção dessa versão abaixo como notas.
 
+## [Não lançado]
+
+### Corrigido
+- Com um template de comentário salvo em branco (por exemplo, clicando em "Salvar template" com o campo vazio),
+  nada ia para o Jira, sem aviso. Agora um template em branco vale como o padrão.
+- Um erro na busca do Jira não impede mais o template das tasks que o Chronos já conhece, e uma falha ao pôr o
+  template aparece na Atividade recente.
+
 ## [0.5.3] - 2026-10-01
 
 ### Corrigido

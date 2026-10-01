@@ -306,10 +306,15 @@ public final class AppController {
     private void safePollJira() {
         try {
             engine.pollJira();
-            addTemplates();
         } catch (RuntimeException e) {
             // Uma falha inesperada não pode cancelar o agendamento.
             e.printStackTrace();
+        }
+        try {
+            // À parte: um erro na busca não pode impedir o template das tasks que já se conhece.
+            addTemplates();
+        } catch (RuntimeException e) {
+            engine.recordEvent(true, I18n.t("Falha ao pôr o template de comentário"), String.valueOf(e.getMessage()));
         }
     }
 
