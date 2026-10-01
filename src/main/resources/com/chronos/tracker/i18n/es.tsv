@@ -319,7 +319,7 @@ Quadros (opcional)	Tableros (opcional)
 Números ou endereços dos quadros, separados por vírgula, ex.: 215, 514	Números o direcciones de los tableros, separados por comas, p. ej.: 215, 514
 1 task falta comentar	1 tarea necesita un comentario
 :light_bulb_on: **O que foi feito**\n- \n\n:white_check_mark: **Como testar**\n- 	:light_bulb_on: **Qué se hizo**\n- \n\n:white_check_mark: **Cómo probar**\n- 
-Com a primeira opção, aparece a aba Comentários no menu: cada task sua numa coluna monitorada precisa de um comentário, e ele é salvo direto no Jira. Com o template padrão, o texto da aba Comentários > Template vai sozinho para cada task que entra numa coluna monitorada; depois dá para editar e completar.	Con la primera opción aparece la pestaña Comentarios en el menú: cada tarea tuya en una columna monitoreada necesita un comentario, que se guarda directo en Jira. Con la plantilla predeterminada, el texto de Comentarios > Plantilla va solo a cada tarea que entra en una columna monitoreada; después se puede editar y completar.
+Com a primeira opção, aparece a aba Comentários no menu: cada task sua numa coluna monitorada precisa de um comentário, e ele é salvo direto no Jira. Com o template padrão, o texto da aba Comentários > Template vai sozinho para cada task sua numa coluna monitorada que ainda não tem comentário; depois dá para editar e completar.	Con la primera opción aparece la pestaña Comentarios en el menú: cada tarea tuya en una columna monitoreada necesita un comentario, que se guarda directo en Jira. Con la plantilla predeterminada, el texto de Comentarios > Plantilla va solo a cada tarea tuya en una columna monitoreada que aún no tiene comentario; después se puede editar y completar.
 Comentar	Comentar
 Comentário adicionado	Comentario agregado
 Comentário salvo no Jira	Comentario guardado en Jira
@@ -327,7 +327,7 @@ Comentários	Comentarios
 Comentários ({0})	Comentarios ({0})
 Comentários das tasks	Comentarios de las tareas
 Editar	Editar
-Escreva em Markdown: # título, - lista, **negrito**, _itálico_, `código`. Emojis do Jira vão por extenso, como :light_bulb_on: ou :white_check_mark:. Com "Habilitar template padrão" ligado em Configurações, este texto vai sozinho para cada task sua que entra numa coluna monitorada.	Escribe en Markdown: # título, - lista, **negrita**, _cursiva_, `código`. Los emojis de Jira van escritos, como :light_bulb_on: o :white_check_mark:. Con "Habilitar plantilla predeterminada" activado en Configuración, este texto va solo a cada tarea tuya que entra en una columna monitoreada.
+Escreva em Markdown: # título, - lista, **negrito**, _itálico_, `código`. Emojis do Jira vão por extenso, como :light_bulb_on: ou :white_check_mark:. Com "Habilitar template padrão" ligado em Configurações, este texto vai sozinho para cada task sua numa coluna monitorada que ainda não tem comentário.	Escribe en Markdown: # título, - lista, **negrita**, _cursiva_, `código`. Los emojis de Jira van escritos, como :light_bulb_on: o :white_check_mark:. Con "Habilitar plantilla predeterminada" activado en Configuración, este texto va solo a cada tarea tuya en una columna monitoreada que aún no tiene comentario.
 Escreva o comentário antes de salvar.	Escribe el comentario antes de guardar.
 Falha ao gravar o comentário de {0}	Error al guardar el comentario de {0}
 Falha ao ler os comentários	Error al leer los comentarios
