@@ -48,11 +48,14 @@ public final class CommentBook {
         this.clock = clock;
     }
 
-    /** O template padrão, em Markdown. Enquanto ninguém salvou um, é {@link #defaultTemplate()}. */
+    /**
+     * O template padrão, em Markdown. Enquanto não há um salvo (ou o salvo está em branco), é
+     * {@link #defaultTemplate()}.
+     */
     public String template() {
         try {
-            return Files.exists(templateFile) ? Files.readString(templateFile, StandardCharsets.UTF_8)
-                    : defaultTemplate();
+            String saved = Files.exists(templateFile) ? Files.readString(templateFile, StandardCharsets.UTF_8) : "";
+            return saved.isBlank() ? defaultTemplate() : saved;
         } catch (IOException e) {
             return "";
         }

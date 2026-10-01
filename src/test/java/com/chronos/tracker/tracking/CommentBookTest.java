@@ -37,10 +37,10 @@ class CommentBookTest {
             assertEquals(List.of(CommentBook.Status.PENDING, CommentBook.Status.PENDING),
                     book.items(live).stream().map(CommentBook.Item::status).toList());
 
-            // Sem template salvo, vale o padrão; um template apagado não manda nada para o Jira.
+            // Sem template salvo, ou com um salvo em branco, vale o padrão.
             assertEquals(CommentBook.defaultTemplate(), book.template());
             book.saveTemplate("  ");
-            assertEquals(Optional.empty(), book.addTemplate("RP-1", "Login"));
+            assertEquals(CommentBook.defaultTemplate(), book.template());
             book.saveTemplate(":light_bulb_on: **Feito**");
             assertTrue(book.addTemplate("RP-1", "Login").isPresent());
             // Só uma vez por task.
