@@ -11,6 +11,11 @@ public final class Themes {
     private Themes() {
     }
 
+    /** Se a cena está no tema escuro. */
+    public static boolean isDark(Scene scene) {
+        return scene.getStylesheets().contains(DARK);
+    }
+
     public static void apply(Scene scene, boolean dark) {
         scene.getStylesheets().removeAll(LIGHT, DARK);
         scene.getStylesheets().add(LIGHT);

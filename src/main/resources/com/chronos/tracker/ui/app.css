@@ -979,3 +979,113 @@
     -fx-border-radius: 10;
     -fx-border-width: 0 0 0 3;
 }
+
+/* Menu do botão direito na bandeja (TrayMenu). */
+.tray-menu-area {
+    -fx-background-color: transparent;
+    -fx-padding: 12;
+}
+
+.tray-menu {
+    -fx-background-color: -c-surface;
+    -fx-background-radius: 12;
+    -fx-border-color: -c-line;
+    -fx-border-radius: 12;
+    -fx-padding: 8;
+    -fx-spacing: 2;
+    -fx-effect: dropshadow(gaussian, rgba(15, 42, 90, 0.22), 18, 0, 0, 4);
+}
+
+.tray-menu-header {
+    -fx-padding: 6 8 10 8;
+}
+
+.tray-menu-title {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -c-text;
+}
+
+.tray-menu-status {
+    -fx-font-size: 12px;
+    -fx-text-fill: -c-text-3;
+}
+
+.tray-menu-tasks {
+    -fx-padding: 0 0 4 0;
+}
+
+.tray-menu-task {
+    -fx-background-color: -c-soft;
+    -fx-background-radius: 8;
+    -fx-padding: 6 6 6 10;
+}
+
+.tray-menu-key {
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -c-accent-text;
+}
+
+.tray-menu-summary {
+    -fx-font-size: 11px;
+    -fx-text-fill: -c-text-2;
+}
+
+.tray-menu-time {
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -c-text;
+}
+
+.tray-menu-icon {
+    -fx-fill: -c-text-2;
+}
+
+.tray-menu-icon-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 6;
+    -fx-padding: 5;
+    -fx-cursor: hand;
+}
+
+.tray-menu-icon-button:hover {
+    -fx-background-color: -c-soft-2;
+}
+
+.tray-menu-icon-button:hover .tray-menu-icon {
+    -fx-fill: -c-accent;
+}
+
+.tray-menu-item {
+    -fx-background-color: transparent;
+    -fx-background-radius: 8;
+    -fx-padding: 8 10;
+    -fx-font-size: 13px;
+    -fx-text-fill: -c-text;
+    -fx-cursor: hand;
+}
+
+.tray-menu-item:hover {
+    -fx-background-color: -c-surface-hover;
+}
+
+.tray-menu-item:hover .tray-menu-icon {
+    -fx-fill: -c-accent;
+}
+
+.tray-menu-exit:hover {
+    -fx-background-color: -c-error-bg;
+    -fx-text-fill: -c-error-text;
+}
+
+.tray-menu-exit:hover .tray-menu-icon {
+    -fx-fill: -c-error-text;
+}
+
+.tray-menu-divider {
+    -fx-min-height: 1;
+    -fx-max-height: 1;
+    -fx-background-color: -c-line;
+    -fx-padding: 0;
+}

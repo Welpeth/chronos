@@ -163,7 +163,7 @@ Não foi possível finalizar {0}: {1}	No se pudo finalizar {0}: {1}
 Não foi possível gravar {0}: {1}	No se pudo guardar {0}: {1}
 Não foi possível ler o arquivo .env:\n{0}	No se pudo leer el archivo .env:\n{0}
 Não foi possível ler o histórico: {0}	No se pudo leer el historial: {0}
-O Chronos abre minimizado quando você entra no Windows.	Chronos se abre minimizado cuando inicias sesión en Windows.
+O Chronos abre quando você entra no Windows.	Chronos se abre al iniciar sesión en Windows.
 O Chronos continua rodando	Chronos sigue funcionando
 O GitHub respondeu HTTP {0} ao procurar atualização	GitHub respondió HTTP {0} al buscar actualizaciones
 O Jira não está configurado	Jira no está configurado
@@ -369,3 +369,5 @@ Tasks por quadro: {0}	Tareas por tablero: {0}
 Filtro por quadro (opcional)	Filtro por tablero (opcional)
 Quadro: JQL, separados por ponto e vírgula, ex.: 514: Categoria = JONATHAN; 215: Categoria is EMPTY	Tablero: JQL, separados por punto y coma, ej.: 514: Categoria = JONATHAN; 215: Categoria is EMPTY
 Para quando os quadros pegam as mesmas tasks (os dois com project = RP, por exemplo): a task só entra no quadro se também atender ao filtro dele.	Para cuando los tableros toman las mismas tareas (los dos con project = RP, por ejemplo): la tarea solo entra en el tablero si también cumple su filtro.
+1 task contando	1 tarea en curso
+{0} tasks contando	{0} tareas en curso

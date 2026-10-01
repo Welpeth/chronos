@@ -3,6 +3,20 @@
 As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma versão nova gera a release
 `v<versão>` no GitHub, com o instalador e a versão portátil, e usa a seção dessa versão abaixo como notas.
 
+## [0.5.2] - 2026-10-01
+
+### Alterado
+- Instalador com a logo do Chronos no topo e nas telas de boas-vindas e de fim. Ao terminar de instalar ou
+  atualizar, o Chronos abre sozinho.
+- O menu do botão direito no ícone da bandeja agora segue o visual do app, no tema claro ou escuro. Ele mostra
+  as tasks que estão contando, com o tempo e os botões Pausar e Finalizar, e as opções Abrir o Chronos, Pausar
+  todas e Sair.
+- Com "Abrir ao entrar no Windows", o Chronos abre a janela ao entrar, em vez de ficar só na bandeja.
+
+### Corrigido
+- Em telas menores, como um notebook com zoom de 125% ou 150% no Windows, a janela abria maior que a tela e
+  escondia os botões de fechar e minimizar. Agora ela cabe na área livre da tela e abre maximizada.
+
 ## [0.5.1] - 2026-10-01
 
 ### Adicionado
@@ -128,6 +142,7 @@ Primeira versão instalável.
 - O histórico de um Jira antigo aparecia depois de trocar o Jira nas configurações. (#19)
 - O aviso de "controle de tempo" aparecia em projetos gerenciados pela equipe que tinham o campo. (#19)
 
+[0.5.2]: https://github.com/Welpeth/chronos/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/Welpeth/chronos/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/Welpeth/chronos/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Welpeth/chronos/compare/v0.3.0...v0.4.0
