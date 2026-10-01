@@ -366,7 +366,7 @@ public final class SettingsPage {
                 I18n.t("Gerenciar os comentários das tasks (task sem comentário vira pendência)"), false);
         CheckBox template = flag("CHRONOS_COMMENT_TEMPLATE", I18n.t("Habilitar template padrão"), false);
         template.disableProperty().bind(manage.selectedProperty().not());
-        Label hint = new Label(I18n.t("Com a primeira opção, aparece a aba Comentários no menu: cada task sua numa coluna monitorada precisa de um comentário, e ele é salvo direto no Jira. Com o template padrão, o texto da aba Comentários > Template vai sozinho para cada task que entra numa coluna monitorada; depois dá para editar e completar."));
+        Label hint = new Label(I18n.t("Com a primeira opção, aparece a aba Comentários no menu: cada task sua numa coluna monitorada precisa de um comentário, e ele é salvo direto no Jira. Com o template padrão, o texto da aba Comentários > Template vai sozinho para cada task sua numa coluna monitorada que ainda não tem comentário; depois dá para editar e completar."));
         hint.getStyleClass().add("muted");
         hint.setWrapText(true);
         return card(I18n.t("Comentários das tasks"), new VBox(10, manage, template), hint);

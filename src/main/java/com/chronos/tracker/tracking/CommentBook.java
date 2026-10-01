@@ -1,5 +1,6 @@
 package com.chronos.tracker.tracking;
 
+import com.chronos.tracker.config.I18n;
 import com.chronos.tracker.jira.JiraException;
 import com.chronos.tracker.jira.JiraService;
 
@@ -47,13 +48,19 @@ public final class CommentBook {
         this.clock = clock;
     }
 
-    /** O template padrão, em Markdown; vazio se ainda não foi escrito. */
+    /** O template padrão, em Markdown. Enquanto ninguém salvou um, é {@link #defaultTemplate()}. */
     public String template() {
         try {
-            return Files.exists(templateFile) ? Files.readString(templateFile, StandardCharsets.UTF_8) : "";
+            return Files.exists(templateFile) ? Files.readString(templateFile, StandardCharsets.UTF_8)
+                    : defaultTemplate();
         } catch (IOException e) {
             return "";
         }
+    }
+
+    /** O template de quem ainda não escreveu o seu: o que foi feito e como testar. */
+    public static String defaultTemplate() {
+        return I18n.t(":light_bulb_on: **O que foi feito**\n- \n\n:white_check_mark: **Como testar**\n- ");
     }
 
     public void saveTemplate(String markdown) throws IOException {

@@ -3,6 +3,15 @@
 As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma versão nova gera a release
 `v<versão>` no GitHub, com o instalador e a versão portátil, e usa a seção dessa versão abaixo como notas.
 
+## [Não lançado]
+
+### Corrigido
+- O template padrão de comentário só ia para a task que mudava de coluna com o Chronos aberto. Agora ele vai para
+  todas as suas tasks nas colunas monitoradas que ainda não têm comentário do Chronos, inclusive as que já
+  estavam lá.
+- Sem um template salvo, o Chronos usa um padrão ("O que foi feito" e "Como testar"), que já aparece na aba
+  Comentários > Template para editar.
+
 ## [0.5.2] - 2026-10-01
 
 ### Alterado

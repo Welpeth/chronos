@@ -532,19 +532,17 @@ class TrackingEngineTest {
     }
 
     @Test
-    void onlyTasksThatMoveIntoAColumnCountAsEntered() {
+    void listsOwnTasksInTheWorkingColumns() {
         jira.issues = List.of(DOING_1, TODO_3);
         engine.pollJira();
-        engine.tick();
-        // O que já estava na coluna ao abrir não conta como "entrou".
-        assertEquals(List.of(), engine.drainEnteredColumns());
+        // Também as que já estavam na coluna ao abrir.
+        assertEquals(List.of("PROJ-1"), engine.mineInWorkingColumns().stream().map(JiraIssue::key).toList());
 
         jira.issues = List.of(DOING_1, new JiraIssue("PROJ-3", "Título de PROJ-3", "Em andamento",
                 StatusCategory.IN_PROGRESS));
         engine.pollJira();
-        engine.tick();
-        assertEquals(List.of("PROJ-3"), engine.drainEnteredColumns().stream().map(JiraIssue::key).toList());
-        assertEquals(List.of(), engine.drainEnteredColumns());
+        assertEquals(List.of("PROJ-1", "PROJ-3"),
+                engine.mineInWorkingColumns().stream().map(JiraIssue::key).toList());
     }
 
     @Test

@@ -47,6 +47,8 @@ public final class AppController {
     private final CommentBook comments;
     private volatile boolean commentsEnabled;
     private volatile boolean commentTemplateEnabled;
+    /** Tasks em que o Jira recusou o template; não tenta de novo a cada busca. */
+    private final java.util.Set<String> templateFailed = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     private ScheduledExecutorService scheduler;
     private ScheduledFuture<?> polling;
@@ -148,17 +150,23 @@ public final class AppController {
         }
     }
 
-    /** Põe o template nas tasks que acabaram de entrar numa coluna monitorada (com a opção ligada). */
+    /**
+     * Põe o template nas tasks suas das colunas monitoradas que ainda não têm comentário do Chronos (com a opção
+     * ligada), inclusive as que já estavam na coluna. Se o Jira recusar, não tenta de novo até reabrir.
+     */
     private void addTemplates() {
-        List<JiraIssue> entered = engine.drainEnteredColumns();
         if (!commentsEnabled || !commentTemplateEnabled) {
             return;
         }
-        for (JiraIssue issue : entered) {
+        for (JiraIssue issue : engine.mineInWorkingColumns()) {
+            if (templateFailed.contains(issue.key())) {
+                continue;
+            }
             try {
                 comments.addTemplate(issue.key(), issue.summary()).ifPresent(added ->
                         engine.recordEvent(false, I18n.t("Template de comentário adicionado"), issue.key()));
             } catch (Exception e) {
+                templateFailed.add(issue.key());
                 engine.recordEvent(true, I18n.t("Não deu para pôr o template em {0}", issue.key()),
                         String.valueOf(e.getMessage()));
             }
