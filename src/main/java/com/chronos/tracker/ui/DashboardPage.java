@@ -56,6 +56,8 @@ public final class DashboardPage {
     private final StackPane content = new StackPane();
     private final KanbanBoard kanban;
     private Set<String> selectedGroups = Set.of();
+    private final javafx.scene.control.Hyperlink currentLink = new javafx.scene.control.Hyperlink();
+    private String jiraBaseUrl = "";
 
     // Task atual
     private final VBox currentCard = card("current-card");
@@ -187,6 +189,11 @@ public final class DashboardPage {
 
     // ---- Task atual ------------------------------------------------------------------------------
 
+    /** Endereço do Jira (Configurações), para o link da task atual; vazio esconde o link. */
+    public void setJiraBaseUrl(String url) {
+        jiraBaseUrl = url == null ? "" : url.strip();
+    }
+
     private VBox buildCurrentCard() {
         backToAuto.getStyleClass().add("link-chip");
         backToAuto.setOnAction(e -> focus(null));
@@ -225,7 +232,18 @@ public final class DashboardPage {
         emptyHint.setWrapText(true);
         currentEmpty.getChildren().addAll(emptyTitle, emptyHint);
 
-        currentCard.getChildren().addAll(cardTitle(I18n.t("Task atual")), currentBody);
+        currentLink.getStyleClass().add("current-link");
+        currentLink.setGraphic(Icons.of(Icons.EXTERNAL, 13, "icon-blue"));
+        currentLink.setContentDisplay(javafx.scene.control.ContentDisplay.RIGHT);
+        currentLink.setGraphicTextGap(4);
+        currentLink.setOnAction(e -> {
+            if (featured != null) {
+                JiraLinks.open(jiraBaseUrl, featured.key());
+            }
+        });
+        HBox title = new HBox(10, cardTitle(I18n.t("Task atual")), currentLink);
+        title.setAlignment(Pos.BASELINE_LEFT);
+        currentCard.getChildren().addAll(title, currentBody);
         return currentCard;
     }
 
@@ -238,6 +256,13 @@ public final class DashboardPage {
             focusedKey = null;
         }
         featured = focused.or(() -> automatic).orElse(null);
+        boolean linked = featured != null && !jiraBaseUrl.isEmpty();
+        currentLink.setVisible(linked);
+        currentLink.setManaged(linked);
+        if (linked) {
+            currentLink.setText(featured.key());
+            currentLink.setTooltip(new Tooltip(JiraLinks.browse(jiraBaseUrl, featured.key())));
+        }
         Node body = featured == null ? currentEmpty : currentBody;
         if (currentCard.getChildren().get(1) != body) {
             currentCard.getChildren().set(1, body);

@@ -149,6 +149,12 @@ public final class AppController {
     }
 
     private void useCommentSettings(AppConfig config) {
+        String baseUrl = config.jiraBaseUrl().orElse("");
+        if (Platform.isFxApplicationThread()) {
+            window.setJiraBaseUrl(baseUrl);
+        } else {
+            Platform.runLater(() -> window.setJiraBaseUrl(baseUrl));
+        }
         commentsEnabled = config.commentsEnabled();
         commentTemplateEnabled = config.commentTemplateEnabled();
         if (Platform.isFxApplicationThread()) {

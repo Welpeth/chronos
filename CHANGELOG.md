@@ -5,6 +5,10 @@ As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma vers
 
 ## [Não lançado]
 
+### Adicionado
+- Link da task no Jira ao lado do título "Task atual" no Painel, com a chave da task (como "RP-500"). Abre a
+  task no navegador.
+
 ### Corrigido
 - Com um template de comentário salvo em branco (por exemplo, clicando em "Salvar template" com o campo vazio),
   nada ia para o Jira, sem aviso. Agora um template em branco vale como o padrão.
