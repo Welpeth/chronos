@@ -20,7 +20,8 @@ import java.util.Objects;
 
 /**
  * Ícone do Chronos na bandeja do Windows (área de notificação). Clicar abre a janela; o botão direito mostra
- * as tasks que estão contando, com Pausar e Finalizar, além de Pausar todas e Sair.
+ * as tasks que estão contando, com Pausar e Finalizar, além de Pausar todas e Sair: no {@link TrayMenu}, com o
+ * visual do app, ou no menu padrão do Windows se não houver um {@link MenuPresenter}.
  *
  * <p>Usa o {@link SystemTray} do AWT; todas as mudanças no ícone rodam na thread do AWT.
  */
@@ -45,9 +46,21 @@ public final class TrayIconController {
     private List<String> menuState = List.of();
     private int iconSize = 16;
     private boolean badge;
+    /** Menu do botão direito no visual do app; sem ele, vale o menu padrão do Windows. */
+    private volatile MenuPresenter presenter;
+
+    /** Abre o menu do botão direito no ponto da tela do clique. Chamado na thread do AWT. */
+    public interface MenuPresenter {
+        void show(double screenX, double screenY);
+    }
 
     public TrayIconController(Actions actions) {
         this.actions = Objects.requireNonNull(actions, "actions");
+    }
+
+    /** Troca o menu cinza do Windows pelo menu do app. Chamar antes de {@link #install()}. */
+    public void setMenuPresenter(MenuPresenter menu) {
+        presenter = menu;
     }
 
     /** Coloca o ícone na bandeja; devolve false se o sistema não tem bandeja. */
@@ -67,8 +80,18 @@ public final class TrayIconController {
                         actions.open();
                     }
                 }
+
+                @Override
+                public void mouseReleased(MouseEvent e) {
+                    MenuPresenter menu = presenter;
+                    if (menu != null && (e.isPopupTrigger() || e.getButton() == MouseEvent.BUTTON3)) {
+                        menu.show(e.getXOnScreen(), e.getYOnScreen());
+                    }
+                }
             });
-            icon.setPopupMenu(buildMenu(List.of()));
+            if (presenter == null) {
+                icon.setPopupMenu(buildMenu(List.of()));
+            }
             tray.add(icon);
             trayIcon = icon;
             installed = true;
@@ -96,7 +119,7 @@ public final class TrayIconController {
                 return;
             }
             trayIcon.setToolTip(tooltip);
-            if (!state.equals(menuState)) {
+            if (presenter == null && !state.equals(menuState)) {
                 menuState = state;
                 trayIcon.setPopupMenu(buildMenu(running));
             }

@@ -19,6 +19,7 @@ import com.chronos.tracker.ui.AppController;
 import com.chronos.tracker.ui.AppIcons;
 import com.chronos.tracker.ui.Themes;
 import com.chronos.tracker.ui.TrayIconController;
+import com.chronos.tracker.ui.TrayMenu;
 import com.chronos.tracker.update.Backups;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -102,6 +103,8 @@ public final class ChronosApp extends Application {
         stage.setScene(scene);
 
         tray = new TrayIconController(trayActions(stage));
+        TrayMenu trayMenu = new TrayMenu(trayActions(stage), () -> Themes.isDark(scene));
+        tray.setMenuPresenter(trayMenu::show);
         boolean inTray = tray.install();
         if (inTray) {
             // Fechar a janela só esconde: o Chronos continua contando na bandeja até "Sair".
@@ -115,7 +118,10 @@ public final class ChronosApp extends Application {
                             I18n.t("Clique no ícone da bandeja para abrir, ou com o botão direito para pausar ou sair."));
                 }
             });
-            controller.setSnapshotListener(tray::update);
+            controller.setSnapshotListener(snapshot -> {
+                tray.update(snapshot);
+                trayMenu.update(snapshot);
+            });
         }
         controller.setAlertListener(issues -> showAlerts(stage, issues));
         // Abriu a janela: os avisos foram vistos.

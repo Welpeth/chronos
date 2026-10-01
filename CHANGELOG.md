@@ -3,6 +3,13 @@
 As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma versão nova gera a release
 `v<versão>` no GitHub, com o instalador e a versão portátil, e usa a seção dessa versão abaixo como notas.
 
+## [Não lançado]
+
+### Alterado
+- O menu do botão direito no ícone da bandeja agora segue o visual do app, no tema claro ou escuro. Ele mostra
+  as tasks que estão contando, com o tempo e os botões Pausar e Finalizar, e as opções Abrir o Chronos, Pausar
+  todas e Sair.
+
 ## [0.5.1] - 2026-10-01
 
 ### Adicionado
