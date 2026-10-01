@@ -6,6 +6,8 @@ As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma vers
 ## [Não lançado]
 
 ### Adicionado
+- Tela de abertura com o logo animado do Chronos. Ela dura uns 4 segundos antes da janela principal, e um clique
+  nela pula a animação.
 - Link da task no Jira ao lado do título "Task atual" no Painel, com a chave da task (como "RP-500"). Abre a
   task no navegador.
 
