@@ -3,6 +3,13 @@
 As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma versão nova gera a release
 `v<versão>` no GitHub, com o instalador e a versão portátil, e usa a seção dessa versão abaixo como notas.
 
+## [Não lançado]
+
+### Corrigido
+- Apagar as horas ou os minutos em "Adicionar tempo" e salvar dava o erro "Cannot invoke
+  java.lang.Integer.intValue()". O campo vazio agora vale 0, e um tempo zerado mostra "Informe um tempo maior
+  que zero.".
+
 ## [0.5.0] - 2026-09-30
 
 ### Adicionado
