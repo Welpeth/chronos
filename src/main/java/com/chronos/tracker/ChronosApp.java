@@ -10,6 +10,7 @@ import com.chronos.tracker.config.TokenExpiry;
 import com.chronos.tracker.jira.JiraIssue;
 import com.chronos.tracker.jira.RestJiraService;
 import com.chronos.tracker.persistence.SqliteHistoryStore;
+import com.chronos.tracker.system.FreezeWatch;
 import com.chronos.tracker.system.SingleInstance;
 import com.chronos.tracker.tracking.HistoryStore;
 import com.chronos.tracker.tracking.MultiTaskTracker;
@@ -31,6 +32,7 @@ import javafx.stage.Stage;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -51,6 +53,9 @@ public final class ChronosApp extends Application {
 
     @Override
     public void start(Stage stage) {
+        // Se a janela travar, grava o que cada thread fazia em travamentos/, para achar a causa.
+        new FreezeWatch(Platform::runLater, AppPaths.dataDir(), Duration.ofSeconds(8), Clock.systemDefaultZone())
+                .start();
         SplashScreen.show(() -> open(stage));
     }
 

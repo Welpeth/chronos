@@ -3,6 +3,12 @@
 As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma versão nova gera a release
 `v<versão>` no GitHub, com o instalador e a versão portátil, e usa a seção dessa versão abaixo como notas.
 
+## [Não lançado]
+
+### Adicionado
+- Se a janela do Chronos travar por 8 segundos ou mais, ele grava um relatório em `travamentos`, na pasta de
+  dados (`%APPDATA%\Chronos`), com o que estava fazendo na hora. Guarda os 5 últimos.
+
 ## [0.5.4] - 2026-10-01
 
 ### Adicionado
