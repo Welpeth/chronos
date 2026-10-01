@@ -10,6 +10,12 @@ As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma vers
   nela pula a animação.
 
 ### Corrigido
+- Com um template de comentário salvo em branco (por exemplo, clicando em "Salvar template" com o campo vazio),
+  nada ia para o Jira, sem aviso. Agora um template em branco vale como o padrão.
+- Um erro na busca do Jira não impede mais o template das tasks que o Chronos já conhece, e uma falha ao pôr o
+  template aparece na Atividade recente.
+- A aba Comentários > Template mostra o que o template automático fez por último: em qual task foi posto, por que
+  nada foi (opção desligada, nenhuma task sua nas colunas, todas já comentadas) ou o erro que o Jira devolveu.
 - Nos chips de quadro do Painel, clicar num quadro com outro já escolhido marcava os dois, e com todos marcados
   voltava para "Todos os quadros". Agora um clique troca direto para o quadro clicado, e "Todos os quadros"
   mostra todos.

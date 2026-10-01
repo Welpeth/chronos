@@ -538,8 +538,13 @@ public final class TrackingEngine {
 
     /** Tasks do usuário que estão agora numa coluna monitorada, para o template de comentário. */
     public List<JiraIssue> mineInWorkingColumns() {
+        return inWorkingColumns().stream().filter(JiraIssue::mine).toList();
+    }
+
+    /** Todas as tasks que estão agora numa coluna monitorada, inclusive as de outros responsáveis. */
+    public List<JiraIssue> inWorkingColumns() {
         Predicate<JiraIssue> inColumn = working;
-        return issues.stream().filter(issue -> issue.mine() && inColumn.test(issue)).toList();
+        return issues.stream().filter(inColumn).toList();
     }
 
     /** Anota na Atividade recente (os comentários usam para contar o que fizeram no Jira). */
