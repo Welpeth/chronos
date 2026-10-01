@@ -6,6 +6,11 @@ As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma vers
 ## [Não lançado]
 
 ### Corrigido
+- Salvar as Configurações com "Abrir ao entrar no Windows" dava "O Windows recusou a alteração (código 1)"
+  quando o caminho do Chronos tinha espaços. O Chronos agora grava a opção direto no registro, sem o `reg.exe`.
+- Apagar as horas ou os minutos em "Adicionar tempo" e salvar dava o erro "Cannot invoke
+  java.lang.Integer.intValue()". O campo vazio agora vale 0, e um tempo zerado mostra "Informe um tempo maior
+  que zero.".
 - Quadros com o mesmo nome no Jira (como dois "Quadro RP") viravam um só, e os chips do Painel não apareciam.
   Agora cada um ganha o número no fim, "Quadro RP (215)" e "Quadro RP (514)".
 - O campo Quadros aceita "215 e 514", "215 514" ou "215; 514", além de "215, 514". Antes, só a vírgula
