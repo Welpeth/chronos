@@ -3,6 +3,12 @@
 As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma versão nova gera a release
 `v<versão>` no GitHub, com o instalador e a versão portátil, e usa a seção dessa versão abaixo como notas.
 
+## [Não lançado]
+
+### Corrigido
+- Salvar as Configurações com "Abrir ao entrar no Windows" dava "O Windows recusou a alteração (código 1)"
+  quando o caminho do Chronos tinha espaços. O Chronos agora grava a opção direto no registro, sem o `reg.exe`.
+
 ## [0.5.0] - 2026-09-30
 
 ### Adicionado

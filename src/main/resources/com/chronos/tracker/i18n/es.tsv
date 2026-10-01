@@ -171,7 +171,6 @@ O Jira recusou a consulta: {0}	Jira rechazó la consulta: {0}
 O Jira recusou as credenciais (HTTP {0})	Jira rechazó las credenciales (HTTP {0})
 O Jira respondeu HTTP {0}: {1}	Jira respondió HTTP {0}: {1}
 O Windows recusou a alteração (código {0}).	Windows rechazó el cambio (código {0}).
-O comando do registro não respondeu.	El comando del registro no respondió.
 O download do instalador falhou (HTTP {0})	La descarga del instalador falló (HTTP {0})
 O fluxo de {0} não tem como ir direto para um status concluído	El flujo de {0} no puede ir directamente a un estado finalizado
 O histórico agora é a cópia {0}. O que estava em uso antes ficou guardado na pasta backup.	El historial ahora es la copia {0}. El que estaba en uso antes quedó guardado en la carpeta backup.
