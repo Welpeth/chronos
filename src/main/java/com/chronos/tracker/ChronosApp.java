@@ -10,6 +10,7 @@ import com.chronos.tracker.config.TokenExpiry;
 import com.chronos.tracker.jira.JiraIssue;
 import com.chronos.tracker.jira.RestJiraService;
 import com.chronos.tracker.persistence.SqliteHistoryStore;
+import com.chronos.tracker.system.FreezeWatch;
 import com.chronos.tracker.system.SingleInstance;
 import com.chronos.tracker.tracking.HistoryStore;
 import com.chronos.tracker.tracking.MultiTaskTracker;
@@ -31,15 +32,22 @@ import javafx.stage.Stage;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public final class ChronosApp extends Application {
 
     private static final Path ENV_FILE = AppPaths.envFile();
+    /** Tempo máximo para fechar; depois disso o processo é encerrado à força. */
+    private static final Duration EXIT_GUARD = Duration.ofSeconds(10);
     /** Garante um Chronos só; o {@link Launcher} preenche antes de abrir o app. */
     static SingleInstance singleInstance;
 
@@ -51,39 +59,57 @@ public final class ChronosApp extends Application {
 
     @Override
     public void start(Stage stage) {
-        SplashScreen.show(() -> open(stage));
+        // Se a janela travar, grava o que cada thread fazia em travamentos/, para achar a causa.
+        new FreezeWatch(Platform::runLater, AppPaths.dataDir(), Duration.ofSeconds(8), Clock.systemDefaultZone())
+                .start();
+        // Arquivos, banco e motor ficam prontos durante a animação de abertura; a janela é montada no fim dela.
+        CompletableFuture<Prepared> prepared = CompletableFuture.supplyAsync(ChronosApp::prepare);
+        SplashScreen.show(prepared, () -> {
+            Prepared ready;
+            try {
+                ready = prepared.join();
+            } catch (CompletionException e) {
+                Throwable cause = e.getCause() != null ? e.getCause() : e;
+                new Alert(Alert.AlertType.ERROR, I18n.t("O Chronos não conseguiu abrir:\n{0}", cause.getMessage()))
+                        .showAndWait();
+                Platform.exit();
+                return;
+            }
+            open(stage, ready);
+        });
     }
 
-    private void open(Stage stage) {
+    /** O que o app precisa antes da janela, sem tocar na UI (roda fora da thread do JavaFX). */
+    private record Prepared(AppConfig config, String configError, Optional<Path> restored, String restoreError,
+                            SqliteHistoryStore store, String historyError, TrackingEngine engine) {
+    }
+
+    private static Prepared prepare() {
         AppConfig config;
         try {
             config = AppConfig.load(ENV_FILE);
         } catch (Exception e) {
-            new Alert(Alert.AlertType.ERROR, I18n.t("Não foi possível ler o arquivo .env:\n{0}", e.getMessage()))
-                    .showAndWait();
-            return;
+            return new Prepared(null, String.valueOf(e.getMessage()), Optional.empty(), null, null, null, null);
         }
 
         I18n.use(config.language());
         Clock clock = Clock.systemDefaultZone();
         Path database = AppPaths.resolve(config.databasePath());
         Optional<Path> restored = Optional.empty();
+        String restoreError = null;
         try {
             restored = new Backups(AppPaths.dataDir()).applyPendingRestore(database, LocalDateTime.now(clock));
         } catch (IOException e) {
-            new Alert(Alert.AlertType.WARNING, I18n.t(
-                    "A restauração do histórico falhou:\n{0}\n\nO Chronos abre com o histórico que já estava em uso.",
-                    e.getMessage())).showAndWait();
+            restoreError = String.valueOf(e.getMessage());
         }
-        HistoryStore history;
+        SqliteHistoryStore store = null;
+        String historyError = null;
         try {
             store = new SqliteHistoryStore(database, clock.getZone(), config.jiraSite());
-            history = store;
         } catch (HistoryStore.HistoryException e) {
-            new Alert(Alert.AlertType.WARNING,
-                    I18n.t("{0}\n\nO app vai funcionar, mas o tempo não será gravado.", e.getMessage())).showAndWait();
-            history = HistoryStore.NONE;
+            historyError = String.valueOf(e.getMessage());
         }
+        HistoryStore history = store != null ? store : HistoryStore.NONE;
 
         TrackingEngine engine = new TrackingEngine(
                 new MultiTaskTracker(clock),
@@ -96,6 +122,29 @@ public final class ChronosApp extends Application {
         engine.setAutoStart(config.autoStart());
         engine.setOnlyWorkingColumns(config.onlyWorkingColumns());
         engine.setValidationLabels(config.playLabels(), config.doneLabels());
+        return new Prepared(config, null, restored, restoreError, store, historyError, engine);
+    }
+
+    private void open(Stage stage, Prepared prepared) {
+        if (prepared.configError() != null) {
+            new Alert(Alert.AlertType.ERROR, I18n.t("Não foi possível ler o arquivo .env:\n{0}",
+                    prepared.configError())).showAndWait();
+            return;
+        }
+        AppConfig config = prepared.config();
+        if (prepared.restoreError() != null) {
+            new Alert(Alert.AlertType.WARNING, I18n.t(
+                    "A restauração do histórico falhou:\n{0}\n\nO Chronos abre com o histórico que já estava em uso.",
+                    prepared.restoreError())).showAndWait();
+        }
+        if (prepared.historyError() != null) {
+            new Alert(Alert.AlertType.WARNING, I18n.t("{0}\n\nO app vai funcionar, mas o tempo não será gravado.",
+                    prepared.historyError())).showAndWait();
+        }
+        store = prepared.store();
+        HistoryStore history = store != null ? store : HistoryStore.NONE;
+        TrackingEngine engine = prepared.engine();
+        Optional<Path> restored = prepared.restored();
 
         controller = new AppController(engine, config, history, ENV_FILE);
 
@@ -142,7 +191,22 @@ public final class ChronosApp extends Application {
         if (singleInstance != null) {
             // Abriram o Chronos de novo com ele na bandeja: mostra esta janela.
             TrayIconController.Actions actions = trayActions(stage);
-            singleInstance.onShowRequested(actions::open);
+            singleInstance.onShowRequested(() -> {
+                // Confirma que a janela respondeu; se não responder, o novo Chronos encerra este e abre no lugar.
+                CountDownLatch shown = new CountDownLatch(1);
+                try {
+                    Platform.runLater(() -> {
+                        actions.open();
+                        shown.countDown();
+                    });
+                    return shown.await(10, TimeUnit.SECONDS);
+                } catch (IllegalStateException e) {
+                    return false;
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return false;
+                }
+            });
         }
 
         // Também quando o Windows abre o Chronos ao entrar: a janela aparece (antes ia direto para a bandeja).
@@ -239,9 +303,19 @@ public final class ChronosApp extends Application {
 
     @Override
     public void stop() {
-        if (tray != null) {
-            tray.remove();
-        }
+        // Se algo prender o encerramento, o processo não pode ficar vivo segurando a trava: a próxima abertura
+        // ficaria esperando por ele.
+        Thread guard = new Thread(() -> {
+            try {
+                Thread.sleep(EXIT_GUARD.toMillis());
+            } catch (InterruptedException e) {
+                return;
+            }
+            Runtime.getRuntime().halt(0);
+        }, "chronos-exit-guard");
+        guard.setDaemon(true);
+        guard.start();
+        // Primeiro grava o tempo e solta a trava; a bandeja (que depende da thread do AWT) fica por último.
         if (controller != null) {
             controller.stop();
         }
@@ -250,6 +324,9 @@ public final class ChronosApp extends Application {
         }
         if (singleInstance != null) {
             singleInstance.close();
+        }
+        if (tray != null) {
+            tray.remove();
         }
         if (tray != null && tray.wasInstalled()) {
             // A thread do AWT (bandeja) seguraria o processo aberto.

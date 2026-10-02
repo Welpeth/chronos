@@ -48,6 +48,7 @@ public final class TrayMenu {
     private final VBox card = new VBox();
     private final PauseTransition leave = new PauseTransition(Duration.seconds(2.5));
     private List<TaskView> running = List.of();
+    private boolean hiding;
 
     public TrayMenu(TrayIconController.Actions actions, BooleanSupplier dark) {
         this.actions = actions;
@@ -72,8 +73,14 @@ public final class TrayMenu {
         });
         stage.setScene(scene);
         stage.focusedProperty().addListener((obs, was, focused) -> {
+            // Ao esconder, a janela perde o foco no meio do hide(): esconder de novo aí derruba o JavaFX
+            // ("this.platformWindow is null"). Por isso fica para depois e só se ainda estiver aberta.
             if (!focused) {
-                hide();
+                Platform.runLater(() -> {
+                    if (stage.isShowing()) {
+                        hide();
+                    }
+                });
             }
         });
         leave.setOnFinished(e -> hide());
@@ -114,9 +121,21 @@ public final class TrayMenu {
     }
 
     public void hide() {
-        leave.stop();
-        stage.hide();
-        owner.hide();
+        if (hiding) {
+            return;
+        }
+        hiding = true;
+        try {
+            leave.stop();
+            if (stage.isShowing()) {
+                stage.hide();
+            }
+            if (owner.isShowing()) {
+                owner.hide();
+            }
+        } finally {
+            hiding = false;
+        }
     }
 
     /**
@@ -203,10 +222,7 @@ public final class TrayMenu {
         button.setMaxWidth(Double.MAX_VALUE);
         button.setAlignment(Pos.CENTER_LEFT);
         button.setGraphicTextGap(10);
-        button.setOnAction(e -> {
-            hide();
-            action.run();
-        });
+        button.setOnAction(e -> run(action));
         return button;
     }
 
@@ -214,11 +230,17 @@ public final class TrayMenu {
         Button button = new Button(null, Icons.of(icon, 16, "tray-menu-icon"));
         button.getStyleClass().add("tray-menu-icon-button");
         button.setTooltip(new Tooltip(tip));
-        button.setOnAction(e -> {
-            hide();
-            action.run();
-        });
+        button.setOnAction(e -> run(action));
         return button;
+    }
+
+    /** Fecha o menu e faz a ação; a ação acontece mesmo se fechar o menu der erro (Sair tem que sair). */
+    private void run(Runnable action) {
+        try {
+            hide();
+        } finally {
+            action.run();
+        }
     }
 
     private static Region divider() {
