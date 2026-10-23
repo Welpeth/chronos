@@ -3,7 +3,7 @@
 As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma versão nova gera a release
 `v<versão>` no GitHub, com o instalador e a versão portátil, e usa a seção dessa versão abaixo como notas.
 
-## [Não lançado]
+## [0.5.6] - 2026-10-23
 
 ### Adicionado
 - "Concluídas hoje" mostra também as tasks que você moveu hoje para a coluna de concluídas ("Done" por padrão,
