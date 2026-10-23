@@ -39,12 +39,15 @@ public record AppConfig(
         List<String> jiraBoards,
         boolean commentsEnabled,
         boolean commentTemplateEnabled,
-        Map<String, String> boardFilters) {
+        Map<String, String> boardFilters,
+        String doneStatus) {
 
     public static final Duration DEFAULT_POLLING_INTERVAL = Duration.ofSeconds(5);
     public static final Duration DEFAULT_POSSIBLY_IDLE_AFTER = Duration.ofMinutes(2);
     public static final Duration DEFAULT_INACTIVE_AFTER = Duration.ofMinutes(5);
     public static final String DEFAULT_DATABASE = "chronos.db";
+    /** Status para onde mover a task conta como concluída por quem moveu (CHRONOS_DONE_STATUS). */
+    public static final String DEFAULT_DONE_STATUS = "Done";
     /** Colunas padrão em que o tempo conta; somam com as de JIRA_IN_PROGRESS_STATUSES se JIRA_USE_DEFAULT_STATUSES. */
     public static final List<String> DEFAULT_WORKING_STATUSES = List.of("Em andamento", "Em progresso", "In Progress");
 
@@ -93,7 +96,8 @@ public record AppConfig(
                 nonBlank.apply("JIRA_BOARDS").map(AppConfig::boardIds).orElse(List.of()),
                 flag(nonBlank, "CHRONOS_COMMENTS", false),
                 flag(nonBlank, "CHRONOS_COMMENT_TEMPLATE", false),
-                nonBlank.apply("JIRA_BOARD_FILTERS").map(AppConfig::boardFilters).orElse(Map.of()));
+                nonBlank.apply("JIRA_BOARD_FILTERS").map(AppConfig::boardFilters).orElse(Map.of()),
+                nonBlank.apply("CHRONOS_DONE_STATUS").orElse(DEFAULT_DONE_STATUS));
     }
 
     /**
@@ -231,6 +235,7 @@ public record AppConfig(
                 + ", language=" + language.code
                 + ", jiraBoards=" + jiraBoards
                 + ", boardFilters=" + boardFilters
+                + ", doneStatus=" + doneStatus
                 + ", commentsEnabled=" + commentsEnabled
                 + ", commentTemplateEnabled=" + commentTemplateEnabled + "]";
     }

@@ -93,6 +93,11 @@ A cada `POLLING_INTERVAL_SECONDS` o app consulta o Jira Cloud (`/rest/api/3/sear
   concluídas hoje;
 - com `JIRA_JQL`: a sua consulta, na ordem dela (ou por `updated DESC` se não tiver `ORDER BY`).
 
+Nos dois casos entram também, em "Concluídas hoje", as tasks que você moveu hoje para o status de
+`CHRONOS_DONE_STATUS` ("Done" por padrão, também em Configurações > Colunas do quadro), mesmo sem o seu nome nelas,
+como quem testa uma task de outra pessoa. Vale quando a última alteração do histórico da task é essa mudança, feita
+pela conta conectada.
+
 Conta tempo toda issue que está numa coluna que conta. As colunas padrão são "Em andamento", "Em progresso" e
 "In Progress"; em `JIRA_IN_PROGRESS_STATUSES` dá para acrescentar outras escritas como no quadro (por exemplo
 "Test", para quem testa). Com `JIRA_USE_DEFAULT_STATUSES=false`, só as digitadas contam. Com

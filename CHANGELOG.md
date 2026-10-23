@@ -3,6 +3,13 @@
 As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma versão nova gera a release
 `v<versão>` no GitHub, com o instalador e a versão portátil, e usa a seção dessa versão abaixo como notas.
 
+## [Não lançado]
+
+### Adicionado
+- "Concluídas hoje" mostra também as tasks que você moveu hoje para a coluna de concluídas ("Done" por padrão,
+  em Configurações > Colunas do quadro ou `CHRONOS_DONE_STATUS`), mesmo sem o seu nome nelas. Vale quando mover
+  foi a última coisa no histórico da task e quem moveu foi a conta conectada, como o tester ao terminar o teste.
+
 ## [0.5.5] - 2026-10-02
 
 ### Adicionado

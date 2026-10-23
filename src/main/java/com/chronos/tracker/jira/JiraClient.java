@@ -65,7 +65,56 @@ public final class JiraClient {
     /** Usuário dono do API token. */
     public JiraUser myself() throws JiraException {
         JsonNode user = readTree(send(request("/rest/api/3/myself").GET().build()));
-        return new JiraUser(user.path("displayName").asText(""), user.path("emailAddress").asText(""));
+        return new JiraUser(user.path("displayName").asText(""), user.path("emailAddress").asText(""),
+                user.path("accountId").asText(""));
+    }
+
+    /** Quantas alterações do histórico o Jira devolve por página. */
+    static final int CHANGELOG_PAGE = 100;
+
+    /**
+     * Última alteração do histórico da issue (vazio se ela não tem nenhuma). O Jira devolve o histórico do mais
+     * antigo para o mais novo, então com mais de uma página busca de novo só a última.
+     */
+    public java.util.Optional<HistoryEntry> lastHistoryEntry(String issueKey) throws JiraException {
+        String path = "/rest/api/3/issue/" + URLEncoder.encode(issueKey, StandardCharsets.UTF_8) + "/changelog";
+        JsonNode page = readTree(send(request(path + "?maxResults=" + CHANGELOG_PAGE).GET().build()));
+        int total = page.path("total").asInt(0);
+        if (!page.path("isLast").asBoolean(true) && total > CHANGELOG_PAGE) {
+            page = readTree(send(request(path + "?maxResults=" + CHANGELOG_PAGE
+                    + "&startAt=" + (total - CHANGELOG_PAGE)).GET().build()));
+        }
+        return lastEntry(page.path("values"));
+    }
+
+    /** A alteração mais recente da lista; no empate de horário, a que vem por último. */
+    static java.util.Optional<HistoryEntry> lastEntry(JsonNode values) {
+        HistoryEntry last = null;
+        for (JsonNode value : values) {
+            java.util.Optional<java.time.Instant> created = parseInstant(value.path("created").asText(""));
+            if (created.isEmpty()) {
+                continue;
+            }
+            String toStatus = "";
+            for (JsonNode item : value.path("items")) {
+                if ("status".equals(item.path("fieldId").asText(item.path("field").asText("")))) {
+                    toStatus = item.path("toString").asText("");
+                }
+            }
+            HistoryEntry entry = new HistoryEntry(value.path("author").path("accountId").asText(""),
+                    created.get(), toStatus);
+            if (last == null || !entry.created().isBefore(last.created())) {
+                last = entry;
+            }
+        }
+        return java.util.Optional.ofNullable(last);
+    }
+
+    /**
+     * Uma alteração do histórico da issue: quem fez, quando e, se ela mudou o status, o nome do status para
+     * onde a issue foi (vazio se não mexeu no status).
+     */
+    public record HistoryEntry(String authorAccountId, java.time.Instant created, String toStatus) {
     }
 
     /** Nome do projeto com a chave informada. */

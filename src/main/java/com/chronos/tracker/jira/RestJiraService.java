@@ -4,6 +4,7 @@ import com.chronos.tracker.config.AppConfig;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -23,6 +24,10 @@ import java.util.stream.Collectors;
  * <p>Se o {@code .env} define {@code JIRA_JQL}, essa consulta é usada no lugar da padrão. Com
  * {@code JIRA_WATCH_WHOLE_COLUMNS}, vêm também as tasks de outros responsáveis (ou sem responsável) que estão nas
  * colunas que contam tempo, como a coluna de teste para quem testa.
+ *
+ * <p>Vêm também, como concluídas hoje, as tasks que o próprio usuário moveu hoje para o status de
+ * {@code CHRONOS_DONE_STATUS} ("Done" por padrão), quando essa mudança é a última coisa no histórico delas. Assim
+ * quem testa vê o que terminou mesmo sem ser o responsável.
  */
 public final class RestJiraService implements JiraService {
 
@@ -39,6 +44,12 @@ public final class RestJiraService implements JiraService {
     private final Map<String, String> boardFilters;
     /** Nome de cada quadro, lido do Jira uma vez. */
     private final Map<String, String> boardNames = new ConcurrentHashMap<>();
+    /** Status para onde o usuário move a task ao concluir; vazio desliga a busca pelo histórico. */
+    private final String doneStatus;
+    /** Se a task foi concluída pelo usuário, pela chave e pela última modificação, para não reler o histórico. */
+    private final Map<String, Boolean> completedByMe = new ConcurrentHashMap<>();
+    /** accountId do dono do API token, lido do Jira uma vez. */
+    private volatile String myAccountId = "";
 
     public RestJiraService(JiraClient client, String jql, List<String> projectKeys) {
         this(client, jql, projectKeys, Optional.empty(), List.of());
@@ -51,7 +62,13 @@ public final class RestJiraService implements JiraService {
 
     RestJiraService(JiraClient client, String jql, List<String> projectKeys, Optional<String> columnJql,
                     List<String> boardIds, Map<String, String> boardFilters) {
+        this(client, jql, projectKeys, columnJql, boardIds, boardFilters, "");
+    }
+
+    RestJiraService(JiraClient client, String jql, List<String> projectKeys, Optional<String> columnJql,
+                    List<String> boardIds, Map<String, String> boardFilters, String doneStatus) {
         this.client = client;
+        this.doneStatus = doneStatus.strip();
         this.jql = jql;
         this.projectKeys = List.copyOf(projectKeys);
         this.columnJql = columnJql;
@@ -72,7 +89,26 @@ public final class RestJiraService implements JiraService {
                 ? Optional.of(columnJql(config.jiraProjectKeys(), config.workingStatuses()))
                 : Optional.empty();
         return new RestJiraService(client, withOrdering(jql), config.jiraProjectKeys(), columnJql,
-                config.jiraBoards(), config.boardFilters());
+                config.jiraBoards(), config.boardFilters(), config.doneStatus());
+    }
+
+    /** Candidatas a concluídas hoje pelo usuário: movidas por ele hoje para o status e ainda nele. */
+    static String doneByMeJql(List<String> projectKeys, String status) {
+        String quotedStatus = quoted(List.of(status));
+        String projects = projectKeys.isEmpty() ? "" : "project in (" + quoted(projectKeys) + ") AND ";
+        return projects + "status = " + quotedStatus + " AND status CHANGED TO " + quotedStatus
+                + " BY currentUser() AFTER startOfDay() ORDER BY updated DESC";
+    }
+
+    /**
+     * Se a última alteração do histórico é a mudança para {@code status}, feita hoje pela conta {@code accountId}.
+     */
+    static boolean completedBy(JiraClient.HistoryEntry last, String accountId, String status, LocalDate today,
+                               ZoneId zone) {
+        return !accountId.isEmpty()
+                && accountId.equals(last.authorAccountId())
+                && last.toStatus().equalsIgnoreCase(status)
+                && last.created().atZone(zone).toLocalDate().equals(today);
     }
 
     /** Tasks nas colunas que contam tempo que não são do usuário: de outra pessoa ou sem responsável. */
@@ -105,6 +141,10 @@ public final class RestJiraService implements JiraService {
         return columnJql;
     }
 
+    String doneStatus() {
+        return doneStatus;
+    }
+
     @Override
     public boolean isConfigured() {
         return true;
@@ -113,10 +153,53 @@ public final class RestJiraService implements JiraService {
     @Override
     public List<JiraIssue> fetchMyIssues() throws JiraException {
         List<JiraIssue> mine = client.search(jql, MAX_ISSUES);
-        if (columnJql.isEmpty()) {
-            return mine;
+        List<JiraIssue> all = columnJql.isEmpty() ? mine : withOthers(mine, client.search(columnJql.get(), MAX_ISSUES));
+        return withDoneByMe(all);
+    }
+
+    /**
+     * Junta as tasks que o usuário concluiu hoje movendo para {@link #doneStatus} e que ainda não estão na lista,
+     * como dele. Um nome de status que o Jira não conhece não derruba a sincronização: só fica sem essas tasks.
+     */
+    private List<JiraIssue> withDoneByMe(List<JiraIssue> issues) throws JiraException {
+        if (doneStatus.isEmpty()) {
+            return issues;
         }
-        return withOthers(mine, client.search(columnJql.get(), MAX_ISSUES));
+        List<JiraIssue> candidates;
+        try {
+            candidates = client.search(doneByMeJql(projectKeys, doneStatus), MAX_ISSUES);
+        } catch (JiraQueryException e) {
+            return issues;
+        }
+        Set<String> keys = new HashSet<>();
+        issues.forEach(issue -> keys.add(issue.key()));
+        List<JiraIssue> all = new ArrayList<>(issues);
+        for (JiraIssue candidate : candidates) {
+            if (keys.add(candidate.key()) && isCompletedByMe(candidate)) {
+                all.add(candidate);
+            }
+        }
+        return List.copyOf(all);
+    }
+
+    private boolean isCompletedByMe(JiraIssue issue) throws JiraException {
+        String cacheKey = issue.key() + "@" + issue.updated().map(Instant::toString).orElse("");
+        Boolean cached = completedByMe.get(cacheKey);
+        if (cached != null) {
+            return cached;
+        }
+        if (myAccountId.isEmpty()) {
+            myAccountId = client.myself().accountId();
+        }
+        boolean completed = client.lastHistoryEntry(issue.key())
+                .map(last -> completedBy(last, myAccountId, doneStatus, LocalDate.now(), ZoneId.systemDefault()))
+                .orElse(false);
+        // No dia seguinte a busca já não traz a task, então o "sim" guardado não passa de hoje.
+        if (completedByMe.size() > 500) {
+            completedByMe.clear();
+        }
+        completedByMe.put(cacheKey, completed);
+        return completed;
     }
 
     /** As do usuário primeiro; depois as das colunas que ainda não apareceram, marcadas como de outros. */
