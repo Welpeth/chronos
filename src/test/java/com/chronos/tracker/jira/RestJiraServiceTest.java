@@ -89,4 +89,98 @@ class RestJiraServiceTest {
                         + " AND created >= -3d ORDER BY created DESC",
                 RestJiraService.alertJql(List.of("SCRUM"), List.of("Bug Cliente", "Incidente")));
     }
+
+    @Test
+    void doneStatusComesFromTheConfigWithDoneAsDefault() {
+        Map<String, String> values = new java.util.HashMap<>(CREDENTIALS);
+        values.put("JIRA_PROJECT_KEY", "PROJ");
+        assertEquals("Done", ((RestJiraService) RestJiraService.from(AppConfig.fromMap(values))).doneStatus());
+
+        values.put("CHRONOS_DONE_STATUS", " Concluído ");
+        assertEquals("Concluído", ((RestJiraService) RestJiraService.from(AppConfig.fromMap(values))).doneStatus());
+    }
+
+    @Test
+    void doneByMeJqlLooksForTodaysMovesByTheUserIntoTheStatus() {
+        assertEquals("project in (\"PROJ\") AND status = \"Done\" AND status CHANGED TO \"Done\""
+                        + " BY currentUser() AFTER startOfDay() ORDER BY updated DESC",
+                RestJiraService.doneByMeJql(List.of("PROJ"), "Done"));
+        assertEquals("status = \"Done\" AND status CHANGED TO \"Done\""
+                        + " BY currentUser() AFTER startOfDay() ORDER BY updated DESC",
+                RestJiraService.doneByMeJql(List.of(), "Done"));
+    }
+
+    @Test
+    void completedOnlyWhenTheLastChangeIsTodaysMoveByMeIntoTheStatus() {
+        java.time.ZoneId zone = java.time.ZoneId.of("America/Sao_Paulo");
+        java.time.LocalDate today = java.time.LocalDate.of(2026, 10, 22);
+        java.time.Instant afternoon = java.time.Instant.parse("2026-10-22T18:30:00Z");
+
+        assertTrue(RestJiraService.completedBy(
+                new JiraClient.HistoryEntry("eu", afternoon, "done"), "eu", "Done", today, zone));
+        // Outra pessoa moveu, ou a última alteração não foi a mudança para o status.
+        assertFalse(RestJiraService.completedBy(
+                new JiraClient.HistoryEntry("ana", afternoon, "Done"), "eu", "Done", today, zone));
+        assertFalse(RestJiraService.completedBy(
+                new JiraClient.HistoryEntry("eu", afternoon, ""), "eu", "Done", today, zone));
+        assertFalse(RestJiraService.completedBy(
+                new JiraClient.HistoryEntry("eu", afternoon, "Test"), "eu", "Done", today, zone));
+        // Ontem no horário local, mesmo sendo hoje em UTC.
+        assertFalse(RestJiraService.completedBy(new JiraClient.HistoryEntry("eu",
+                java.time.Instant.parse("2026-10-22T02:00:00Z"), "Done"), "eu", "Done", today, zone));
+        // Sem saber quem é o usuário, não conta.
+        assertFalse(RestJiraService.completedBy(
+                new JiraClient.HistoryEntry("", afternoon, "Done"), "", "Done", today, zone));
+    }
+
+    @Test
+    void fetchAddsTasksTheUserMovedToDoneTodayWithoutBeingAssigned() throws Exception {
+        com.sun.net.httpserver.HttpServer server = com.sun.net.httpserver.HttpServer.create(
+                new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        String now = java.time.OffsetDateTime.now().format(JiraClient.WORKLOG_STARTED);
+        java.util.concurrent.atomic.AtomicInteger changelogReads = new java.util.concurrent.atomic.AtomicInteger();
+        server.createContext("/rest/api/3/search/jql", exchange -> {
+            String body = new String(exchange.getRequestBody().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            String issues = body.contains("CHANGED TO") ? """
+                    {"key":"PROJ-1","fields":{"summary":"Minha","status":{"name":"Done","statusCategory":{"key":"done"}}}},
+                    {"key":"PROJ-2","fields":{"summary":"Testei","assignee":{"displayName":"Dev"},
+                      "status":{"name":"Done","statusCategory":{"key":"done"}}}},
+                    {"key":"PROJ-3","fields":{"summary":"Mexeram depois","assignee":{"displayName":"Dev"},
+                      "status":{"name":"Done","statusCategory":{"key":"done"}}}}
+                    """ : """
+                    {"key":"PROJ-1","fields":{"summary":"Minha","status":{"name":"Done","statusCategory":{"key":"done"}}}}
+                    """;
+            respond(exchange, "{\"issues\":[" + issues + "]}");
+        });
+        server.createContext("/rest/api/3/myself", exchange -> respond(exchange, "{\"accountId\":\"eu\"}"));
+        server.createContext("/rest/api/3/issue/", exchange -> {
+            changelogReads.incrementAndGet();
+            String author = exchange.getRequestURI().getPath().contains("PROJ-2") ? "eu" : "dev";
+            String field = author.equals("eu") ? "status" : "labels";
+            respond(exchange, "{\"isLast\":true,\"values\":[{\"author\":{\"accountId\":\"" + author
+                    + "\"},\"created\":\"" + now + "\",\"items\":[{\"fieldId\":\"" + field
+                    + "\",\"toString\":\"Done\"}]}]}");
+        });
+        server.start();
+        try {
+            JiraClient client = new JiraClient("http://127.0.0.1:" + server.getAddress().getPort(), "e", "t");
+            RestJiraService service = new RestJiraService(client, "assignee = currentUser()", List.of("PROJ"),
+                    Optional.empty(), List.of(), Map.of(), "Done");
+
+            assertEquals(List.of("PROJ-1", "PROJ-2"), service.fetchMyIssues().stream().map(JiraIssue::key).toList());
+            assertTrue(service.fetchMyIssues().stream().allMatch(JiraIssue::mine));
+            // A segunda busca não relê o histórico das tasks que não mudaram.
+            assertEquals(2, changelogReads.get());
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    private static void respond(com.sun.net.httpserver.HttpExchange exchange, String body) throws java.io.IOException {
+        byte[] bytes = body.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        exchange.sendResponseHeaders(200, bytes.length);
+        try (java.io.OutputStream out = exchange.getResponseBody()) {
+            out.write(bytes);
+        }
+    }
 }

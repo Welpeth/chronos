@@ -379,3 +379,6 @@ O Jira recusou o template em {0}: {1}	Jira rechazó la plantilla en {0}: {1}
 Template posto em {0} às {1}.	Plantilla puesta en {0} a las {1}.
 O Chronos não conseguiu abrir:\n{0}	Chronos no pudo abrir:\n{0}
 Inicializando, aguarde	Iniciando, espere
+Coluna de concluídas	Columna de concluidas
+Done (escreva o status como aparece no Jira)	Done (escribe el estado como aparece en Jira)
+Uma task que você moveu hoje para essa coluna entra em Concluídas hoje, mesmo sem o seu nome nela, desde que mover tenha sido a última coisa feita na task. Vazio, vale Done.	Una tarea que moviste hoy a esta columna entra en Completadas hoy, aunque no tenga tu nombre, siempre que moverla haya sido lo último que se hizo en la tarea. Vacío, vale Done.

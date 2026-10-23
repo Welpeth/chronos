@@ -138,6 +138,12 @@ public final class SettingsPage {
         onlyHint.getStyleClass().add("muted");
         onlyHint.setWrapText(true);
         columns.add(onlyHint, 1, 7);
+        row(columns, 8, "CHRONOS_DONE_STATUS", I18n.t("Coluna de concluídas"),
+                I18n.t("Done (escreva o status como aparece no Jira)"), new TextField());
+        Label doneHint = new Label(I18n.t("Uma task que você moveu hoje para essa coluna entra em Concluídas hoje, mesmo sem o seu nome nela, desde que mover tenha sido a última coisa feita na task. Vazio, vale Done."));
+        doneHint.getStyleClass().add("muted");
+        doneHint.setWrapText(true);
+        columns.add(doneHint, 1, 9);
         VBox columnsCard = card(I18n.t("Colunas do quadro"), columns);
 
         GridPane categories = form();

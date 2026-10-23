@@ -217,4 +217,59 @@ class JiraClientTest {
 
         assertEquals(false, new JiraClient(baseUrl, "e", "t").hasTimeTrackingField("PROJ-1"));
     }
+
+    @Test
+    void myselfReadsTheAccountId() throws Exception {
+        serve("/rest/api/3/myself", 200,
+                "{\"accountId\":\"abc-123\",\"displayName\":\"Ana\",\"emailAddress\":\"ana@empresa.com\"}");
+
+        assertEquals(new JiraUser("Ana", "ana@empresa.com", "abc-123"), new JiraClient(baseUrl, "e", "t").myself());
+    }
+
+    @Test
+    void lastHistoryEntryReadsTheLastPageWhenTheHistoryIsLong() throws Exception {
+        List<String> queries = new java.util.concurrent.CopyOnWriteArrayList<>();
+        server.createContext("/rest/api/3/issue/PROJ-1/changelog", exchange -> {
+            String query = exchange.getRequestURI().getQuery();
+            queries.add(query);
+            String body = query.contains("startAt=50") ? """
+                    {"startAt":50,"maxResults":100,"total":150,"isLast":true,"values":[
+                      {"author":{"accountId":"dev"},"created":"2026-10-22T09:00:00.000-0300",
+                       "items":[{"field":"status","fieldId":"status","fromString":"To Do","toString":"Test"}]},
+                      {"author":{"accountId":"tester"},"created":"2026-10-22T15:30:00.000-0300",
+                       "items":[{"field":"resolution","fieldId":"resolution","toString":"Feito"},
+                                {"field":"status","fieldId":"status","fromString":"Test","toString":"Done"}]}
+                    ]}""" : """
+                    {"startAt":0,"maxResults":100,"total":150,"isLast":false,"values":[
+                      {"author":{"accountId":"dev"},"created":"2026-10-01T09:00:00.000-0300","items":[]}
+                    ]}""";
+            byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, bytes.length);
+            try (OutputStream out = exchange.getResponseBody()) {
+                out.write(bytes);
+            }
+        });
+
+        assertEquals(java.util.Optional.of(new JiraClient.HistoryEntry("tester",
+                        java.time.Instant.parse("2026-10-22T18:30:00Z"), "Done")),
+                new JiraClient(baseUrl, "e", "t").lastHistoryEntry("PROJ-1"));
+        assertEquals(List.of("maxResults=100", "maxResults=100&startAt=50"), queries);
+    }
+
+    @Test
+    void lastHistoryEntryWithoutStatusChangeHasNoStatus() throws Exception {
+        serve("/rest/api/3/issue/PROJ-2/changelog", 200, """
+                {"startAt":0,"maxResults":100,"total":2,"isLast":true,"values":[
+                  {"author":{"accountId":"tester"},"created":"2026-10-22T15:30:00.000-0300",
+                   "items":[{"field":"status","fieldId":"status","toString":"Done"}]},
+                  {"author":{"accountId":"dev"},"created":"2026-10-22T16:00:00.000-0300",
+                   "items":[{"field":"labels","fieldId":"labels","toString":"testado"}]}
+                ]}""");
+
+        assertEquals(java.util.Optional.of(new JiraClient.HistoryEntry("dev",
+                        java.time.Instant.parse("2026-10-22T19:00:00Z"), "")),
+                new JiraClient(baseUrl, "e", "t").lastHistoryEntry("PROJ-2"));
+        serve("/rest/api/3/issue/PROJ-3/changelog", 200, "{\"values\":[],\"isLast\":true}");
+        assertEquals(java.util.Optional.empty(), new JiraClient(baseUrl, "e", "t").lastHistoryEntry("PROJ-3"));
+    }
 }
