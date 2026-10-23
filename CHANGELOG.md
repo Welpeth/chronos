@@ -3,7 +3,7 @@
 As versões seguem o `<version>` do `pom.xml`. Cada merge na `main` com uma versão nova gera a release
 `v<versão>` no GitHub, com o instalador e a versão portátil, e usa a seção dessa versão abaixo como notas.
 
-## [Não lançado]
+## [0.5.6] - 2026-10-23
 
 ### Adicionado
 - "Concluídas hoje" mostra também as tasks que você moveu hoje para a coluna de concluídas ("Done" por padrão,
@@ -198,6 +198,7 @@ Primeira versão instalável.
 - O histórico de um Jira antigo aparecia depois de trocar o Jira nas configurações. (#19)
 - O aviso de "controle de tempo" aparecia em projetos gerenciados pela equipe que tinham o campo. (#19)
 
+[0.5.6]: https://github.com/Welpeth/chronos/compare/v0.5.5...v0.5.6
 [0.5.5]: https://github.com/Welpeth/chronos/compare/v0.5.4...v0.5.5
 [0.5.4]: https://github.com/Welpeth/chronos/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/Welpeth/chronos/compare/v0.5.2...v0.5.3
